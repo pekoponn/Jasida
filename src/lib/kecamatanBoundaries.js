@@ -37,6 +37,12 @@ export function findKecamatan(lat, lng) {
   return feature ? feature.properties.kecamatan : null;
 }
 
+export function getKecamatanNames() {
+  return sidoarjoKecamatan.features
+    .map((f) => f.properties.kecamatan)
+    .sort((a, b) => a.localeCompare(b));
+}
+
 export function getKecamatanGeoJSON() {
   return sidoarjoKecamatan;
 }

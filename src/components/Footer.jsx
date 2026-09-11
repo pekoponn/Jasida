@@ -131,7 +131,7 @@ const rightGroup = {
 
 const footerLogoText = {
   fontSize: 32,
-  fontWeight: 700,
+  fontWeight: 400,
   color: '#111',
   fontFamily: JASIDA_FONT,
   letterSpacing: '-0.5px',

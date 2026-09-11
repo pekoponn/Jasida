@@ -1,14 +1,13 @@
 :root {
-  /* ---- Color tokens ---- */
-  --color-bg: #F2F1EC;           /* concrete */
+  --color-bg: #FAFAF9;
   --color-surface: #FFFFFF;
   --color-surface-raised: #FBFAF7;
-  --color-ink: #191B1F;          /* asphalt */
+  --color-ink: #191B1F;
   --color-ink-soft: #5B5F68;
   --color-border: #DEDBD3;
-  --color-primary: #24506F;      /* road-sign blue */
+  --color-primary: #24506F;
   --color-primary-ink: #FFFFFF;
-  --color-accent: #E0561F;       /* traffic-cone orange */
+  --color-accent: #E0561F;
   --color-accent-ink: #FFFFFF;
 
   /* severity scale */
@@ -18,8 +17,8 @@
   --sev-emergency: #D62828;
 
   /* ---- Type tokens ---- */
-  --font-display: 'Space Grotesk', 'Inter', sans-serif;
-  --font-body: 'Inter', sans-serif;
+  --font-display: 'Plus Jakarta Sans', sans-serif;
+  --font-body: 'Plus Jakarta Sans', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   /* ---- Layout tokens ---- */
@@ -41,15 +40,24 @@
 }
 
 html, body, #root {
-  height: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  scroll-behavior: smooth;
 }
 
 body {
-  margin: 0;
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
 }
 
 h1, h2, h3, .display {
@@ -71,7 +79,7 @@ a {
   color: inherit;
 }
 
-/* Road-lane divider — signature element used between sections */
+/* Road-lane divider */
 .lane-divider {
   height: 3px;
   background: var(--lane-dash);
@@ -79,15 +87,183 @@ a {
   margin: 0;
 }
 
-/* Visible keyboard focus everywhere */
+/* Keyboard focus */
 :focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
+/* ====================================================
+   HERO & RESPONSIF BERDAMPINGAN (DESKTOP LIKE MOBILE)
+   ==================================================== */
+.rw-hero-container {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 24px !important;
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.rw-hero-text {
+  flex: 1 1 55% !important;
+  min-width: 0 !important;
+}
+
+.rw-hero-image {
+  flex: 1 1 45% !important;
+  min-width: 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+.rw-hero-buttons {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 12px !important;
+}
+
+.rw-hero-buttons a {
+  white-space: nowrap;
+}
+
+/* Adjustments for Mobile Viewports */
+@media (max-width: 860px) {
+  .rw-hero-section {
+    padding: 28px 4% !important;
+    min-height: auto !important;
+  }
+
+  .rw-hero-title {
+    font-size: 20px !important;
+    line-height: 1.25 !important;
+  }
+
+  .rw-hero-subtitle {
+    font-size: 11px !important;
+    margin-top: 8px !important;
+    line-height: 1.4 !important;
+  }
+
+  .rw-hero-buttons {
+    margin-top: 14px !important;
+  }
+
+  .rw-hero-buttons a {
+    padding: 8px 14px !important;
+    font-size: 11px !important;
+    border-radius: 20px !important;
+  }
+
+  .rw-section-padding {
+    padding: 32px 4% !important;
+  }
+
+  .rw-section-title {
+    font-size: 20px !important;
+  }
+
+  .rw-section-subtitle {
+    font-size: 11px !important;
+  }
+
+  .rw-map-box {
+    height: 280px !important;
+    margin-top: 20px !important;
+  }
+
+  .kecamatan-label {
+    font-size: 7px !important;
+  }
+
+  .rw-legend-row {
+    gap: 12px !important;
+  }
+}
+
+/* Reduce motion */
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+#root, .page-wrapper, .rw-hero-section {
+  min-height: auto !important;
+  height: auto !important;
+}
+
+.rw-header-mobile {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px 5%;
+  background: #ffffff;
+}
+
+.rw-mobile-bottom-nav {
+  display: flex;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  z-index: 9999;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.rw-bottom-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 500;
+  gap: 3px;
+  flex: 1;
+}
+
+.rw-bottom-item.active,
+.rw-bottom-item:hover {
+  color: #A61C24;
+}
+
+  .mobile-nav-item.active,
+  .mobile-nav-item:hover {
+    color: #A61C24;
+  }
+
+  .mobile-nav-icon {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+  }
+
+  /* Hilangkan arrow bawaan select di semua browser */
+.rw-select::-ms-expand {
+  display: none;
+}
+
+/* Custom warna icon kalender bawaan input date, biar seragam gelapnya */
+.rw-date-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.35) sepia(1) saturate(4) hue-rotate(300deg);
+  cursor: pointer;
+}
+
+.rw-date-input::-webkit-datetime-edit {
+  color: #495057;
+}
+
+.rw-date-input::-webkit-inner-spin-button {
+  display: none;
 }

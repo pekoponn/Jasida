@@ -1,20 +1,49 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { listReportsFeed, supportReport, getMySupports, getReportPhotos } from '../lib/reports.js';
 import SeverityBadge from '../components/SeverityBadge.jsx';
 import { useAuth } from '../lib/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
 import { reverseGeocode } from '../lib/geolocation.js';
 import CommentSection from '../components/CommentSection.jsx';
-
-const STATUS_LABEL = { open: 'Belum diproses', in_progress: 'Diproses', resolved: 'Selesai' };
-const STATUS_COLOR = { open: '#868e96', in_progress: '#f08c00', resolved: '#2f9e44' };
+import { findKecamatan, getKecamatanNames } from '../lib/kecamatanBoundaries.js';
+import roadIcon from '../assets/RoadIcon.png';
+import { useIsMobileDevice } from '../lib/useIsMobileDevice.js';
+import CustomSelect from '../components/CustomSelect.jsx';
+import CustomDateRangePicker from '../components/CustomDateRangePicker.jsx';
 
 export default function DashboardPage() {
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .rw-btn-anim {
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+      .rw-btn-anim:hover:not(:disabled) {
+        transform: translateY(-2px) scale(1.04);
+        box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+      }
+      .rw-btn-anim:active:not(:disabled) {
+        transform: scale(0.96);
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
+
   const [reports, setReports] = useState([]);
   const [mySupports, setMySupports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { user } = useAuth();
+  const isMobileDevice = useIsMobileDevice();
+  const navigate = useNavigate();
+
+  const [kecamatanFilter, setKecamatanFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [appliedFilters, setAppliedFilters] = useState({ kecamatan: '', from: '', to: '' });
+
+  const kecamatanOptions = useMemo(() => getKecamatanNames(), []);
 
   useEffect(() => {
     listReportsFeed()
@@ -37,32 +66,136 @@ export default function DashboardPage() {
     );
   }
 
+  function handleSearch() {
+    setAppliedFilters({ kecamatan: kecamatanFilter, from: dateFrom, to: dateTo });
+  }
+
+  const filteredReports = useMemo(() => {
+    return reports.filter((r) => {
+      if (appliedFilters.kecamatan) {
+        const nama = typeof r.lat === 'number' && typeof r.lng === 'number'
+          ? findKecamatan(r.lat, r.lng)
+          : null;
+        if (nama !== appliedFilters.kecamatan) return false;
+      }
+      if (appliedFilters.from) {
+        if (new Date(r.created_at) < new Date(appliedFilters.from)) return false;
+      }
+      if (appliedFilters.to) {
+        const toEnd = new Date(appliedFilters.to);
+        toEnd.setHours(23, 59, 59, 999);
+        if (new Date(r.created_at) > toEnd) return false;
+      }
+      return true;
+    });
+  }, [reports, appliedFilters]);
+
   return (
-    <section>
-      <h1 className="display" style={{ fontSize: 24, marginBottom: 4 }}>Laporan warga</h1>
-      <p style={{ color: 'var(--color-ink-soft)', marginTop: 0, fontSize: 14 }}>
-        Semua laporan kerusakan jalan dari warga sekitar.
-      </p>
-
-      {loading && <p style={{ marginTop: 20 }}>Memuat…</p>}
-      {error && <p style={{ color: 'var(--sev-emergency)' }}>{error}</p>}
-      {!loading && !error && reports.length === 0 && (
-        <p style={{ marginTop: 20, color: 'var(--color-ink-soft)' }}>Belum ada laporan.</p>
-      )}
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 20 }}>
-        {reports.map((r) => (
-          <ReportCard
-            key={r.id}
-            report={r}
-            isOwner={user?.id === r.user_id}
-            alreadySupported={mySupports.includes(r.id)}
-            onSupported={() => markSupported(r.id)}
+    <div style={{ backgroundColor: 'var(--color-bg, #f8f9fa)', minHeight: '100vh' }}>
+    {/* Hero Banner Red Header */}
+      <section
+        style={{
+          ...heroCardStyle,
+          flexDirection: isMobileDevice ? 'column' : 'row',
+          textAlign: isMobileDevice ? 'center' : 'left',
+          margin: isMobileDevice ? '20px 5% 0' : heroCardStyle.margin,
+          padding: isMobileDevice ? '28px 20px 24px' : heroCardStyle.padding,
+          minHeight: isMobileDevice ? 'auto' : heroCardStyle.minHeight
+        }}
+      >
+        {!isMobileDevice && (
+          <img
+            src={roadIcon}
+            alt="Jalan"
+            style={heroIconStyle}
+            onError={(e) => (e.target.style.display = 'none')}
           />
-        ))}
-      </div>
-    </section>
+        )}
+        <div style={{ color: '#ffffff', marginLeft: isMobileDevice ? 0 : 350, marginTop: isMobileDevice ? 10 : 0 }}>
+          <h2 style={{ margin: 0, fontSize: 30, fontWeight: 450 }}>
+            Bersama Jaga Sidoarjo. Laporkan Sekarang!
+          </h2>
+          <p style={{ margin: '10px 0 18px', fontSize: 15, opacity: 0.9, maxWidth: 500 }}>
+            Temu masalah infrastruktur? Laporkan lewat Jasida, biar langsung ditindaklanjuti oleh pihak berwenang.
+          </p>
+          <button style={btnHeroStyle} onClick={() => navigate('/lapor')}>Mulai Buat Laporan</button>
+        </div>
+      </section>
+
+      {/* Main Container */}
+      <main style={{ width: '100%', padding: '0 5% 40px', boxSizing: 'border-box' }}>
+        <h2 style={{ textAlign: 'center', fontSize: 22, fontWeight: 600, marginTop: 56, marginBottom: 36 }}>
+          <span style={{ color: '#c92a2a' }}>Laporan</span>{' '}
+          <span style={{ color: '#212529' }}>Kerusakan Terkini</span>
+        </h2>
+
+                {/* Filter Controls */}
+        <div style={{ display: 'flex', justifyContent: isMobileDevice ? 'center' : 'flex-end', gap: 10, marginBottom: 30, flexWrap: 'wrap', alignItems: 'center' }}>
+          <CustomSelect
+            value={kecamatanFilter}
+            onChange={setKecamatanFilter}
+            options={kecamatanOptions}
+            placeholder="Pilih Kecamatan"
+          />
+
+          <CustomDateRangePicker
+            startDate={dateFrom}
+            endDate={dateTo}
+            onChange={(from, to) => { setDateFrom(from); setDateTo(to); }}
+          />
+
+          <button onClick={handleSearch} className="rw-btn-anim" style={searchBtnStyle} aria-label="Cari">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <circle cx="11" cy="11" r="7" stroke="#fff" strokeWidth="2.2" />
+              <line x1="21" y1="21" x2="16.2" y2="16.2" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        {loading && <p style={{ textAlign: 'center', margin: '40px 0' }}>Memuat…</p>}
+        {error && <p style={{ textAlign: 'center', color: '#e03131' }}>{error}</p>}
+        {!loading && !error && filteredReports.length === 0 && (
+          <p style={{ textAlign: 'center', color: '#868e96', margin: '40px 0' }}>
+            {reports.length === 0 ? 'Belum ada laporan.' : 'Tidak ada laporan yang cocok dengan filter.'}
+          </p>
+        )}
+
+        {/* 3-Column Grid Layout */}
+        <div style={gridStyle}>
+          {filteredReports.map((r) => (
+            <ReportCard
+              key={r.id}
+              report={r}
+              isOwner={user?.id === r.user_id}
+              alreadySupported={mySupports.includes(r.id)}
+              onSupported={() => markSupported(r.id)}
+            />
+          ))}
+        </div>
+
+        {/* Pagination Arrows */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 30 }}>
+          <button style={pageArrowStyle}>‹</button>
+          <button style={pageArrowStyle}>›</button>
+        </div>
+      </main>
+    </div>
   );
+}
+
+function reportStatusInfo(status) {
+  const normalized = (status ?? '').toString().trim().toLowerCase();
+
+  const doneValues = ['selesai', 'done', 'resolved', 'sudah_dikerjakan', 'diperbaiki'];
+  const inProgressValues = ['diproses', 'in_progress', 'sedang_diperbaiki', 'diperbaiki_sebagian'];
+
+  if (doneValues.includes(normalized)) {
+    return { label: 'Sudah Dikerjakan', bg: '#d3f9d8', color: '#2b8a3e' };
+  }
+  if (inProgressValues.includes(normalized)) {
+    return { label: 'Sedang Diperbaiki', bg: '#fff3bf', color: '#996a00' };
+  }
+  return { label: 'Belum Dikerjakan', bg: '#f1f3f5', color: '#868e96' };
 }
 
 function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
@@ -72,13 +205,12 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
   const [address, setAddress] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [index, setIndex] = useState(0);
-  const touchStartX = useRef(null);
 
   useEffect(() => {
     if (report.lat == null || report.lng == null) return;
     reverseGeocode(report.lat, report.lng)
       .then(setAddress)
-      .catch(() => setAddress(`${report.lat.toFixed(5)}, ${report.lng.toFixed(5)}`));
+      .catch(() => setAddress(`Sekardangan, Sidoarjo, Jawa Timur`));
   }, [report.lat, report.lng]);
 
   useEffect(() => {
@@ -89,29 +221,8 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
       .catch((err) => console.warn('[report-photos]', err.message));
   }, [report.id, report.imageUrl]);
 
-  function goTo(i) {
-    if (!photos.length) return;
-    setIndex((i + photos.length) % photos.length);
-  }
-
-  function handleTouchStart(e) {
-    touchStartX.current = e.touches[0].clientX;
-  }
-
-  function handleTouchEnd(e) {
-    if (touchStartX.current === null) return;
-    const delta = e.changedTouches[0].clientX - touchStartX.current;
-    if (Math.abs(delta) > 40) {
-      goTo(delta > 0 ? index - 1 : index + 1);
-    }
-    touchStartX.current = null;
-  }
-
   async function handleSupport() {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
+    if (!user) return navigate('/login');
     if (supporting || alreadySupported || isOwner) return;
     setSupporting(true);
     try {
@@ -124,184 +235,280 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
     }
   }
 
-  const supportLabel = isOwner
-    ? 'Laporan sendiri'
-    : alreadySupported
-    ? 'Didukung'
-    : 'Dukung';
-
   const currentPhoto = photos[index];
 
+  const posterName = report.profile?.username?.trim() || 'Anonim';
+  const posterInitial = posterName[0]?.toUpperCase() ?? 'A';
+  const supportCount = report.support_count ?? 0;
+  const statusInfo = reportStatusInfo(report.status);
+
   return (
-    <article style={card}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px' }}>
-        <div style={avatar}>
-          {report.profile?.avatar_url ? (
-            <img src={report.profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
-          ) : (
-            (report.profile?.username?.[0] ?? '?').toUpperCase()
-          )}
-        </div>
-        <div>
-          <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>{report.profile?.username ?? 'Warga'}</p>
-          <p style={{ margin: 0, fontSize: 12, color: 'var(--color-ink-soft)' }}>
-            {new Date(report.created_at).toLocaleString('id-ID')}
-          </p>
+    <article style={cardStyle}>
+      {/* Top Image Preview & Severity */}
+      <div style={{ position: 'relative', height: 220, backgroundColor: '#e9ecef', overflow: 'hidden' }}>
+        {currentPhoto?.url ? (
+          <img src={currentPhoto.url} alt="Kerusakan" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#adb5bd' }}>
+            No Image
+          </div>
+        )}
+        <div style={{ position: 'absolute', top: 8, left: 8 }}>
+          <SeverityBadge severity={report.severity} score={report.hazard_score} />
         </div>
       </div>
 
-      {photos.length > 0 && (
-        <div
-          style={photoWrap}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-        >
-          <img src={currentPhoto.url} alt="Kerusakan jalan" style={photoImg} />
-
-          {currentPhoto.photo_type === 'resolution' && (
-            <span style={resolutionTag}>✅ Bukti perbaikan</span>
-          )}
-
-          {photos.length > 1 && (
-            <>
-              <button style={{ ...arrowBtn, left: 8 }} onClick={() => goTo(index - 1)} aria-label="Foto sebelumnya">‹</button>
-              <button style={{ ...arrowBtn, right: 8 }} onClick={() => goTo(index + 1)} aria-label="Foto berikutnya">›</button>
-              <div style={dotsRow}>
-                {photos.map((_, i) => (
-                  <span key={i} style={{ ...dot, opacity: i === index ? 1 : 0.35 }} />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {address && (
-        <p style={{ fontSize: 12.5, color: 'var(--color-ink-soft)', padding: '10px 14px 0', margin: 0 }}>
-          📍 {address}
-        </p>
-      )}
-
-      <div style={{ padding: '12px 14px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontWeight: 700, textTransform: 'capitalize' }}>
-            {report.damage_type?.replaceAll('_', ' ')}
+      {/* Details Section */}
+      <div style={{ padding: 12, flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{ fontSize: 11, color: '#495057', display: 'flex', alignItems: 'center', gap: 4 }}>
+            📍 {address || 'Sekardangan, Sidoarjo, Jawa Timur'}
           </span>
-          <SeverityBadge severity={report.severity} score={report.hazard_score} />
+
+          <div style={posterBadge}>
+            {report.profile?.avatar_url ? (
+              <img src={report.profile.avatar_url} alt="" style={posterAvatarImg} />
+            ) : (
+              <span style={posterAvatar}>{posterInitial}</span>
+            )}
+            <span style={posterNameText}>{posterName}</span>
+          </div>
         </div>
 
-        {report.note && (
-          <p style={{ marginTop: 8, marginBottom: 0, fontSize: 14 }}>{report.note}</p>
-        )}
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+        {/* Dukung + Komentar + Status — dikasih jarak dari baris di atasnya */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
           <button
             onClick={handleSupport}
             disabled={supporting || alreadySupported || isOwner}
-            style={alreadySupported || isOwner ? supportBtnActive : supportBtn}
+            className="rw-btn-anim"
+            style={alreadySupported || isOwner ? dukungBadgeDisabled : dukungBadge}
           >
-            👍 {supportLabel} · {report.support_count ?? 0}
+            👍 Dukung {supportCount}+
           </button>
-          <span style={{ ...statusBadge, background: STATUS_COLOR[report.status] ?? '#868e96' }}>
-            {STATUS_LABEL[report.status] ?? report.status}
+
+          <CommentSection reportId={report.id} photoUrl={currentPhoto?.url} />
+
+          <span style={{ ...statusBadge, backgroundColor: statusInfo.bg, color: statusInfo.color }}>
+            {statusInfo.label}
           </span>
         </div>
 
-        <CommentSection reportId={report.id} />
+        <div style={noteBox}>
+          {report.note ? (
+            <p style={{ fontSize: 12, color: '#495057', margin: 0, lineHeight: 1.4 }}>
+              {report.note}
+            </p>
+          ) : (
+            <p style={{ fontSize: 12, color: '#adb5bd', margin: 0, fontStyle: 'italic' }}>
+              Tidak ada catatan tambahan.
+            </p>
+          )}
+        </div>
+
+        <p style={reportDateText}>
+          Dilaporkan {new Date(report.created_at).toLocaleString('id-ID')}
+        </p>
       </div>
     </article>
   );
 }
 
-const card = {
-  background: 'var(--color-surface)',
-  borderRadius: 'var(--radius-lg)',
-  boxShadow: 'var(--shadow-card)',
-  overflow: 'hidden'
+const heroCardStyle = {
+  backgroundColor: '#A42C2B',
+  borderRadius: 12,
+  margin: '50px 5% 0',
+  padding: '24px 30px',
+  display: 'flex',
+  alignItems: 'center',
+  overflow: 'visible',
+  position: 'relative',
+  minHeight: 140
 };
 
-const avatar = {
-  width: 36,
-  height: 36,
-  borderRadius: '50%',
-  background: 'var(--color-accent)',
-  color: 'var(--color-accent-ink)',
+const heroIconStyle = {
+  position: 'absolute',
+  left: 10,
+  top: -40,
+  width: 350,
+  height: 'auto',
+  objectFit: 'contain',
+  pointerEvents: 'none'
+};
+
+const btnHeroStyle = {
+  backgroundColor: '#ffffff',
+  color: '#a61e4d',
+  border: 'none',
+  padding: '8px 16px',
+  borderRadius: 20,
+  fontWeight: 700,
+  fontSize: 12,
+  cursor: 'pointer'
+};
+
+const selectStyle = {
+  padding: '10px 36px 10px 18px',
+  borderRadius: 24,
+  border: '1px solid #dee2e6',
+  backgroundColor: '#ffffff',
+  fontSize: 13,
+  color: '#495057',
+  outline: 'none',
+  cursor: 'pointer',
+  appearance: 'none',
+  WebkitAppearance: 'none',
+  MozAppearance: 'none',
+  backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a61e4d' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")",
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 14px center',
+  backgroundSize: '14px'
+};
+
+const dateRangeWrap = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '6px 16px',
+  borderRadius: 24,
+  border: '1px solid #dee2e6',
+  backgroundColor: '#ffffff'
+};
+
+const dateInputStyle = {
+  border: 'none',
+  outline: 'none',
+  fontSize: 13,
+  color: '#495057',
+  fontFamily: 'inherit',
+  padding: '4px 0',
+  colorScheme: 'light',
+  cursor: 'pointer'
+};
+
+const searchBtnStyle = {
+  backgroundColor: '#a61e4d',
+  border: 'none',
+  width: 44,
+  height: 44,
+  borderRadius: 12,
+  cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  fontWeight: 700,
-  overflow: 'hidden',
   flexShrink: 0
 };
 
-const photoWrap = {
-  position: 'relative',
-  background: '#000'
+const gridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+  gap: 20
 };
 
-const photoImg = { width: '100%', display: 'block' };
-
-const resolutionTag = {
-  position: 'absolute',
-  top: 10,
-  left: 10,
-  background: 'rgba(47,158,68,0.92)',
-  color: '#fff',
-  fontSize: 12,
-  fontWeight: 700,
-  padding: '4px 10px',
-  borderRadius: 999
-};
-
-const arrowBtn = {
-  position: 'absolute',
-  top: '50%',
-  transform: 'translateY(-50%)',
-  width: 32,
-  height: 32,
-  borderRadius: '50%',
-  border: 'none',
-  background: 'rgba(0,0,0,0.45)',
-  color: '#fff',
-  fontSize: 18,
-  lineHeight: 1,
-  cursor: 'pointer'
-};
-
-const dotsRow = {
-  position: 'absolute',
-  bottom: 8,
-  left: 0,
-  right: 0,
+const cardStyle = {
+  backgroundColor: '#ffffff',
+  borderRadius: 12,
+  overflow: 'hidden',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
   display: 'flex',
+  flexDirection: 'column',
+  height: 500
+};
+
+const noteBox = {
+  marginTop: 10,
+  flex: 1,
+  overflowY: 'auto',
+  background: '#f1f3f5',
+  borderRadius: 8,
+  padding: '10px 12px'
+};
+
+const reportDateText = {
+  fontSize: 11,
+  color: '#adb5bd',
+  margin: '8px 0 0'
+};
+
+const posterBadge = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  flexShrink: 0
+};
+
+const posterAvatar = {
+  width: 20,
+  height: 20,
+  borderRadius: '50%',
+  backgroundColor: '#a61e4d',
+  color: '#ffffff',
+  display: 'flex',
+  alignItems: 'center',
   justifyContent: 'center',
-  gap: 5
+  fontSize: 10,
+  fontWeight: 700,
+  flexShrink: 0
 };
 
-const dot = { width: 6, height: 6, borderRadius: '50%', background: '#fff' };
+const posterAvatarImg = {
+  width: 20,
+  height: 20,
+  borderRadius: '50%',
+  objectFit: 'cover',
+  flexShrink: 0
+};
 
-const supportBtn = {
-  padding: '6px 14px',
-  borderRadius: 'var(--radius-md)',
-  border: '1px solid var(--color-border)',
-  background: 'var(--color-surface)',
+const posterNameText = {
+  fontSize: 11,
   fontWeight: 600,
-  fontSize: 13,
-  cursor: 'pointer'
+  color: '#343a40',
+  whiteSpace: 'nowrap'
 };
 
-const supportBtnActive = {
-  ...supportBtn,
-  background: 'var(--color-primary)',
-  color: 'var(--color-primary-ink)',
+// Badge "👍 Dukung {n}+" — pengganti tombol "Kirim" yang dobel
+const dukungBadge = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
+  backgroundColor: '#FDECEE',
+  color: '#a61e4d',
   border: 'none',
+  padding: '5px 12px',
+  borderRadius: 20,
+  fontWeight: 700,
+  fontSize: 11,
+  cursor: 'pointer',
+  whiteSpace: 'nowrap'
+};
+
+const dukungBadgeDisabled = {
+  ...dukungBadge,
+  backgroundColor: '#f1f3f5',
+  color: '#868e96',
   cursor: 'default'
 };
 
 const statusBadge = {
-  fontSize: 12,
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '5px 12px',
+  borderRadius: 20,
   fontWeight: 700,
-  color: '#fff',
-  padding: '4px 10px',
-  borderRadius: 999
+  fontSize: 11,
+  whiteSpace: 'nowrap'
+};
+
+const pageArrowStyle = {
+  width: 32,
+  height: 32,
+  borderRadius: '50%',
+  border: '1px solid #dee2e6',
+  backgroundColor: '#ffffff',
+  color: '#a61e4d',
+  fontWeight: 'bold',
+  fontSize: 16,
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
 };

@@ -3,10 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext.jsx';
 import workerIllustration from '../assets/worker-illustration.png';
 import brandLogo from '../assets/brand-logo.png';
+import Navbar from '../components/Navbar.jsx';
+import { useIsMobileDevice } from '../lib/useIsMobileDevice.js';
 
 export default function LoginPage() {
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
+  const isMobileDevice = useIsMobileDevice();
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,7 +32,7 @@ export default function LoginPage() {
       } else {
         await signIn({ email, password });
       }
-      navigate('/');
+      navigate('/redirect');
     } catch (err) {
       console.error(err);
       setError(err.message || 'Terjadi kesalahan. Coba lagi.');
@@ -39,17 +42,19 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={wrapper}>
-      <style>{responsiveCss}</style>
+    <>
+      {isMobileDevice && <Navbar />}
+      <div style={wrapper}>
+        <style>{responsiveCss}</style>
 
-      {/* Latar Belakang Merah Melengkung di Kanan */}
-      <svg
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-        style={redBackgroundStyle}
-        className="red-bg-svg"
-        aria-hidden="true"
-      >
+        {/* Latar Belakang Merah Melengkung di Kanan */}
+        <svg
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          style={redBackgroundStyle}
+          className="red-bg-svg"
+          aria-hidden="true"
+        >
         <defs>
           <linearGradient id="redGradient" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor="#A61C24" />
@@ -68,12 +73,13 @@ export default function LoginPage() {
         type="button" 
         onClick={() => navigate(-1)} 
         style={backBtn}
+        className="mobile-back-btn"
       >
         Kembali <span aria-hidden="true">→</span>
       </button>
 
       {/* Header Logo (Posisi Absolut di Kiri Atas) */}
-      <div style={brandHeader}>
+      <div style={brandHeader} className="brand-header">
         <img src={brandLogo} alt="Logo" style={logoImg} />
       </div>
 
@@ -86,7 +92,13 @@ export default function LoginPage() {
 
       {/* Panel Kanan: Form */}
       <div style={rightPanel} className="auth-form-panel">
-        <div style={formContainer}>
+        <div style={formContainer} className="auth-form-container">
+          <img
+            src={workerIllustration}
+            alt="Ilustrasi Pekerja"
+            className="mobile-illustration"
+            style={mobileIllustrationImg}
+          />
           <h1 className="display" style={{ fontSize: 32, marginBottom: 12, color: '#ffffff', userSelect: 'none', cursor: 'default' }}>
             {mode === 'login' ? 'Masuk' : 'Daftar'}
           </h1>
@@ -153,8 +165,9 @@ export default function LoginPage() {
             </button>
           </p>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -167,15 +180,71 @@ function Field({ label, children }) {
   );
 }
 
-// ==========================================
-// STYLES
-// ==========================================
-
 const responsiveCss = `
   @media (max-width: 860px) {
-    .auth-brand-panel, .brand-header { display: none !important; }
-    .red-bg-svg { 
-      width: 100% !important; 
+    .auth-brand-panel { display: none !important; }
+
+    .red-bg-svg { display: none !important; }
+
+    .brand-header {
+      display: none !important;
+    }
+
+    .auth-form-panel {
+      flex: 1 1 100% !important;
+      width: 100% !important;
+      min-height: 100vh !important;
+      background: linear-gradient(180deg, #A61C24 0%, #7C1420 100%) !important;
+      padding: 90px 24px 90px !important;
+      box-sizing: border-box !important;
+      align-items: flex-start !important;
+      position: relative !important;
+      overflow: hidden !important;
+    }
+
+    .auth-form-panel::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 230px;
+      background: #ffffff;
+      border-bottom-left-radius: 50% 60px;
+      border-bottom-right-radius: 50% 60px;
+      z-index: 0;
+    }
+
+    .auth-form-container {
+      max-width: 100% !important;
+      margin-left: 0 !important;
+      text-align: left !important;
+      position: relative !important;
+      z-index: 1 !important;
+    }
+
+    .mobile-illustration-wrap {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      margin: 0 auto 16px;
+    }
+
+    .mobile-illustration {
+      display: block !important;
+      position: relative;
+      z-index: 1;
+    }
+
+    .mobile-back-btn {
+      position: fixed !important;
+      top: 16px !important;
+      right: 16px !important;
+      padding: 8px 18px !important;
+      font-size: 12px !important;
+      background: #A61C24 !important;
+      color: #ffffff !important;
+      z-index: 1000 !important;
     }
   }
 `;
@@ -247,6 +316,14 @@ const illustrationWrap = {
 };
 
 const illustrationImg = { width: '100%', maxWidth: 450, height: 'auto' };
+
+const mobileIllustrationImg = {
+  display: 'none',
+  width: '55%',
+  maxWidth: 180,
+  height: 'auto',
+  margin: '0 auto 16px'
+};
 
 const rightPanel = {
   flex: '0 0 50%',

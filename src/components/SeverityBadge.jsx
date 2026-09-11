@@ -4,27 +4,27 @@ const SEVERITY_META = {
   darurat: { label: 'Darurat', color: 'var(--sev-emergency)' }
 };
 
-export default function SeverityBadge({ severity, score }) {
+export default function SeverityBadge({ severity }) {
   const meta = SEVERITY_META[severity] ?? SEVERITY_META.aman;
   return (
     <span
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 6,
-        padding: '4px 10px',
+        gap: 8,
+        padding: '7px 16px',
         borderRadius: 999,
-        background: meta.color,
-        color: '#fff',
-        fontSize: 13,
+        background: `color-mix(in srgb, ${meta.color} 15%, white)`,
+        color: meta.color,
+        fontSize: 14,
         fontWeight: 700
       }}
     >
-      <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />
+      <span
+        aria-hidden="true"
+        style={{ width: 8, height: 8, borderRadius: '50%', background: meta.color, flexShrink: 0 }}
+      />
       {meta.label}
-      {typeof score === 'number' && (
-        <span className="mono" style={{ opacity: 0.85, fontWeight: 500 }}>· {score}</span>
-      )}
     </span>
   );
 }

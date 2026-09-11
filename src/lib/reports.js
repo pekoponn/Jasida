@@ -155,6 +155,43 @@ export async function listReportsFeed() {
   }));
 }
 
+export async function listMyReports() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('reports_with_coords')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+
+  return (data ?? []).map((r) => ({
+    ...r,
+    imageUrl: r.image_path
+      ? supabase.storage.from('report-images').getPublicUrl(r.image_path).data.publicUrl
+      : null
+  }));
+}
+
+export async function listSupporters(reportId) {
+  const { data: supports, error } = await supabase
+    .from('report_supports')
+    .select('user_id')
+    .eq('report_id', reportId);
+  if (error) throw error;
+  if (!supports.length) return [];
+
+  const userIds = [...new Set(supports.map((s) => s.user_id))];
+  const { data: profiles, error: profileError } = await supabase
+    .from('profiles')
+    .select('id, username, avatar_url')
+    .in('id', userIds);
+  if (profileError) throw profileError;
+
+  return profiles ?? [];
+}
+
 export async function listComments(reportId) {
   const { data: comments, error } = await supabase
     .from('comments')
