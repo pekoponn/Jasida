@@ -3,9 +3,9 @@ import { prepareUploadPhoto } from '../lib/imageUpload.js';
 import CameraCapture from '../features/report-upload/CameraCapture.jsx';
 import DuplicateModal from '../features/duplicate-check/DuplicateModal.jsx';
 import SeverityBadge from '../components/SeverityBadge.jsx';
-import { detectDamage, detectDamageMock } from '../ai/yolo.js';
-import { embedImage, embedImageMock } from '../ai/clip.js';
-import { computeHazardScore, severityDisplayLabel, damageTypeDisplayLabel } from '../ai/hazardScore.js';
+import { detectDamage } from '../ai/yolo.js';
+import { embedImage } from '../ai/clip.js';
+import { computeHazardScore, damageTypeDisplayLabel } from '../ai/hazardScore.js';
 import { pickBestDuplicate } from '../ai/duplicateScore.js';
 import { findSimilarReports, createReport, uploadReportImage, supportReport } from '../lib/reports.js';
 import { reverseGeocode } from '../lib/geolocation.js';
@@ -33,7 +33,7 @@ export default function ReportPage() {
   const [addressLoading, setAddressLoading] = useState(false);
   const [hazard, setHazard] = useState(null);
   const [duplicate, setDuplicate] = useState(null);
-  const [usingMockModel, setUsingMockModel] = useState(false);
+  const [duplicateUnavailable, setDuplicateUnavailable] = useState(false);
   const [locatingSelf, setLocatingSelf] = useState(false);
 
   useEffect(() => () => {
@@ -45,6 +45,8 @@ export default function ReportPage() {
   async function handlePhotoCaptured({ file: selectedFile, position: gps, capturedAt }) {
     setError(null);
     setDuplicate(null);
+    setDuplicateUnavailable(false);
+    setHazard(null);
 
     if (gps && !isWithinSidoarjo(gps.lat, gps.lng)) {
       setError('Laporan hanya bisa dikirim untuk lokasi di dalam wilayah Kabupaten Sidoarjo. Foto ini terdeteksi di luar area tersebut.');
@@ -79,7 +81,7 @@ export default function ReportPage() {
     }
 
     try {
-      const { detections: dets, imageWidth, imageHeight } = await runDetection(photo);
+      const { detections: dets, imageWidth, imageHeight } = await detectDamage(photo);
       const emb = await runEmbedding(photo);
 
       setDetections(dets);
@@ -90,25 +92,14 @@ export default function ReportPage() {
       setHazard(hazardResult);
       setStep('analyzed');
 
-      if (gps) {
+      if (gps && emb) {
         await checkDuplicates({ gps, damageType: hazardResult.dominant?.damage_type ?? null, embedding: emb });
       }
     } catch (err) {
       console.error(err);
-      setError('Gagal menganalisis foto. Coba lagi.');
+      setHazard(null);
+      setError('Analisis AI gagal. Periksa koneksi, lalu coba lagi. Foto belum dapat dikirim.');
       setStep('idle');
-    }
-  }
-
-  async function runDetection(selectedFile) {
-    try {
-      const result = await detectDamage(selectedFile);
-      setUsingMockModel(false);
-      return result;
-    } catch (err) {
-      console.warn('[yolo] fallback ke mock model:', err.message);
-      setUsingMockModel(true);
-      return detectDamageMock(selectedFile);
     }
   }
 
@@ -116,8 +107,9 @@ export default function ReportPage() {
     try {
       return await embedImage(selectedFile);
     } catch (err) {
-      console.warn('[clip] fallback ke mock embedding:', err.message);
-      return embedImageMock(selectedFile);
+      console.warn('[clip] pemeriksaan duplikat tidak tersedia:', err.message);
+      setDuplicateUnavailable(true);
+      return null;
     }
   }
 
@@ -132,11 +124,17 @@ export default function ReportPage() {
       setStep('analyzed');
     } catch (err) {
       console.warn('[duplicate-check] dilewati:', err.message);
+      setDuplicateUnavailable(true);
       setStep('analyzed');
     }
   }
 
   async function handleSubmitNewReport() {
+    if (step !== 'analyzed' || !hazard || !file) return;
+    if (!position || !isWithinSidoarjo(position.lat, position.lng)) {
+      setError('Lokasi di Sidoarjo wajib terdeteksi sebelum laporan dikirim. Izinkan GPS, lalu tekan Lokasi saat ini.');
+      return;
+    }
     setStep('submitting');
     setError(null);
     try {
@@ -146,8 +144,8 @@ export default function ReportPage() {
         confidence: hazard.dominant?.confidence ?? 0,
         hazardScore: hazard.total,
         severity: hazard.severity,
-        lat: position?.lat ?? 0,
-        lng: position?.lng ?? 0,
+        lat: position.lat,
+        lng: position.lng,
         embedding,
         capturedAt,
         note
@@ -217,6 +215,7 @@ export default function ReportPage() {
     setPosition(null);
     setCapturedAt(null);
     setHazard(null);
+    setDuplicateUnavailable(false);
     setDuplicate(null);
     setError(null);
   }
@@ -312,7 +311,7 @@ export default function ReportPage() {
             </div>
 
             {file && step !== 'idle' && (
-              <p style={noteStyle}>Foto siap dikirim · WebP · {(file.size / 1000).toFixed(1)} KB</p>
+              <p style={noteStyle}>Foto siap dikirim · WebP · {(file.size / 1000).toLocaleString('id-ID', { maximumFractionDigits: 3 })} KB</p>
             )}
 
             {previewUrl && ['analyzed', 'idle'].includes(step) && (
@@ -321,9 +320,9 @@ export default function ReportPage() {
               </button>
             )}
 
-            {usingMockModel && step !== 'idle' && (
+            {duplicateUnavailable && step !== 'idle' && (
               <p style={noteStyle}>
-                ⚠️ Model AI belum ditemukan di <code>/public/models</code> — hasil di bawah ini masih data contoh (mock) untuk keperluan demo alur.
+                Pemeriksaan foto duplikat belum tersedia. Periksa daftar laporan sebelum mengirim laporan baru.
               </p>
             )}
           </div>
