@@ -79,3 +79,39 @@ npx vercel link --yes --project jasida --scope iszz100s-projects
 
 File `.vercel/project.json` menyimpan hubungan folder dengan project Vercel
 dan tidak perlu dimasukkan ke Git.
+
+## Foto WebP di bawah 100 KB
+
+Foto kamera, pilihan JPEG/PNG/WebP, dukungan, dan bukti perbaikan dikonversi
+di browser sebelum upload. Ukuran awal maksimal 25 MB. Aplikasi mengurangi
+dimensi dan kualitas bertahap, memeriksa MIME dan signature WebP, dan hanya
+mengirim hasil maksimal 99.999 byte (di bawah 100 KB desimal).
+Foto untuk laporan baru sudah dikonversi sebelum analisis AI dan pembuatan
+baris laporan. Foto galeri menggunakan GPS saat dipilih, bukan lokasi EXIF.
+Kompresi lossy dapat mengurangi detail foto; preview menampilkan hasil yang
+akan dianalisis dan dikirim.
+
+Pembatasan server di bucket `report-images` harus diterapkan juga:
+
+- Allowed MIME types: `image/webp`
+- File size limit: `99999` byte
+
+Jalankan `npm run storage:configure` di terminal lokal. Script meminta
+Supabase secret key atau legacy service_role key dengan input tersembunyi,
+membaca bucket yang ada, mengubah hanya pembatasan upload, lalu memverifikasi
+hasilnya. Key admin tidak disimpan ke file, Vercel, atau bundle frontend.
+Jangan masukkan key admin ke variabel `VITE_`. Foto lama tidak dikonversi atau
+dihapus. Pembatasan ini tidak mengubah policy akses bucket yang ada.
+
+Untuk menguji konversi tanpa menulis data ke Supabase:
+
+```bash
+# Jalankan npm run dev di terminal lain terlebih dahulu.
+npx agent-browser open http://127.0.0.1:5173
+npx agent-browser eval --stdin < tests/image-upload.browser.js
+npx agent-browser close
+```
+
+Pengujian mencakup JPEG/PNG besar, WebP kecil, rasio ekstrem, file rusak,
+MIME salah, batas 100 KB, browser tanpa encoder WebP, serta kedua jalur upload
+dengan transport pengujian yang tidak mengirim data ke database.

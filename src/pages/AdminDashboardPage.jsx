@@ -301,7 +301,7 @@ function ReportRow({ report, updating, onStatusChange, onResolve }) {
           ) : (
             <label style={fileLabel}>
               📷 Pilih foto bukti perbaikan
-              <input type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFileChange} style={{ display: 'none' }} />
             </label>
           )}
 

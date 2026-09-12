@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { withResolvedAvatar } from './profileAvatar.js';
+import { prepareUploadPhoto } from './imageUpload.js';
 
 export async function findSimilarReports({ lat, lng, damageType, embedding, radiusMeters = 50 }) {
   const { data, error } = await supabase.rpc('find_similar_reports', {
@@ -14,8 +15,9 @@ export async function findSimilarReports({ lat, lng, damageType, embedding, radi
 }
 
 export async function uploadReportImage(file, reportId) {
-  const path = `${reportId}/${Date.now()}-${file.name}`;
-  const { error } = await supabase.storage.from('report-images').upload(path, file);
+  const photo = await prepareUploadPhoto(file);
+  const path = `${reportId}/${crypto.randomUUID()}-${photo.name}`;
+  const { error } = await supabase.storage.from('report-images').upload(path, photo, { contentType: 'image/webp' });
   if (error) throw error;
 
   const { error: updateError } = await supabase
@@ -57,12 +59,13 @@ export async function createReport({
 }
 
 export async function supportReport(reportId, file) {
+  const photo = file ? await prepareUploadPhoto(file) : null;
   const { error } = await supabase.rpc('support_report', { p_report_id: reportId });
   if (error) throw error;
 
-  if (file) {
+  if (photo) {
     try {
-      await addReportPhoto(reportId, file);
+      await addReportPhoto(reportId, photo);
     } catch (err) {
       // Dukungan tetap tercatat walau upload foto tambahan gagal
       console.warn('[support-photo]', err.message);
@@ -71,9 +74,10 @@ export async function supportReport(reportId, file) {
 }
 
 export async function addReportPhoto(reportId, file, photoType = 'support') {
+  const photo = await prepareUploadPhoto(file);
   const { data: { user } } = await supabase.auth.getUser();
-  const path = `${reportId}/${Date.now()}-${file.name}`;
-  const { error: uploadError } = await supabase.storage.from('report-images').upload(path, file);
+  const path = `${reportId}/${crypto.randomUUID()}-${photo.name}`;
+  const { error: uploadError } = await supabase.storage.from('report-images').upload(path, photo, { contentType: 'image/webp' });
   if (uploadError) throw uploadError;
 
   const { error: insertError } = await supabase

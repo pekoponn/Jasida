@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { prepareUploadPhoto } from '../lib/imageUpload.js';
 import CameraCapture from '../features/report-upload/CameraCapture.jsx';
 import DuplicateModal from '../features/duplicate-check/DuplicateModal.jsx';
 import SeverityBadge from '../components/SeverityBadge.jsx';
@@ -35,6 +36,10 @@ export default function ReportPage() {
   const [usingMockModel, setUsingMockModel] = useState(false);
   const [locatingSelf, setLocatingSelf] = useState(false);
 
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
+
   const hazardVisible = useMemo(() => step !== 'idle' && step !== 'analyzing' && hazard, [step, hazard]);
 
   async function handlePhotoCaptured({ file: selectedFile, position: gps, capturedAt }) {
@@ -46,8 +51,17 @@ export default function ReportPage() {
       return;
     }
 
-    setFile(selectedFile);
-    setPreviewUrl(URL.createObjectURL(selectedFile));
+    setStep('preparing');
+    let photo;
+    try {
+      photo = await prepareUploadPhoto(selectedFile);
+    } catch (err) {
+      setError(err.message);
+      setStep('idle');
+      return;
+    }
+    setFile(photo);
+    setPreviewUrl(URL.createObjectURL(photo));
     setPosition(gps);
     setCapturedAt(capturedAt);
     setAddress(null);
@@ -65,8 +79,8 @@ export default function ReportPage() {
     }
 
     try {
-      const { detections: dets, imageWidth, imageHeight } = await runDetection(selectedFile);
-      const emb = await runEmbedding(selectedFile);
+      const { detections: dets, imageWidth, imageHeight } = await runDetection(photo);
+      const emb = await runEmbedding(photo);
 
       setDetections(dets);
       setImageDims({ width: imageWidth, height: imageHeight });
@@ -126,6 +140,7 @@ export default function ReportPage() {
     setStep('submitting');
     setError(null);
     try {
+      const photo = await prepareUploadPhoto(file);
       const report = await createReport({
         damageType: hazard.dominant?.damage_type ?? 'other_corruption',
         confidence: hazard.dominant?.confidence ?? 0,
@@ -137,11 +152,11 @@ export default function ReportPage() {
         capturedAt,
         note
       });
-      await uploadReportImage(file, report.id);
+      await uploadReportImage(photo, report.id);
       setStep('done');
     } catch (err) {
       console.error(err);
-      setError('Gagal mengirim laporan. Periksa koneksi Supabase kamu (lihat .env).');
+      setError(err.message || 'Gagal mengirim laporan. Periksa koneksi dan coba lagi.');
       setStep('analyzed');
     }
   }
@@ -151,6 +166,8 @@ export default function ReportPage() {
       await supportReport(candidate.id, file);
     } catch (err) {
       console.warn('[support]', err.message);
+      setError(err.message || 'Gagal mengirim dukungan. Coba lagi.');
+      return;
     }
     setDuplicate(null);
     setStep('done');
@@ -268,14 +285,14 @@ export default function ReportPage() {
 
       <h1 className="display rp-title" style={rpTitleStyle}>Buat Laporan Kerusakan Jalan</h1>
       <p className="rp-subtitle" style={rpSubtitleStyle}>
-        Ambil foto langsung dari kamera, AI akan mendeteksi lubang/retak pada jalan dan memeriksa laporan serupa di sekitar lokasimu.
+        Ambil atau pilih foto kondisi jalan. AI akan mendeteksi lubang/retak dan memeriksa laporan serupa di sekitar lokasimu.
       </p>
 
       <div className="rp-card" style={rpCardStyle}>
         <div className="rp-grid" style={rpGridStyle}>
           {/* KOLOM KIRI: FOTO */}
           <div className="rp-col">
-            <SectionHeading icon={<CameraIcon />} title="Foto Kerusakan" subtitle="Ambil Foto Secara Real Time" />
+            <SectionHeading icon={<CameraIcon />} title="Foto Kerusakan" subtitle="Ambil foto atau unggah dari perangkat" />
 
             <div className="rp-photo-box" style={{ marginTop: 16, position: 'relative' }}>
               {previewUrl && step !== 'idle' ? (
@@ -290,11 +307,15 @@ export default function ReportPage() {
                   )}
                 </div>
               ) : (
-                <CameraCapture onCapture={handlePhotoCaptured} disabled={step === 'analyzing' || step === 'submitting'} />
+                <CameraCapture onCapture={handlePhotoCaptured} disabled={['preparing', 'analyzing', 'submitting'].includes(step)} />
               )}
             </div>
 
-            {previewUrl && step !== 'idle' && step !== 'submitting' && (
+            {file && step !== 'idle' && (
+              <p style={noteStyle}>Foto siap dikirim · WebP · {(file.size / 1000).toFixed(1)} KB</p>
+            )}
+
+            {previewUrl && ['analyzed', 'idle'].includes(step) && (
               <button type="button" onClick={reset} style={retakeBtn}>
                 <CameraIcon small /> Ambil Foto Ulang
               </button>
@@ -358,6 +379,7 @@ export default function ReportPage() {
           </div>
         </div>
 
+        {step === 'preparing' && <StatusLine text="Menyiapkan dan mengecilkan foto…" />}
         {step === 'analyzing' && <StatusLine text="Menganalisis foto dengan AI…" />}
         {step === 'checking-duplicate' && <StatusLine text="Memeriksa laporan serupa di sekitar…" />}
         {error && <p style={errorStyle}>{error}</p>}
