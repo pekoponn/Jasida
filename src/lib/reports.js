@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { withResolvedAvatar } from './profileAvatar.js';
 
 export async function findSimilarReports({ lat, lng, damageType, embedding, radiusMeters = 50 }) {
   const { data, error } = await supabase.rpc('find_similar_reports', {
@@ -143,7 +144,7 @@ export async function listReportsFeed() {
       .select('id, username, avatar_url')
       .in('id', userIds);
     if (profileError) throw profileError;
-    profilesById = Object.fromEntries(profiles.map((p) => [p.id, p]));
+    profilesById = Object.fromEntries(profiles.map((p) => [p.id, withResolvedAvatar(p)]));
   }
 
   return reports.map((r) => ({
@@ -189,7 +190,7 @@ export async function listSupporters(reportId) {
     .in('id', userIds);
   if (profileError) throw profileError;
 
-  return profiles ?? [];
+  return (profiles ?? []).map(withResolvedAvatar);
 }
 
 export async function listComments(reportId) {
@@ -207,7 +208,7 @@ export async function listComments(reportId) {
     .select('id, username, avatar_url')
     .in('id', userIds);
   if (profileError) throw profileError;
-  const profilesById = Object.fromEntries(profiles.map((p) => [p.id, p]));
+  const profilesById = Object.fromEntries(profiles.map((p) => [p.id, withResolvedAvatar(p)]));
 
   return comments.map((c) => ({ ...c, profile: profilesById[c.user_id] ?? null }));
 }
@@ -247,7 +248,7 @@ export async function fetchAllReportsForAdmin({ statusFilter } = {}) {
       .select('id, username, avatar_url')
       .in('id', userIds);
     if (profileError) throw profileError;
-    profilesById = Object.fromEntries(profiles.map((p) => [p.id, p]));
+    profilesById = Object.fromEntries(profiles.map((p) => [p.id, withResolvedAvatar(p)]));
   }
 
   return reports.map((r) => ({
