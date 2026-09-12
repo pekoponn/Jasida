@@ -56,8 +56,9 @@ dan akses project Vercel dikelola terpisah.
 Vercel juga memeriksa akses penulis commit untuk repo private. Deployment
 pembaruan pernah diblokir karena commit terakhir berasal dari pemilik repo
 GitHub yang bukan anggota project Vercel ini. Perubahan setup disimpan sebagai
-commit lokal di branch `setup/vercel-deployment`, memakai identitas akun
-Vercel `iszz100`. Branch ini belum dipush ke GitHub.
+commit di branch `setup/vercel-deployment`, memakai identitas akun
+Vercel `iszz100`. Cara mengambil branch dan pemeriksaan sebelum perubahan
+digabung dijelaskan di `AUDIT-AND-HANDOFF.md`.
 
 Untuk deployment otomatis bersama tim, pemilik repo perlu memasang integrasi
 GitHub dan memastikan akses kolaborator sesuai paket/workspace Vercel.

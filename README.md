@@ -10,6 +10,11 @@ BACKEND/DB      Supabase (free) — PostgreSQL + PostGIS + pgvector + Storage + 
 AI              ONNX Runtime Web, jalan di browser pengguna
 ```
 
+Untuk melanjutkan project yang sudah berjalan, ikuti [DEPLOYMENT.md](DEPLOYMENT.md)
+dan [AUDIT-AND-HANDOFF.md](AUDIT-AND-HANDOFF.md). Jangan menjalankan ulang skema
+awal pada database live. YOLO sudah aktif; pemeriksaan visual duplikat masih
+menunggu model CLIP yang sesuai.
+
 ## Struktur project
 
 ```
@@ -25,7 +30,7 @@ src/
 │   ├── reports.js         # semua query/RPC Supabase
 │   └── geolocation.js
 ├── features/
-│   ├── report-upload/PhotoPicker.jsx
+│   ├── report-upload/CameraCapture.jsx
 │   └── duplicate-check/DuplicateModal.jsx
 ├── components/SeverityBadge.jsx
 ├── pages/
@@ -33,7 +38,7 @@ src/
 │   └── MapPage.jsx        # peta semua laporan aktif (Leaflet + OSM)
 └── App.jsx
 
-supabase/schema.sql        # jalankan sekali di SQL Editor Supabase
+supabase/schema.sql        # skema awal; bukan migrasi database live
 public/models/              # taruh file .onnx kamu di sini (lihat bawah)
 ```
 
@@ -50,6 +55,10 @@ npm install
 ```
 
 ## 2. Setup Supabase
+
+Untuk project Jasida yang ada, gunakan URL dan public key project yang sama
+sesuai `DEPLOYMENT.md`. Langkah berikut hanya referensi skema awal untuk
+project baru; skema tersebut belum mencakup semua fitur aplikasi saat ini.
 
 1. Buat project baru di [supabase.com](https://supabase.com).
 2. Buka **SQL Editor** → **New query**, tempel seluruh isi `supabase/schema.sql`, lalu **Run**.
@@ -69,12 +78,11 @@ cp .env.example .env
 npm run dev
 ```
 
-Buka `http://localhost:5173`. Alur "Lapor" akan langsung bisa dicoba —
-karena model `.onnx` belum ada di `public/models`, app otomatis fallback ke
-**mock model** (ada label kuning peringatan di UI) supaya kamu bisa membangun
-dan mendemokan seluruh alur UI/UX sebelum model AI selesai dilatih.
+Buka `http://localhost:5173`. Alur laporan memakai YOLO sungguhan dan memerlukan
+login serta GPS valid. Foto dikonversi ke WebP maksimal 99.999 byte sebelum
+analisis dan upload. Analisis yang gagal menghentikan pengiriman laporan.
 
-## 4. Menyiapkan model AI (menggantikan mock)
+## 4. Menyiapkan model AI
 
 ### 4a. YOLO — deteksi jenis kerusakan
 
@@ -107,9 +115,10 @@ dan mendemokan seluruh alur UI/UX sebelum model AI selesai dilatih.
    `src/ai/clip.js` **dan** kolom `embedding` di `supabase/schema.sql`.
 3. Salin hasilnya ke `public/models/clip-image-encoder.onnx`.
 
-Setelah kedua file ini ada, `detectDamage()` dan `embedImage()` di
-`ReportPage.jsx` otomatis dipakai (mock berhenti dipanggil) — tidak ada
-perubahan kode lain yang diperlukan.
+Halaman laporan memanggil model sungguhan. Jika CLIP belum tersedia atau
+gagal, embedding bernilai null dan pemeriksaan duplikat tidak dijalankan.
+Uji kecocokan preprocessing, output model, dan RPC database sebelum memakai
+model baru; menambahkan file saja belum menjamin hasilnya benar.
 
 ## 5. Deploy
 
@@ -128,7 +137,7 @@ dibuat. Model AI ikut ter-deploy otomatis sebagai static file bersama frontend
 ## 6. Urutan pengerjaan yang disarankan
 
 1. **Tahap 1** — Upload foto + GPS, simpan ke Supabase, tampilkan di peta.
-   (Sudah jalan out of the box begitu `.env` diisi, walau AI masih mock.)
+   (Memerlukan konfigurasi Supabase, login, dan pengujian alur tulis.)
 2. **Tahap 2** — Latih & export YOLO, taruh di `public/models/yolo-damage.onnx`.
 3. **Tahap 3** — Kalibrasi bobot `hazardScore.js` sesuai kondisi kota demo.
 4. **Tahap 4** — Export CLIP, taruh di `public/models/clip-image-encoder.onnx`,

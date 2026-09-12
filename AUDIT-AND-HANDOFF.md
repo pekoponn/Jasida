@@ -56,18 +56,23 @@ SQL `supabase/audit-deployment.sql` hanya membaca kapasitas dan policy aktual.
 
 ## Cara teman melanjutkan kode
 
-Perubahan deploy dan WebP berada di branch `setup/vercel-deployment`, belum
-dipush ke GitHub. Jangan mulai dari `main` lama tanpa mengambil perubahan ini.
-Paket Git `jasida-setup.bundle` dibuat untuk dibagikan manual; paket tidak
-memuat `.env`, `.env.local`, `.vercel`, atau key Supabase.
-
-Teman yang sudah mempunyai clone dengan commit `18aec41` dapat menjalankan:
+Perubahan deploy dan WebP berada di branch `setup/vercel-deployment`.
+Jangan mulai dari `main` lama tanpa mengambil perubahan ini. Setelah branch
+tersedia di GitHub, ambil dari repository yang sama:
 
 ```bash
-git fetch /path/ke/jasida-setup.bundle setup/vercel-deployment:setup/vercel-deployment
+git fetch origin
 git switch setup/vercel-deployment
+git pull --ff-only origin setup/vercel-deployment
 npm ci
 ```
+
+Buat branch fitur dari versi ini untuk perubahan berikutnya. Gabungkan setup
+ke `main` lewat Pull Request setelah review; jangan memakai force push untuk
+menimpa pekerjaan teman. `.env`, `.env.local`, `.vercel`, `node_modules`, dan
+`dist` tidak masuk Git. Template `.env.example`, lockfile, pengujian, dan
+script konfigurasi disertakan karena diperlukan untuk menjalankan dan
+memeriksa aplikasi.
 
 Salin `.env.example` ke `.env` dan isi URL serta public key project yang sama.
 Buat branch kerja dari versi tersebut dan jalankan pemeriksaan sebelum review:
