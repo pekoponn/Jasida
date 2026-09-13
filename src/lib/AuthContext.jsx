@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
+import { withResolvedAvatar } from './profileAvatar.js';
 
 const AuthContext = createContext(null);
 
@@ -18,7 +19,7 @@ export function AuthProvider({ children }) {
       console.warn('[profile] gagal ambil profil:', error.message);
       return null;
     }
-    return data;
+    return withResolvedAvatar(data);
   }
 
   async function refreshProfile() {

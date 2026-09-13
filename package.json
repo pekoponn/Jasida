@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "storage:configure": "node scripts/configure-storage.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",

@@ -1,4 +1,6 @@
 import { supabase } from './supabaseClient';
+import { withResolvedAvatar } from './profileAvatar.js';
+import { prepareUploadPhoto } from './imageUpload.js';
 
 export async function findSimilarReports({ lat, lng, damageType, embedding, radiusMeters = 50 }) {
   const { data, error } = await supabase.rpc('find_similar_reports', {
@@ -13,8 +15,9 @@ export async function findSimilarReports({ lat, lng, damageType, embedding, radi
 }
 
 export async function uploadReportImage(file, reportId) {
-  const path = `${reportId}/${Date.now()}-${file.name}`;
-  const { error } = await supabase.storage.from('report-images').upload(path, file);
+  const photo = await prepareUploadPhoto(file);
+  const path = `${reportId}/${crypto.randomUUID()}-${photo.name}`;
+  const { error } = await supabase.storage.from('report-images').upload(path, photo, { contentType: 'image/webp' });
   if (error) throw error;
 
   const { error: updateError } = await supabase
@@ -91,12 +94,13 @@ export async function completeReportWithActuals(reportId, { file, actualMaterial
 }
 
 export async function supportReport(reportId, file) {
+  const photo = file ? await prepareUploadPhoto(file) : null;
   const { error } = await supabase.rpc('support_report', { p_report_id: reportId });
   if (error) throw error;
 
-  if (file) {
+  if (photo) {
     try {
-      await addReportPhoto(reportId, file);
+      await addReportPhoto(reportId, photo);
     } catch (err) {
       // Dukungan tetap tercatat walau upload foto tambahan gagal
       console.warn('[support-photo]', err.message);
@@ -105,9 +109,10 @@ export async function supportReport(reportId, file) {
 }
 
 export async function addReportPhoto(reportId, file, photoType = 'support') {
+  const photo = await prepareUploadPhoto(file);
   const { data: { user } } = await supabase.auth.getUser();
-  const path = `${reportId}/${Date.now()}-${file.name}`;
-  const { error: uploadError } = await supabase.storage.from('report-images').upload(path, file);
+  const path = `${reportId}/${crypto.randomUUID()}-${photo.name}`;
+  const { error: uploadError } = await supabase.storage.from('report-images').upload(path, photo, { contentType: 'image/webp' });
   if (uploadError) throw uploadError;
 
   const { error: insertError } = await supabase
@@ -178,7 +183,7 @@ export async function listReportsFeed() {
       .select('id, username, avatar_url')
       .in('id', userIds);
     if (profileError) throw profileError;
-    profilesById = Object.fromEntries(profiles.map((p) => [p.id, p]));
+    profilesById = Object.fromEntries(profiles.map((p) => [p.id, withResolvedAvatar(p)]));
   }
 
   return reports.map((r) => ({
@@ -224,7 +229,7 @@ export async function listSupporters(reportId) {
     .in('id', userIds);
   if (profileError) throw profileError;
 
-  return profiles ?? [];
+  return (profiles ?? []).map(withResolvedAvatar);
 }
 
 export async function listComments(reportId) {
@@ -242,7 +247,7 @@ export async function listComments(reportId) {
     .select('id, username, avatar_url')
     .in('id', userIds);
   if (profileError) throw profileError;
-  const profilesById = Object.fromEntries(profiles.map((p) => [p.id, p]));
+  const profilesById = Object.fromEntries(profiles.map((p) => [p.id, withResolvedAvatar(p)]));
 
   return comments.map((c) => ({ ...c, profile: profilesById[c.user_id] ?? null }));
 }
@@ -274,6 +279,15 @@ export async function fetchAllReportsForAdmin({ statusFilter } = {}) {
   if (error) throw error;
   if (!reports.length) return [];
 
+  // The existing coordinate view does not expose the newer admin columns.
+  // Read them from reports under the same user's RLS permissions.
+  const { data: details, error: detailsError } = await supabase
+    .from('reports')
+    .select('id, bbox_area_pct, address, rejection_reason, accepted_at, estimated_completion_date, estimated_materials, estimated_materials_json, estimated_cost, actual_materials, actual_materials_json, actual_cost')
+    .in('id', reports.map((r) => r.id));
+  if (detailsError) throw detailsError;
+  const detailsById = Object.fromEntries((details ?? []).map((r) => [r.id, r]));
+
   const userIds = [...new Set(reports.map((r) => r.user_id).filter(Boolean))];
   let profilesById = {};
   if (userIds.length) {
@@ -282,11 +296,12 @@ export async function fetchAllReportsForAdmin({ statusFilter } = {}) {
       .select('id, username, avatar_url')
       .in('id', userIds);
     if (profileError) throw profileError;
-    profilesById = Object.fromEntries(profiles.map((p) => [p.id, p]));
+    profilesById = Object.fromEntries(profiles.map((p) => [p.id, withResolvedAvatar(p)]));
   }
 
   return reports.map((r) => ({
     ...r,
+    ...detailsById[r.id],
     profile: profilesById[r.user_id] ?? null,
     imageUrl: r.image_path
       ? supabase.storage.from('report-images').getPublicUrl(r.image_path).data.publicUrl

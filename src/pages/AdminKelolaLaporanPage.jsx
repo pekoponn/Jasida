@@ -92,14 +92,15 @@ export default function AdminKelolaLaporanPage() {
     }
   }
 
-  async function handleStartProgress(reportId, { estimatedDate, materials, cost }) {
+  async function handleStartProgress(reportId, { estimatedDate, materials, materialsJson, cost }) {
     setBusyId(reportId);
     try {
-      await startProgress(reportId, { estimatedDate, materials, cost });
+      await startProgress(reportId, { estimatedDate, materials, materialsJson, cost });
       patchLocal(reportId, {
         status: 'in_progress',
         estimated_completion_date: estimatedDate,
         estimated_materials: materials,
+        estimated_materials_json: materialsJson,
         estimated_cost: cost
       });
       setProgressTarget(null);
@@ -110,11 +111,11 @@ export default function AdminKelolaLaporanPage() {
     }
   }
 
-  async function handleComplete(reportId, { file, actualMaterials, actualCost }) {
+  async function handleComplete(reportId, { file, actualMaterials, actualMaterialsJson, actualCost }) {
     setBusyId(reportId);
     try {
-      await completeReportWithActuals(reportId, { file, actualMaterials, actualCost });
-      patchLocal(reportId, { status: 'resolved', actual_materials: actualMaterials, actual_cost: actualCost });
+      await completeReportWithActuals(reportId, { file, actualMaterials, actualMaterialsJson, actualCost });
+      patchLocal(reportId, { status: 'resolved', actual_materials: actualMaterials, actual_materials_json: actualMaterialsJson, actual_cost: actualCost });
       setCompleteTarget(null);
     } catch (err) {
       alert('Gagal menandai selesai: ' + err.message);
@@ -389,7 +390,7 @@ function CompleteModal({ report, onCancel, onConfirm }) {
           Foto bukti perbaikan
           <input
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             style={inputStyle}
           />

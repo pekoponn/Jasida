@@ -11,9 +11,13 @@ let sessionPromise = null;
 
 function getSession() {
   if (!sessionPromise) {
-    sessionPromise = ort.InferenceSession.create(MODEL_URL, {
-      executionProviders: ['wasm']
-    }).catch((err) => {
+    sessionPromise = (async () => {
+      const response = await fetch(MODEL_URL, { method: 'HEAD' });
+      if (!response.ok || response.headers.get('content-type')?.includes('text/html')) {
+        throw new Error('Model CLIP belum tersedia.');
+      }
+      return ort.InferenceSession.create(MODEL_URL, { executionProviders: ['wasm'] });
+    })().catch((err) => {
       sessionPromise = null;
       throw err;
     });
@@ -36,6 +40,9 @@ export async function embedImage(file) {
   const outputs = await session.run({ [inputName]: inputTensor });
   const outputName = session.outputNames[0];
   const raw = Array.from(outputs[outputName].data);
+  if (raw.length !== EMBEDDING_DIM || raw.some((value) => !Number.isFinite(value))) {
+    throw new Error('Output model CLIP tidak sesuai: diperlukan 512 angka valid.');
+  }
 
   return l2Normalize(raw);
 }

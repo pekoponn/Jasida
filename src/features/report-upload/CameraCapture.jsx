@@ -1,22 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { getCurrentPosition } from '../../lib/geolocation.js';
+import { PHOTO_INPUT_ACCEPT } from '../../lib/imageUpload.js';
 
-// Tombol upload foto ini HANYA muncul saat `npm run dev` (development).
-// Waktu di-build untuk production (npm run build / demo lomba), otomatis
-// hilang — supaya sistem tetap murni kamera-only untuk mencegah laporan palsu.
-const IS_DEV = import.meta.env.DEV;
-
-/**
- * Captures a photo directly from the device camera (getUserMedia) instead of
- * a file input — this prevents picking an old photo from the gallery.
- * GPS coordinates are captured at the exact moment the shutter is pressed,
- * so the location is tied to that specific capture, not fetched separately.
- *
- * Note: this raises the bar against casual spoofing (no gallery picker, no
- * re-uploading old screenshots) but is not a cryptographic guarantee — a
- * determined user could still use a virtual camera / GPS-spoofing app.
- * Stronger guarantees would need server-side verification (EXIF, attestation).
- */
+// Camera captures and gallery selections both use the same WebP preparation flow.
+// GPS for a gallery selection is the current device location, not photo metadata.
 export default function CameraCapture({ onCapture, disabled }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -76,13 +63,13 @@ export default function CameraCapture({ onCapture, disabled }) {
       canvas.getContext('2d').drawImage(video, 0, 0);
 
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+      if (!blob) throw new Error('Gagal mengambil foto dari kamera.');
       const file = new File([blob], `report-${Date.now()}.jpg`, { type: 'image/jpeg' });
 
       const position = await positionPromise;
       const capturedAt = new Date().toISOString();
 
-      stopCamera();
-      onCapture({ file, position, capturedAt });
+      await onCapture({ file, position, capturedAt });
     } catch (err) {
       console.error('[capture]', err);
       setError('Gagal mengambil foto. Coba lagi.');
@@ -91,7 +78,7 @@ export default function CameraCapture({ onCapture, disabled }) {
     }
   }
 
-  // --- DEV ONLY: upload dari file, bukan dari kamera langsung ---
+  // Select JPEG/PNG/WebP; onCapture prepares the image before analysis/upload.
   async function handleFileUpload(e) {
     const file = e.target.files?.[0];
     e.target.value = ''; // reset supaya bisa pilih file yang sama lagi kalau perlu
@@ -104,27 +91,25 @@ export default function CameraCapture({ onCapture, disabled }) {
       const position = await positionPromise;
       const capturedAt = new Date().toISOString();
 
-      stopCamera();
-      onCapture({ file, position, capturedAt });
+      await onCapture({ file, position, capturedAt });
     } catch (err) {
-      console.error('[dev-upload]', err);
+      console.error('[photo-upload]', err);
       setError('Gagal memproses foto. Coba lagi.');
     } finally {
       setCapturing(false);
     }
   }
 
-  function DevUploadBlock() {
-    if (!IS_DEV) return null;
+  function UploadBlock() {
     return (
-      <div style={devUploadBox}>
+      <div style={uploadBox}>
         <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700, color: '#8a5a12' }}>
-          🛠️ MODE DEV — hanya muncul di npm run dev, hilang saat production
+          JPEG, PNG, atau WebP · otomatis diperkecil di bawah 100 KB
         </p>
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept={PHOTO_INPUT_ACCEPT}
           style={{ display: 'none' }}
           onChange={handleFileUpload}
         />
@@ -132,9 +117,9 @@ export default function CameraCapture({ onCapture, disabled }) {
           type="button"
           disabled={disabled || capturing}
           onClick={() => fileInputRef.current?.click()}
-          style={devUploadBtn}
+          style={uploadBtn}
         >
-          📁 Upload Foto (testing saja)
+          📁 Pilih Foto
         </button>
       </div>
     );
@@ -147,7 +132,7 @@ export default function CameraCapture({ onCapture, disabled }) {
           <p style={{ margin: 0, fontWeight: 600 }}>📷 {error}</p>
           <button style={retryBtn} onClick={startCamera}>Coba lagi</button>
         </div>
-        <DevUploadBlock />
+        <UploadBlock />
       </div>
     );
   }
@@ -177,10 +162,10 @@ export default function CameraCapture({ onCapture, disabled }) {
       </button>
 
       <p style={{ fontSize: 12, color: 'var(--color-ink-soft)', textAlign: 'center', marginTop: 6 }}>
-        Foto harus diambil langsung dari kamera — tidak bisa unggah dari galeri, supaya lokasi laporan akurat.
+        Gunakan foto terbaru. Lokasi laporan mengikuti GPS perangkat saat foto diambil atau dipilih.
       </p>
 
-      <DevUploadBlock />
+      <UploadBlock />
     </div>
   );
 }
@@ -233,7 +218,7 @@ const retryBtn = {
   fontWeight: 600
 };
 
-const devUploadBox = {
+const uploadBox = {
   marginTop: 12,
   padding: '10px 12px',
   borderRadius: 'var(--radius-md)',
@@ -241,7 +226,7 @@ const devUploadBox = {
   border: '1px dashed #F0D9A8'
 };
 
-const devUploadBtn = {
+const uploadBtn = {
   width: '100%',
   padding: '10px 16px',
   borderRadius: 'var(--radius-md)',

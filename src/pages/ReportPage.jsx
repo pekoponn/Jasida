@@ -1,14 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { prepareUploadPhoto } from '../lib/imageUpload.js';
 import CameraCapture from '../features/report-upload/CameraCapture.jsx';
 import DuplicateModal from '../features/duplicate-check/DuplicateModal.jsx';
 import SeverityBadge from '../components/SeverityBadge.jsx';
-import { detectDamage, detectDamageMock } from '../ai/yolo.js';
-import { embedImage, embedImageMock } from '../ai/clip.js';
-import { computeHazardScore, severityDisplayLabel, damageTypeDisplayLabel } from '../ai/hazardScore.js';
+import { detectDamage } from '../ai/yolo.js';
+import { embedImage } from '../ai/clip.js';
+import { computeHazardScore, damageTypeDisplayLabel } from '../ai/hazardScore.js';
 import { pickBestDuplicate } from '../ai/duplicateScore.js';
 import { findSimilarReports, createReport, uploadReportImage, supportReport } from '../lib/reports.js';
 import { reverseGeocode } from '../lib/geolocation.js';
-import { convertToWebp } from '../lib/imageUtils.js';
 import MapPreview from '../components/MapPreview.jsx';
 import { useAuth } from '../lib/AuthContext.jsx';
 import { isWithinSidoarjo } from '../lib/geofence.js';
@@ -32,24 +32,38 @@ export default function ReportPage() {
   const [address, setAddress] = useState(null);
   const [addressLoading, setAddressLoading] = useState(false);
   const [hazard, setHazard] = useState(null);
-  const [bboxAreaPct, setBboxAreaPct] = useState(null);
   const [duplicate, setDuplicate] = useState(null);
-  const [usingMockModel, setUsingMockModel] = useState(false);
+  const [duplicateUnavailable, setDuplicateUnavailable] = useState(false);
   const [locatingSelf, setLocatingSelf] = useState(false);
+
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
 
   const hazardVisible = useMemo(() => step !== 'idle' && step !== 'analyzing' && hazard, [step, hazard]);
 
   async function handlePhotoCaptured({ file: selectedFile, position: gps, capturedAt }) {
     setError(null);
     setDuplicate(null);
+    setDuplicateUnavailable(false);
+    setHazard(null);
 
     if (gps && !isWithinSidoarjo(gps.lat, gps.lng)) {
       setError('Laporan hanya bisa dikirim untuk lokasi di dalam wilayah Kabupaten Sidoarjo. Foto ini terdeteksi di luar area tersebut.');
       return;
     }
 
-    setFile(selectedFile);
-    setPreviewUrl(URL.createObjectURL(selectedFile));
+    setStep('preparing');
+    let photo;
+    try {
+      photo = await prepareUploadPhoto(selectedFile);
+    } catch (err) {
+      setError(err.message);
+      setStep('idle');
+      return;
+    }
+    setFile(photo);
+    setPreviewUrl(URL.createObjectURL(photo));
     setPosition(gps);
     setCapturedAt(capturedAt);
     setAddress(null);
@@ -67,8 +81,8 @@ export default function ReportPage() {
     }
 
     try {
-      const { detections: dets, imageWidth, imageHeight } = await runDetection(selectedFile);
-      const emb = await runEmbedding(selectedFile);
+      const { detections: dets, imageWidth, imageHeight } = await detectDamage(photo);
+      const emb = await runEmbedding(photo);
 
       setDetections(dets);
       setImageDims({ width: imageWidth, height: imageHeight });
@@ -78,30 +92,14 @@ export default function ReportPage() {
       setHazard(hazardResult);
       setStep('analyzed');
 
-      const totalBoxArea = dets.reduce((sum, d) => sum + (d.bbox[2] * d.bbox[3]), 0);
-      const frameArea = imageWidth * imageHeight;
-      const areaPctValue = frameArea > 0 ? Math.min((totalBoxArea / frameArea) * 100, 100) : 0;
-      setBboxAreaPct(areaPctValue);
-
-      if (gps) {
+      if (gps && emb) {
         await checkDuplicates({ gps, damageType: hazardResult.dominant?.damage_type ?? null, embedding: emb });
       }
     } catch (err) {
       console.error(err);
-      setError('Gagal menganalisis foto. Coba lagi.');
+      setHazard(null);
+      setError('Analisis AI gagal. Periksa koneksi, lalu coba lagi. Foto belum dapat dikirim.');
       setStep('idle');
-    }
-  }
-
-  async function runDetection(selectedFile) {
-    try {
-      const result = await detectDamage(selectedFile);
-      setUsingMockModel(false);
-      return result;
-    } catch (err) {
-      console.warn('[yolo] fallback ke mock model:', err.message);
-      setUsingMockModel(true);
-      return detectDamageMock(selectedFile);
     }
   }
 
@@ -109,8 +107,9 @@ export default function ReportPage() {
     try {
       return await embedImage(selectedFile);
     } catch (err) {
-      console.warn('[clip] fallback ke mock embedding:', err.message);
-      return embedImageMock(selectedFile);
+      console.warn('[clip] pemeriksaan duplikat tidak tersedia:', err.message);
+      setDuplicateUnavailable(true);
+      return null;
     }
   }
 
@@ -125,43 +124,50 @@ export default function ReportPage() {
       setStep('analyzed');
     } catch (err) {
       console.warn('[duplicate-check] dilewati:', err.message);
+      setDuplicateUnavailable(true);
       setStep('analyzed');
     }
   }
 
   async function handleSubmitNewReport() {
+    if (step !== 'analyzed' || !hazard || !file) return;
+    if (!position || !isWithinSidoarjo(position.lat, position.lng)) {
+      setError('Lokasi di Sidoarjo wajib terdeteksi sebelum laporan dikirim. Izinkan GPS, lalu tekan Lokasi saat ini.');
+      return;
+    }
     setStep('submitting');
     setError(null);
     try {
+      const photo = await prepareUploadPhoto(file);
       const report = await createReport({
         damageType: hazard.dominant?.damage_type ?? 'other_corruption',
         confidence: hazard.dominant?.confidence ?? 0,
         hazardScore: hazard.total,
         severity: hazard.severity,
-        lat: position?.lat ?? 0,
-        lng: position?.lng ?? 0,
+        lat: position.lat,
+        lng: position.lng,
         embedding,
         capturedAt,
         note,
         bboxAreaPct: computeBboxAreaPct(detections, imageDims?.width, imageDims?.height),
-        address 
+        address
       });
-      const webpFile = await convertToWebp(file);
-      await uploadReportImage(webpFile, report.id);
+      await uploadReportImage(photo, report.id);
       setStep('done');
     } catch (err) {
       console.error(err);
-      setError('Gagal mengirim laporan. Periksa koneksi Supabase kamu (lihat .env).');
+      setError(err.message || 'Gagal mengirim laporan. Periksa koneksi dan coba lagi.');
       setStep('analyzed');
     }
   }
 
   async function handleSupportExisting(candidate) {
     try {
-      const webpFile = file ? await convertToWebp(file) : null;
-      await supportReport(candidate.id, webpFile);
+      await supportReport(candidate.id, file);
     } catch (err) {
       console.warn('[support]', err.message);
+      setError(err.message || 'Gagal mengirim dukungan. Coba lagi.');
+      return;
     }
     setDuplicate(null);
     setStep('done');
@@ -211,6 +217,7 @@ export default function ReportPage() {
     setPosition(null);
     setCapturedAt(null);
     setHazard(null);
+    setDuplicateUnavailable(false);
     setDuplicate(null);
     setError(null);
   }
@@ -279,14 +286,14 @@ export default function ReportPage() {
 
       <h1 className="display rp-title" style={rpTitleStyle}>Buat Laporan Kerusakan Jalan</h1>
       <p className="rp-subtitle" style={rpSubtitleStyle}>
-        Ambil foto langsung dari kamera, AI akan mendeteksi lubang/retak pada jalan dan memeriksa laporan serupa di sekitar lokasimu.
+        Ambil atau pilih foto kondisi jalan. AI akan mendeteksi lubang/retak dan memeriksa laporan serupa di sekitar lokasimu.
       </p>
 
       <div className="rp-card" style={rpCardStyle}>
         <div className="rp-grid" style={rpGridStyle}>
           {/* KOLOM KIRI: FOTO */}
           <div className="rp-col">
-            <SectionHeading icon={<CameraIcon />} title="Foto Kerusakan" subtitle="Ambil Foto Secara Real Time" />
+            <SectionHeading icon={<CameraIcon />} title="Foto Kerusakan" subtitle="Ambil foto atau unggah dari perangkat" />
 
             <div className="rp-photo-box" style={{ marginTop: 16, position: 'relative' }}>
               {previewUrl && step !== 'idle' ? (
@@ -301,19 +308,23 @@ export default function ReportPage() {
                   )}
                 </div>
               ) : (
-                <CameraCapture onCapture={handlePhotoCaptured} disabled={step === 'analyzing' || step === 'submitting'} />
+                <CameraCapture onCapture={handlePhotoCaptured} disabled={['preparing', 'analyzing', 'submitting'].includes(step)} />
               )}
             </div>
 
-            {previewUrl && step !== 'idle' && step !== 'submitting' && (
+            {file && step !== 'idle' && (
+              <p style={noteStyle}>Foto siap dikirim · WebP · {(file.size / 1000).toLocaleString('id-ID', { maximumFractionDigits: 3 })} KB</p>
+            )}
+
+            {previewUrl && ['analyzed', 'idle'].includes(step) && (
               <button type="button" onClick={reset} style={retakeBtn}>
                 <CameraIcon small /> Ambil Foto Ulang
               </button>
             )}
 
-            {usingMockModel && step !== 'idle' && (
+            {duplicateUnavailable && step !== 'idle' && (
               <p style={noteStyle}>
-                ⚠️ Model AI belum ditemukan di <code>/public/models</code> — hasil di bawah ini masih data contoh (mock) untuk keperluan demo alur.
+                Pemeriksaan foto duplikat belum tersedia. Periksa daftar laporan sebelum mengirim laporan baru.
               </p>
             )}
           </div>
@@ -369,6 +380,7 @@ export default function ReportPage() {
           </div>
         </div>
 
+        {step === 'preparing' && <StatusLine text="Menyiapkan dan mengecilkan foto…" />}
         {step === 'analyzing' && <StatusLine text="Menganalisis foto dengan AI…" />}
         {step === 'checking-duplicate' && <StatusLine text="Memeriksa laporan serupa di sekitar…" />}
         {error && <p style={errorStyle}>{error}</p>}
