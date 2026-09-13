@@ -35,7 +35,9 @@ export async function createReport({
   lng,
   embedding,
   capturedAt,
-  note
+  note,
+  bboxAreaPct,
+  address
 }) {
   const { data, error } = await supabase
     .from('reports')
@@ -47,8 +49,41 @@ export async function createReport({
       location: `SRID=4326;POINT(${lng} ${lat})`,
       embedding,
       captured_at: capturedAt,
-      note: note || null
+      note: note || null,
+      bbox_area_pct: bboxAreaPct ?? null,
+      address: address || null // ⬅️ BARU
     })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/** Data historis biaya nyata (bukan estimasi) per jenis kerusakan — dipakai untuk "belajar". */
+export async function getCostHistory(damageType) {
+  const { data, error } = await supabase
+    .from('reports')
+    .select('bbox_area_pct, actual_cost')
+    .eq('damage_type', damageType)
+    .eq('status', 'resolved')
+    .not('actual_cost', 'is', null);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function completeReportWithActuals(reportId, { file, actualMaterials, actualMaterialsJson, actualCost }) {
+  if (!file) throw new Error('Foto bukti perbaikan wajib diunggah.');
+  await addReportPhoto(reportId, file, 'resolution');
+
+  const { data, error } = await supabase
+    .from('reports')
+    .update({
+      status: 'resolved',
+      actual_materials: actualMaterials,
+      actual_materials_json: actualMaterialsJson,
+      actual_cost: actualCost
+    })
+    .eq('id', reportId)
     .select()
     .single();
   if (error) throw error;
@@ -257,6 +292,45 @@ export async function fetchAllReportsForAdmin({ statusFilter } = {}) {
       ? supabase.storage.from('report-images').getPublicUrl(r.image_path).data.publicUrl
       : null
   }));
+}
+
+export async function rejectReport(reportId, reason) {
+  const { data, error } = await supabase
+    .from('reports')
+    .update({ status: 'rejected', rejection_reason: reason })
+    .eq('id', reportId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function acceptReport(reportId) {
+  const { data, error } = await supabase
+    .from('reports')
+    .update({ status: 'accepted', accepted_at: new Date().toISOString() })
+    .eq('id', reportId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function startProgress(reportId, { estimatedDate, materials, materialsJson, cost }) {
+  const { data, error } = await supabase
+    .from('reports')
+    .update({
+      status: 'in_progress',
+      estimated_completion_date: estimatedDate,
+      estimated_materials: materials,
+      estimated_materials_json: materialsJson,
+      estimated_cost: cost
+    })
+    .eq('id', reportId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 /** Update status laporan (open / in_progress / resolved). Butuh policy admin di reports (sudah dibuat di LANGKAH 1 SQL). */

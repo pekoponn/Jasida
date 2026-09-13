@@ -8,40 +8,68 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-    async function refreshProfile() {
-    if (!user) return;
+  async function fetchProfile(userId) {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single();
     if (error) {
       console.warn('[profile] gagal ambil profil:', error.message);
-      return;
+      return null;
     }
+    return data;
+  }
+
+  async function refreshProfile() {
+    if (!user) return;
+    const data = await fetchProfile(user.id);
     setProfile(data);
   }
 
   useEffect(() => {
-    if (!user) {
-      setProfile(null);
-      return;
+    let active = true; // guard biar tidak setState setelah unmount
+
+    // Alur awal: ambil session DULU, lalu tunggu profile-nya juga selesai,
+    // baru loading di-set false. Ini kunci fix-nya — sebelumnya loading
+    // langsung false begitu session ada, padahal profile belum tentu ready.
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      const sessionUser = session?.user ?? null;
+      if (!active) return;
+      setUser(sessionUser);
+
+      if (sessionUser) {
+        const data = await fetchProfile(sessionUser.id);
+        if (active) setProfile(data);
+      } else {
+        setProfile(null);
+      }
+
+      if (active) setLoading(false);
     }
-    refreshProfile();
-  }, [user]);
+
+    init();
+
+    // Untuk perubahan auth SETELAH initial load (login/logout di tab yang sama,
+    // token refresh, dll) — user & profile di-update bareng juga di sini.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const sessionUser = session?.user ?? null;
+      setUser(sessionUser);
+
+      if (sessionUser) {
+        const data = await fetchProfile(sessionUser.id);
+        if (active) setProfile(data);
+      } else {
+        setProfile(null);
+      }
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   async function signUp({ email, password, username }) {
     const { data, error } = await supabase.auth.signUp({
@@ -66,7 +94,7 @@ export function AuthProvider({ children }) {
 
   const isAdmin = profile?.role === 'admin';
 
-    return (
+  return (
     <AuthContext.Provider value={{ user, profile, loading, isAdmin, signUp, signIn, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>

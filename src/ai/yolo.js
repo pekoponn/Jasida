@@ -121,16 +121,12 @@ function iou(a, b) {
   return unionArea <= 0 ? 0 : interArea / unionArea;
 }
 
-/**
- * Stand-in dipakai kalau model ONNX belum ada/gagal dimuat.
- * Struktur return HARUS sama dengan detectDamage() asli: { detections, imageWidth, imageHeight }.
- */
 export async function detectDamageMock(file) {
   await new Promise((r) => setTimeout(r, 600));
   return {
     detections: [
       { damage_type: 'pothole', confidence: 0.91, bbox: [120, 340, 180, 140] },
-      { damage_type: 'sampah', confidence: 0.62, bbox: [40, 500, 90, 70] }
+      { damage_type: 'longitudinal_crack', confidence: 0.58, bbox: [400, 200, 320, 40] }
     ],
     imageWidth: 1280,
     imageHeight: 960

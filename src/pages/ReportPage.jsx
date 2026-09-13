@@ -8,6 +8,7 @@ import { computeHazardScore, severityDisplayLabel, damageTypeDisplayLabel } from
 import { pickBestDuplicate } from '../ai/duplicateScore.js';
 import { findSimilarReports, createReport, uploadReportImage, supportReport } from '../lib/reports.js';
 import { reverseGeocode } from '../lib/geolocation.js';
+import { convertToWebp } from '../lib/imageUtils.js';
 import MapPreview from '../components/MapPreview.jsx';
 import { useAuth } from '../lib/AuthContext.jsx';
 import { isWithinSidoarjo } from '../lib/geofence.js';
@@ -31,6 +32,7 @@ export default function ReportPage() {
   const [address, setAddress] = useState(null);
   const [addressLoading, setAddressLoading] = useState(false);
   const [hazard, setHazard] = useState(null);
+  const [bboxAreaPct, setBboxAreaPct] = useState(null);
   const [duplicate, setDuplicate] = useState(null);
   const [usingMockModel, setUsingMockModel] = useState(false);
   const [locatingSelf, setLocatingSelf] = useState(false);
@@ -75,6 +77,11 @@ export default function ReportPage() {
       const hazardResult = computeHazardScore({ detections: dets, imageWidth, imageHeight });
       setHazard(hazardResult);
       setStep('analyzed');
+
+      const totalBoxArea = dets.reduce((sum, d) => sum + (d.bbox[2] * d.bbox[3]), 0);
+      const frameArea = imageWidth * imageHeight;
+      const areaPctValue = frameArea > 0 ? Math.min((totalBoxArea / frameArea) * 100, 100) : 0;
+      setBboxAreaPct(areaPctValue);
 
       if (gps) {
         await checkDuplicates({ gps, damageType: hazardResult.dominant?.damage_type ?? null, embedding: emb });
@@ -135,9 +142,12 @@ export default function ReportPage() {
         lng: position?.lng ?? 0,
         embedding,
         capturedAt,
-        note
+        note,
+        bboxAreaPct: computeBboxAreaPct(detections, imageDims?.width, imageDims?.height),
+        address 
       });
-      await uploadReportImage(file, report.id);
+      const webpFile = await convertToWebp(file);
+      await uploadReportImage(webpFile, report.id);
       setStep('done');
     } catch (err) {
       console.error(err);
@@ -148,7 +158,8 @@ export default function ReportPage() {
 
   async function handleSupportExisting(candidate) {
     try {
-      await supportReport(candidate.id, file);
+      const webpFile = file ? await convertToWebp(file) : null;
+      await supportReport(candidate.id, webpFile);
     } catch (err) {
       console.warn('[support]', err.message);
     }
@@ -390,6 +401,18 @@ export default function ReportPage() {
       />
     </section>
   );
+}
+
+function computeBboxAreaPct(detections, imageWidth, imageHeight) {
+  if (!detections?.length || !imageWidth || !imageHeight) return null;
+  const totalBoxArea = detections.reduce((sum, d) => {
+    const [, , w, h] = d.bbox;
+    return sum + w * h;
+  }, 0);
+  const imageArea = imageWidth * imageHeight;
+  if (imageArea <= 0) return null;
+  const pct = (totalBoxArea / imageArea) * 100;
+  return Math.min(100, Math.round(pct * 10) / 10);
 }
 
 function DetectionOverlay({ detections, imageWidth, imageHeight }) {

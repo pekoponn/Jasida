@@ -1,12 +1,76 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell
+} from 'recharts';
+import { FileText, CheckCircle2, Clock3, AlertTriangle } from 'lucide-react';
 import { fetchAllReportsForAdmin, updateReportStatus, resolveReport } from '../lib/reports.js';
 import { damageTypeDisplayLabel } from '../ai/hazardScore.js';
 import AdminMap from '../components/AdminMap.jsx';
 
+// Cache di level modul, supaya koordinat yang sama tidak query berkali-kali.
+// Dipersist ke localStorage juga supaya reload halaman tidak nge-fetch ulang semuanya.
+const CACHE_KEY = 'jasida_geocode_cache_v1';
+let geocodeCache;
+try {
+  geocodeCache = new Map(JSON.parse(localStorage.getItem(CACHE_KEY) || '[]'));
+} catch {
+  geocodeCache = new Map();
+}
+
+function persistGeocodeCache() {
+  try {
+    const entries = [...geocodeCache.entries()].slice(-1000);
+    localStorage.setItem(CACHE_KEY, JSON.stringify(entries));
+  } catch {
+    // localStorage penuh/diblok — abaikan, cache tetap jalan di memori
+  }
+}
+
+// Nominatim (OpenStreetMap) membatasi MAKSIMAL 1 request/detik. Kalau semua
+// baris tabel fetch bersamaan (mis. 20 baris), request ke-2 dst kena
+// rate-limit dan gagal — itu sebabnya lokasi selalu tampil "-". Fix-nya:
+// antre satu per satu dengan jeda, bukan fire semua sekaligus.
+let geocodeQueue = Promise.resolve();
+
+function enqueueGeocode(task) {
+  const run = geocodeQueue.then(task, task);
+  geocodeQueue = run.catch(() => {}).then(() => new Promise((r) => setTimeout(r, 1100)));
+  return run;
+}
+
+async function reverseGeocode(lat, lng) {
+  const key = `${lat},${lng}`;
+  if (geocodeCache.has(key)) return geocodeCache.get(key);
+
+  return enqueueGeocode(async () => {
+    if (geocodeCache.has(key)) return geocodeCache.get(key);
+
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=17&addressdetails=1`
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const addr = data.address ?? {};
+      const jalan = addr.road || addr.pedestrian || addr.neighbourhood || addr.suburb || data.display_name?.split(',')[0] || null;
+      const kelurahan = addr.village || addr.suburb || addr.city_district || '';
+      const result = jalan ? `${jalan}${kelurahan ? ', ' + kelurahan : ''}` : (data.display_name ?? '-');
+      geocodeCache.set(key, result);
+      persistGeocodeCache();
+      return result;
+    } catch (err) {
+      console.warn('[reverse-geocode]', err.message);
+      return '-';
+    }
+  });
+}
+
 export const STATUS_LABEL = {
   open: 'Belum Diproses',
+  rejected: 'Ditolak',
+  accepted: 'Menunggu Dikerjakan',
   in_progress: 'Diproses',
   resolved: 'Selesai'
 };
@@ -21,6 +85,8 @@ export const SEVERITY_STYLE = {
   emergency: { color: '#e03131', label: 'Darurat' }
 };
 
+const DONUT_COLORS = ['#2f9e44', '#f5c518', '#e03131']; // Ringan, Sedang, Parah
+
 export default function AdminDashboardPage() {
   const location = useLocation();
   const view = location.pathname.endsWith('/peta') ? 'map' : 'list';
@@ -28,18 +94,17 @@ export default function AdminDashboardPage() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('all');
   const [updatingId, setUpdatingId] = useState(null);
 
   useEffect(() => {
     load();
-  }, [statusFilter]);
+  }, []);
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchAllReportsForAdmin({ statusFilter });
+      const data = await fetchAllReportsForAdmin({ statusFilter: 'all' });
       setReports(data);
     } catch (err) {
       console.error(err);
@@ -53,9 +118,7 @@ export default function AdminDashboardPage() {
     setUpdatingId(report.id);
     try {
       await updateReportStatus(report.id, newStatus);
-      setReports((prev) =>
-        prev.map((r) => (r.id === report.id ? { ...r, status: newStatus } : r))
-      );
+      setReports((prev) => prev.map((r) => (r.id === report.id ? { ...r, status: newStatus } : r)));
     } catch (err) {
       console.error(err);
       alert('Gagal update status: ' + err.message);
@@ -68,9 +131,7 @@ export default function AdminDashboardPage() {
     setUpdatingId(report.id);
     try {
       await resolveReport(report.id, file);
-      setReports((prev) =>
-        prev.map((r) => (r.id === report.id ? { ...r, status: 'resolved' } : r))
-      );
+      setReports((prev) => prev.map((r) => (r.id === report.id ? { ...r, status: 'resolved' } : r)));
     } catch (err) {
       console.error(err);
       alert('Gagal menandai selesai: ' + err.message);
@@ -80,30 +141,57 @@ export default function AdminDashboardPage() {
   }
 
   const counts = useMemo(() => {
-    const c = { open: 0, in_progress: 0, resolved: 0 };
-    reports.forEach((r) => { if (c[r.status] !== undefined) c[r.status]++; });
-    return c;
-  }, [reports]);
-
-  const severityCounts = useMemo(() => {
-    const c = {};
+    const c = { open: 0, in_progress: 0, resolved: 0, darurat: 0 };
     reports.forEach((r) => {
-      const style = SEVERITY_STYLE[r.severity];
-      const label = style?.label ?? r.severity ?? 'Lainnya';
-      c[label] = (c[label] ?? 0) + 1;
+      if (c[r.status] !== undefined) c[r.status]++;
+      if (r.severity === 'darurat' || r.severity === 'emergency') c.darurat++;
     });
     return c;
   }, [reports]);
+
+  function weekOverWeek(filterFn) {
+    const now = Date.now();
+    const oneWeek = 7 * 24 * 60 * 60 * 1000;
+    const thisWeek = reports.filter((r) => filterFn(r) && now - new Date(r.created_at).getTime() <= oneWeek).length;
+    const lastWeek = reports.filter((r) => {
+      const age = now - new Date(r.created_at).getTime();
+      return filterFn(r) && age > oneWeek && age <= 2 * oneWeek;
+    }).length;
+    if (lastWeek === 0) return null;
+    return Math.round(((thisWeek - lastWeek) / lastWeek) * 100);
+  }
+
+  const trendPct = useMemo(() => ({
+    total: weekOverWeek(() => true),
+    resolved: weekOverWeek((r) => r.status === 'resolved'),
+    open: weekOverWeek((r) => r.status === 'open'),
+    darurat: weekOverWeek((r) => r.severity === 'darurat' || r.severity === 'emergency'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [reports]);
 
   const trendData = useMemo(() => {
     const byDay = {};
     reports.forEach((r) => {
       const day = new Date(r.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
-      byDay[day] = (byDay[day] ?? 0) + 1;
+      if (!byDay[day]) byDay[day] = { day, masuk: 0, selesai: 0 };
+      byDay[day].masuk++;
+      if (r.status === 'resolved') byDay[day].selesai++;
     });
-    return Object.entries(byDay)
-      .map(([day, count]) => ({ day, count }))
-      .slice(-30);
+    return Object.values(byDay).slice(-30);
+  }, [reports]);
+
+  const severityBuckets = useMemo(() => {
+    const buckets = [
+      { key: 'ringan', label: 'Ringan (0–35)', min: 0, max: 35, count: 0 },
+      { key: 'sedang', label: 'Sedang (36–75)', min: 36, max: 75, count: 0 },
+      { key: 'parah', label: 'Parah (75–100)', min: 76, max: 100, count: 0 },
+    ];
+    reports.forEach((r) => {
+      const score = r.hazard_score ?? 0;
+      const b = buckets.find((b) => score >= b.min && score <= b.max);
+      if (b) b.count++;
+    });
+    return buckets;
   }, [reports]);
 
   return (
@@ -113,217 +201,200 @@ export default function AdminDashboardPage() {
         Pantau dan proses laporan kerusakan jalan dari warga.
       </p>
 
-      {view === 'list' && (
-        <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-          {['all', 'open', 'in_progress', 'resolved'].map((s) => (
-            <button key={s} style={filterBtn(statusFilter === s)} onClick={() => setStatusFilter(s)}>
-              {s === 'all' ? 'Semua' : STATUS_LABEL[s]}
-              {s !== 'all' && ` (${counts[s] ?? 0})`}
-            </button>
-          ))}
-        </div>
-      )}
-
       {error && <p style={{ color: 'var(--sev-emergency)', marginTop: 12 }}>{error}</p>}
       {loading && <p style={{ marginTop: 12 }}>Memuat laporan…</p>}
 
-      {!loading && view === 'map' && (
+      {!loading && view === 'map' && <AdminMap reports={reports} />}
+
+      {!loading && view === 'list' && (
         <>
           <div style={summaryGrid}>
-            <SummaryCard label="Total laporan" value={reports.length} />
-            <SummaryCard label="Belum diproses" value={counts.open} />
-            <SummaryCard label="Sedang diproses" value={counts.in_progress} />
-            <SummaryCard label="Selesai" value={counts.resolved} />
+            <SummaryCard
+              icon={<FileText size={22} color="#2f9e44" />}
+              iconBg="#E7F6EC"
+              label="Total Laporan Masuk"
+              value={reports.length}
+              trend={trendPct.total}
+            />
+            <SummaryCard
+              icon={<CheckCircle2 size={22} color="#f08c00" />}
+              iconBg="#FDF1DE"
+              label="Laporan Selesai"
+              value={counts.resolved}
+              trend={trendPct.resolved}
+            />
+            <SummaryCard
+              icon={<Clock3 size={22} color="#1c7ed6" />}
+              iconBg="#E3F1FD"
+              label="Menunggu Verifikasi"
+              value={counts.open}
+              trend={trendPct.open}
+              invert
+            />
+            <SummaryCard
+              icon={<AlertTriangle size={22} color="#e03131" />}
+              iconBg="#FBE3E3"
+              label="Laporan Darurat"
+              value={counts.darurat}
+              trend={trendPct.darurat}
+            />
           </div>
 
-          <div style={panelCard}>
-            <h3 style={panelTitle}>Sebaran tingkat keparahan</h3>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 10 }}>
-              {Object.entries(severityCounts).map(([label, count]) => (
-                <div key={label} style={{ fontSize: 13 }}>
-                  <span style={{ fontWeight: 700 }}>{count}</span>{' '}
-                  <span style={{ color: 'var(--color-ink-soft)' }}>{label}</span>
+          <div style={{ display: 'flex', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
+            <div style={{ ...panelCard, flex: '2 1 420px', marginTop: 0 }}>
+              <h3 style={panelTitle}>Statistik Laporan</h3>
+              {trendData.length > 0 ? (
+                <div style={{ height: 240, marginTop: 10 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={trendData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
+                      <XAxis dataKey="day" fontSize={11} />
+                      <YAxis allowDecimals={false} fontSize={11} />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="masuk" name="Masuk" stroke="#e03131" strokeWidth={2} dot={{ r: 3 }} />
+                      <Line type="monotone" dataKey="selesai" name="Selesai" stroke="#2f9e44" strokeWidth={2} dot={{ r: 3 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
-              ))}
-              {reports.length === 0 && <p style={{ color: 'var(--color-ink-soft)', fontSize: 13 }}>Belum ada data.</p>}
+              ) : (
+                <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>Belum ada data laporan.</p>
+              )}
+            </div>
+
+            <div style={{ ...panelCard, flex: '1 1 300px', marginTop: 0 }}>
+              <h3 style={panelTitle}>Laporan Berdasarkan Tingkat Kerusakan</h3>
+              {reports.length > 0 ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 10 }}>
+                  <div style={{ width: 140, height: 140, flexShrink: 0 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={severityBuckets} dataKey="count" innerRadius={38} outerRadius={65} paddingAngle={2}>
+                          {severityBuckets.map((b, i) => (
+                            <Cell key={b.key} fill={DONUT_COLORS[i]} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {severityBuckets.map((b, i) => {
+                      const pct = reports.length ? Math.round((b.count / reports.length) * 100) : 0;
+                      return (
+                        <div key={b.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                          <span style={{ width: 10, height: 10, borderRadius: '50%', background: DONUT_COLORS[i] }} />
+                          <span style={{ minWidth: 110 }}>{b.label}</span>
+                          <strong>{b.count} ({pct}%)</strong>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>Belum ada data.</p>
+              )}
             </div>
           </div>
 
-          <div style={panelCard}>
-            <h3 style={panelTitle}>Tren laporan masuk</h3>
-            {trendData.length > 0 ? (
-              <div style={{ height: 220, marginTop: 10 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={trendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-                    <XAxis dataKey="day" fontSize={11} />
-                    <YAxis allowDecimals={false} fontSize={11} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="count" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 3 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>Belum ada data laporan.</p>
-            )}
-          </div>
+          <div style={{ ...panelCard, padding: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px' }}>
+              <h3 style={{ ...panelTitle, margin: 0 }}>Kelola Laporan</h3>
+            </div>
 
-          <div style={{ marginTop: 16 }}>
-            <AdminMap reports={reports} />
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: '#A61C24', color: '#fff', textAlign: 'left' }}>
+                    <th style={th}>Kode</th>
+                    <th style={th}>Nama Pelapor</th>
+                    <th style={th}>Lokasi</th>
+                    <th style={th}>Long</th>
+                    <th style={th}>Lat</th>
+                    <th style={th}>Waktu Lapor</th>
+                    <th style={th}>Foto</th>
+                    <th style={th}>Kondisi</th>
+                    <th style={th}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reports.length === 0 && (
+                    <tr><td style={td} colSpan={9}>Tidak ada laporan.</td></tr>
+                  )}
+                  {reports.map((r) => (
+                    <ReportRowTable
+                      key={r.id}
+                      report={r}
+                      updating={updatingId === r.id}
+                      onStatusChange={handleStatusChange}
+                      onResolve={handleResolve}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </>
-      )}
-
-      {!loading && view === 'list' && (
-        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {reports.length === 0 && <p style={{ color: 'var(--color-ink-soft)' }}>Tidak ada laporan.</p>}
-          {reports.map((r) => (
-            <ReportRow
-              key={r.id}
-              report={r}
-              updating={updatingId === r.id}
-              onStatusChange={handleStatusChange}
-              onResolve={handleResolve}
-            />
-          ))}
-        </div>
       )}
     </section>
   );
 }
 
-function SummaryCard({ label, value }) {
+function SummaryCard({ icon, iconBg, label, value, trend, invert }) {
+  const isUp = trend > 0;
+  const goodColor = invert ? '#e03131' : '#2f9e44';
+  const badColor = invert ? '#2f9e44' : '#e03131';
   return (
     <div style={summaryCard}>
-      <div style={{ fontSize: 22, fontWeight: 800 }}>{value}</div>
-      <div style={{ fontSize: 12, color: 'var(--color-ink-soft)' }}>{label}</div>
+      <div style={{ width: 44, height: 44, borderRadius: 12, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+        {icon}
+      </div>
+      <div style={{ fontSize: 13, color: 'var(--color-ink-soft)' }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 800, marginTop: 2 }}>{value.toLocaleString('id-ID')}</div>
+      {trend !== null && trend !== undefined && (
+        <div style={{ fontSize: 12, marginTop: 6, color: isUp ? goodColor : badColor }}>
+          {isUp ? '↑' : '↓'} {Math.abs(trend)}% dari minggu lalu
+        </div>
+      )}
     </div>
   );
 }
 
-function ReportRow({ report, updating, onStatusChange, onResolve }) {
+function ReportRowTable({ report, updating, onStatusChange, onResolve }) {
   const style = SEVERITY_STYLE[report.severity] ?? { color: '#868e96', label: report.severity };
-  const [resolving, setResolving] = useState(false);
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState(null);
+  const kode = report.code ?? `#${String(report.id).slice(0, 6).toUpperCase()}-JASIDA`;
+  const nama = report.reporter_name ?? report.profile?.username ?? '-';
+  const long = report.lng ?? report.longitude ?? '-';
+  const lat = report.lat ?? report.latitude ?? '-';
 
-  function handleFileChange(e) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
-  }
+  const [lokasi, setLokasi] = useState(report.address ?? report.location_text ?? null);
 
-  function cancelResolve() {
-    setResolving(false);
-    setFile(null);
-    setPreview(null);
-  }
-
-  async function submitResolve() {
-    if (!file) return;
-    await onResolve(report, file);
-    setResolving(false);
-    setFile(null);
-    setPreview(null);
-  }
+  useEffect(() => {
+    if (lokasi || lat === '-' || long === '-') return;
+    let cancelled = false;
+    reverseGeocode(lat, long).then((result) => {
+      if (!cancelled) setLokasi(result);
+    });
+    return () => { cancelled = true; };
+  }, [lat, long]);
 
   return (
-    <div style={rowCard}>
-      <div style={{ display: 'flex', gap: 12 }}>
+    <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+      <td style={td}>{kode}</td>
+      <td style={td}>{nama}</td>
+      <td style={td}>{lokasi ?? 'Memuat lokasi…'}</td>
+      <td style={td}>{long}</td>
+      <td style={td}>{lat}</td>
+      <td style={td}>{new Date(report.created_at).toLocaleString('id-ID')}</td>
+      <td style={td}>
         {report.imageUrl && (
-          <img
-            src={report.imageUrl}
-            alt={damageTypeDisplayLabel(report.damage_type)}
-            style={{ width: 88, height: 88, objectFit: 'cover', borderRadius: 'var(--radius-md)', flexShrink: 0 }}
-          />
+          <img src={report.imageUrl} alt={damageTypeDisplayLabel(report.damage_type)}
+               style={{ width: 56, height: 56, minWidth: 56, objectFit: 'cover', objectPosition: 'center', borderRadius: 6, display: 'block' }} />
         )}
-
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <div style={{ fontWeight: 700 }}>{damageTypeDisplayLabel(report.damage_type)}</div>
-            <div style={{ fontSize: 12, color: 'var(--color-ink-soft)', marginTop: 2 }}>
-              {new Date(report.created_at).toLocaleString('id-ID')}
-            </div>
-            {report.note && (
-              <div style={{ fontSize: 13, marginTop: 6, fontStyle: 'italic' }}>"{report.note}"</div>
-            )}
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <span style={{ ...badge, background: style.color }}>{style.label} · {report.hazard_score}</span>
-            <div style={{ fontSize: 12, color: 'var(--color-ink-soft)', marginTop: 6 }}>
-              {STATUS_LABEL[report.status] ?? report.status}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {!resolving && (
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          {report.status !== 'in_progress' && report.status !== 'resolved' && (
-            <button
-              style={actionBtn}
-              disabled={updating}
-              onClick={() => onStatusChange(report, 'in_progress')}
-            >
-              Mulai Proses
-            </button>
-          )}
-          {report.status !== 'resolved' && (
-            <button
-              style={{ ...actionBtn, background: '#2f9e44' }}
-              disabled={updating}
-              onClick={() => setResolving(true)}
-            >
-              Tandai Selesai
-            </button>
-          )}
-          {report.status === 'resolved' && (
-            <button
-              style={{ ...actionBtn, background: '#868e96' }}
-              disabled={updating}
-              onClick={() => onStatusChange(report, 'open')}
-            >
-              Buka Kembali
-            </button>
-          )}
-        </div>
-      )}
-
-      {resolving && (
-        <div style={resolveBox}>
-          <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 8px' }}>
-            Unggah foto bukti perbaikan sebelum menandai selesai
-          </p>
-
-          {preview ? (
-            <img src={preview} alt="Preview bukti perbaikan" style={{ width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 'var(--radius-md)', marginBottom: 10 }} />
-          ) : (
-            <label style={fileLabel}>
-              📷 Pilih foto bukti perbaikan
-              <input type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
-            </label>
-          )}
-
-          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-            <button
-              style={{ ...actionBtn, background: '#2f9e44', opacity: file ? 1 : 0.5 }}
-              disabled={!file || updating}
-              onClick={submitResolve}
-            >
-              {updating ? 'Mengirim…' : 'Kirim & Tandai Selesai'}
-            </button>
-            <button
-              style={{ ...actionBtn, background: '#868e96' }}
-              disabled={updating}
-              onClick={cancelResolve}
-            >
-              Batal
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+      </td>
+      <td style={td}>
+        <span style={{ ...badge, background: style.color }}>{style.label} · {report.hazard_score}</span>
+      </td>
+      <td style={td}>{STATUS_LABEL[report.status] ?? report.status}</td>
+    </tr>
   );
 }
 
@@ -335,49 +406,25 @@ const filterBtn = (active) => ({
   fontSize: 13
 });
 
-const rowCard = {
-  padding: 14, background: 'var(--color-surface)',
-  borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-card)'
-};
-
 const badge = {
   display: 'inline-block', padding: '3px 10px', borderRadius: 999,
   color: '#fff', fontSize: 12, fontWeight: 700
 };
 
 const actionBtn = {
-  padding: '8px 14px', borderRadius: 'var(--radius-md)', border: 'none',
-  background: 'var(--color-primary)', color: '#fff', fontSize: 13, fontWeight: 600
-};
-
-const resolveBox = {
-  marginTop: 12,
-  padding: 12,
-  background: 'var(--color-bg)',
-  borderRadius: 'var(--radius-md)'
-};
-
-const fileLabel = {
-  display: 'block',
-  padding: '20px 12px',
-  textAlign: 'center',
-  border: '1.5px dashed var(--color-border)',
-  borderRadius: 'var(--radius-md)',
-  fontSize: 13,
-  fontWeight: 600,
-  color: 'var(--color-ink-soft)',
-  cursor: 'pointer'
+  padding: '6px 12px', borderRadius: 'var(--radius-md)', border: 'none',
+  background: 'var(--color-primary)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer'
 };
 
 const summaryGrid = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-  gap: 10,
-  marginTop: 16
+  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+  gap: 16,
+  marginTop: 20
 };
 
 const summaryCard = {
-  padding: '14px 16px',
+  padding: '18px 20px',
   background: 'var(--color-surface)',
   borderRadius: 'var(--radius-lg)',
   boxShadow: 'var(--shadow-card)'
@@ -392,3 +439,6 @@ const panelCard = {
 };
 
 const panelTitle = { fontSize: 15, fontWeight: 700, margin: 0 };
+
+const th = { padding: '12px 16px', fontWeight: 600 };
+const td = { padding: '12px 16px', verticalAlign: 'middle' };

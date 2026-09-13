@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import ReportPage from './pages/ReportPage.jsx';
 import MapPage from './pages/MapPage.jsx';
@@ -7,21 +8,69 @@ import LandingPage from './pages/LandingPage.jsx';
 import AdminDashboardPage from './pages/AdminDashboardPage.jsx';
 import RoleRedirect from './components/RoleRedirect.jsx';
 import AdminRoute from './components/AdminRoute.jsx';
+import AdminSidebar from './components/AdminSidebar.jsx';
+import AdminKelolaLaporanPage from './pages/AdminKelolaLaporanPage.jsx';
 import { useAuth } from './lib/AuthContext.jsx';
 import EditProfilePage from './pages/EditProfilePage.jsx';
 import RiwayatPage from './pages/RiwayatPage.jsx';
 import Footer from './components/Footer.jsx';
 import Navbar from './components/Navbar.jsx';
 import { useIsMobileDevice } from './lib/useIsMobileDevice.js';
+import AdminTopbar from './components/AdminTopbar.jsx';
 
 export default function App() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
   const location = useLocation();
   const isMobileDevice = useIsMobileDevice();
+  const [sidebarOpen, setSidebarOpen] = useState(false); // ⬅️ BARU
 
   if (location.pathname === '/login') {
     return <LoginPage />;
+  }
+
+  const isAdminArea = location.pathname.startsWith('/admin');
+
+  if (isAdminArea) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
+        <AdminSidebar
+          mobileOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: '#F5F6FA' }}>
+          <AdminTopbar onMenuClick={() => setSidebarOpen(true)} />
+          <main style={{ flex: 1, padding: '28px 32px 64px' }}>
+            <Routes>
+              <Route
+                path="/admin"
+                element={
+                  <AdminRoute>
+                    <AdminDashboardPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/peta"
+                element={
+                  <AdminRoute>
+                    <AdminDashboardPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/laporan"
+                element={
+                  <AdminRoute>
+                    <AdminKelolaLaporanPage />
+                  </AdminRoute>
+                }
+              />
+            </Routes>
+          </main>
+        </div>
+      </div>
+    );
   }
 
   const isLandingOrFullWidth = location.pathname === '/' || location.pathname === '/dashboard';
@@ -29,11 +78,11 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Inter, sans-serif', userSelect: 'none', WebkitUserSelect: 'none' }}>
-      
+
       {/* NAVBAR KOMPONEN BARU */}
       <Navbar />
 
-      <div style={dashedDivider} />
+      <div style={dashedDivider(isMobileDevice)} />
 
       <main
           style={{
@@ -53,22 +102,6 @@ export default function App() {
           <Route path="/peta" element={<MapPage />} />
           <Route path="/profil" element={<EditProfilePage />} />
           <Route path="/riwayat" element={<RiwayatPage />} />
-          <Route
-            path="/admin"
-            element={
-              <AdminRoute>
-                <AdminDashboardPage />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/peta"
-            element={
-              <AdminRoute>
-                <AdminDashboardPage />
-              </AdminRoute>
-            }
-          />
         </Routes>
       </main>
 
@@ -77,8 +110,11 @@ export default function App() {
   );
 }
 
-const dashedDivider = {
-  height: 3,
-  width: '100%',
-  backgroundImage: 'repeating-linear-gradient(90deg, #E5A3A3 0, #E5A3A3 10px, transparent 10px, transparent 18px)'
-};
+function dashedDivider(isMobileDevice) {
+  const color = isMobileDevice ? '#E5A3A3' : '#C9C9C9';
+  return {
+    height: 3,
+    width: '100%',
+    backgroundImage: `repeating-linear-gradient(90deg, ${color} 0, ${color} 10px, transparent 10px, transparent 18px)`
+  };
+}
