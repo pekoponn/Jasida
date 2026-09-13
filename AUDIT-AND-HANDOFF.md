@@ -92,7 +92,8 @@ batas 99.999 byte; jangan menaruh key admin di frontend; perubahan nama kelas,
 input/output model, tabel/RPC, dan aturan skor memerlukan pengujian ulang.
 Jangan menjalankan ulang skema awal di database live tanpa migration yang ditinjau.
 
-Deployment saat ini melalui CLI akun `iszz100`, bukan otomatis setiap push.
+Deployment memakai CLI akun `iszz100`. Workflow GitHub Actions tersedia untuk
+push `main` setelah Secret `VERCEL_TOKEN` dipasang; lihat `DEPLOYMENT.md`.
 Preview perlu diuji sebelum deploy production. Akses kolaborator GitHub tidak
 otomatis memberi akses project Vercel; deployment sebelumnya pernah diblokir
 karena penulis commit tidak memiliki akses ke project Vercel. Jangan mengubah

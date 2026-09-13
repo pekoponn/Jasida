@@ -49,9 +49,10 @@ npm run dev
 
 ## Memperbarui website
 
-Deployment pertama menggunakan Vercel CLI dari folder lokal. Integrasi
-deployment otomatis dari GitHub belum dipasang. Akses kolaborator GitHub
-dan akses project Vercel dikelola terpisah.
+Deployment pertama menggunakan Vercel CLI dari folder lokal. Workflow
+`.github/workflows/deploy-vercel.yml` menyiapkan deployment otomatis dari
+push ke `main`, setelah `VERCEL_TOKEN` dipasang di GitHub Actions Secrets
+dan workflow dipush. Akses kolaborator GitHub dan akses Vercel terpisah.
 
 Versi kerja bersama menggunakan branch `main`, yang menggabungkan update
 admin dan perbaikan deploy/WebP. Ambil pembaruan sebelum mulai bekerja;
@@ -59,8 +60,44 @@ lihat `AUDIT-AND-HANDOFF.md` untuk langkahnya. Vercel memeriksa akses penulis
 commit pada repo private, sehingga akses GitHub saja belum menjamin akun
 tersebut bisa melakukan deployment ke workspace Vercel ini.
 
-Untuk deployment otomatis bersama tim, pemilik repo perlu memasang integrasi
-GitHub dan memastikan akses kolaborator sesuai paket/workspace Vercel.
+Repo pribadi `pekoponn/Jasida` tidak dapat dihubungkan lewat integrasi Git
+native oleh kolaborator `iszz100`. Workflow menggunakan CLI di GitHub Actions
+untuk mengirim hasil build ke project Vercel yang sudah ada.
+
+### Mengaktifkan GitHub Actions
+
+1. Pada akun Vercel `iszz100`, buka https://vercel.com/account/tokens dan
+   buat token bernama `jasida-github-actions`, dengan scope workspace
+   `iszz100s-projects`. Pilih masa berlaku yang sesuai; ganti Secret ketika
+   token kedaluwarsa atau dicabut.
+2. Pada repo `pekoponn/Jasida`, buka Settings > Secrets and variables >
+   Actions > New repository secret. Isi nama `VERCEL_TOKEN` dan nilai token.
+   Pemilik repo dapat membantu jika pengaturan Secrets tidak dapat diakses.
+   Jangan simpan token di file, chat, atau variabel `VITE_`.
+3. Push commit workflow ke `main`. Buka tab Actions > Deploy Jasida to Vercel
+   dan tunggu sampai sukses. Untuk mengulang tanpa commit baru, pilih
+   Run workflow pada branch `main`.
+
+Project ID dan organization ID sudah dicantumkan dalam workflow; keduanya
+identifier, bukan kredensial. Variabel Supabase Production ditarik dari
+Vercel, jadi tidak perlu menyalin key Supabase ke GitHub. Workflow tidak
+mengubah database, bucket, domain, atau membuat project Vercel baru.
+
+Workflow menjalankan `npm ci`, menarik konfigurasi Production, membangun
+sekali, lalu deploy menggunakan `--prebuilt --prod`. Build gagal menghentikan
+deployment. Periksa hasil Actions; push sukses belum menjamin deploy sukses.
+Pengujian browser di bawah dijalankan lokal sebelum push, belum otomatis
+dijalankan oleh workflow. Tidak ada deployment dari pull request atau branch
+selain `main`. Jangan aktifkan integrasi native sekaligus tanpa menonaktifkan
+salah satu jalur agar tidak terjadi deployment ganda.
+
+Jika push workflow ditolak karena izin token GitHub, credential untuk push
+memerlukan izin workflow (PAT classic: `workflow`; fine-grained: izin tulis
+Workflows dan Contents). Ini berbeda dari `VERCEL_TOKEN` untuk deployment.
+
+Referensi: https://vercel.com/docs/git/vercel-for-github#using-github-actions.
+
+### Deployment manual
 
 Setelah mengambil atau menyelesaikan perubahan kode, jalankan:
 
