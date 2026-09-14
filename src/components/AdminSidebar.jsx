@@ -86,10 +86,15 @@ const sidebarCss = `
 
 const sidebar = {
   width: 260,
-  minHeight: '100vh',
+  height: '100vh',
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  overflowY: 'auto',
   background: '#141B2E',
   padding: '28px 16px',
   flexShrink: 0,
+  zIndex: 100,
 };
 
 const logoRow = { display: 'flex', alignItems: 'center', gap: 10, padding: '0 8px' };

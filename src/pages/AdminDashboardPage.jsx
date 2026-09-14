@@ -294,7 +294,7 @@ export default function AdminDashboardPage() {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
-                  <tr style={{ background: '#A61C24', color: '#fff', textAlign: 'left' }}>
+                  <tr style={{ background: '#A61C24', color: '#fff', textAlign: 'left', position: 'sticky', top: 0, zIndex: 10 }}>
                     <th style={th}>Kode</th>
                     <th style={th}>Nama Pelapor</th>
                     <th style={th}>Lokasi</th>

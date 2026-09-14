@@ -16,7 +16,8 @@ const STATUS_TABS = [
 
 const STATUS_META = {
   open: { label: 'Menunggu Verifikasi', bg: '#FFF3CD', color: '#8A6D00' },
-  in_progress: { label: 'Diproses', bg: '#E7F1FF', color: '#1c5dcf' },
+  accepted: { label: 'Diterima', bg: '#E7F1FF', color: '#1c5dcf' },
+  in_progress: { label: 'Diproses', bg: '#E3F1FD', color: '#1c7ed6' },
   resolved: { label: 'Selesai', bg: '#E6F8EC', color: '#1c8a4b' },
   rejected: { label: 'Ditolak', bg: '#FDECEE', color: '#A61C24' }
 };
@@ -100,6 +101,7 @@ function ReportCard({ report, onViewDetail }) {
   const meta = STATUS_META[report.status] ?? STATUS_META.open;
   const scorePct = Math.round(report.hazard_score ?? 0);
   const severityLabel = report.severity ? severityDisplayLabel(report.severity) : '—';
+  const sevColor = severityColor(report.severity);
 
   return (
     <div className="riwayat-card" style={cardStyle}>
@@ -144,7 +146,7 @@ function ReportCard({ report, onViewDetail }) {
             </div>
             <span style={progressPctText}>{scorePct}%</span>
           </div>
-          <span style={severityPill}>{severityLabel}</span>
+          <span style={{ ...severityPill, background: sevColor.bg, color: sevColor.color }}>{severityLabel}</span>
         </div>
 
         <div className="riwayat-divider" style={dividerStyle} />
@@ -155,6 +157,17 @@ function ReportCard({ report, onViewDetail }) {
       </div>
     </div>
   );
+}
+
+function severityColor(severity) {
+  const normalized = (severity ?? '').toString().trim().toLowerCase();
+  if (['aman', 'low', 'ringan'].includes(normalized)) {
+    return { bg: '#E6F8EC', color: '#2f9e44' };
+  }
+  if (['sedang', 'medium'].includes(normalized)) {
+    return { bg: '#FFF3CD', color: '#e8830c' };
+  }
+  return { bg: '#FDECEE', color: '#A61C24' };
 }
 
 function formatDate(iso) {
@@ -285,11 +298,13 @@ const detailLink = {
   fontSize: 12.5,
   fontWeight: 700,
   color: '#A61C24',
+  background: '#fff',
   textDecoration: 'none',
   whiteSpace: 'nowrap',
   border: '1.5px solid #A61C24',
   borderRadius: 999,
-  padding: '6px 16px'
+  padding: '6px 16px',
+  cursor: 'pointer'
 };
 
 const primaryBtn = {

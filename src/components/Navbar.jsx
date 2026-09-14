@@ -8,12 +8,25 @@ export default function Navbar() {
   const { user, profile, signOut } = useAuth();
   const isAdmin = profile?.role === 'admin';
   const isMobileDevice = useIsMobileDevice();
+  const headerRef = useRef(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
+
+  useEffect(() => {
+    const node = headerRef.current;
+    if (!node) return;
+    const update = () => setHeaderHeight(node.getBoundingClientRect().height);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isMobileDevice]);
 
   return (
     <>
       {/* 1. NAVBAR DESKTOP */}
       {!isMobileDevice && (
-      <header className="rw-header-desktop" style={styles.header}>
+      <>
+      <header ref={headerRef} className="rw-header-desktop" style={{ ...styles.header, position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000 }}>
         <div style={styles.brand}>
           <img src={brandLogo} alt="Jasida" style={{ height: 50 }} />
         </div>
@@ -36,16 +49,21 @@ export default function Navbar() {
             <ProfileDropdown profile={profile} signOut={signOut} />
           ) : (
             <NavLink to="/login" style={ctaPill}>Masuk / Daftar</NavLink>
-          )}
+                    )}
         </nav>
         </header>
+      <div style={{ height: headerHeight }} />
+      </>
       )}
 
     {/* 2b. TOP BAR MOBILE — cuma logo, tanpa tombol */}
     {isMobileDevice && (
-    <header className="rw-header-mobile">
+    <>
+    <header ref={headerRef} className="rw-header-mobile" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000, background: '#ffffff' }}>
         <img src={brandLogo} alt="Jasida" style={{ height: 40 }} />
     </header>
+    <div style={{ height: headerHeight }} />
+    </>
     )}
 
     {/* 2. MOBILE BOTTOM NAVBAR */}
@@ -130,9 +148,11 @@ function ProfileDropdown({ profile, signOut }) {
 
   return (
     <div ref={wrapperRef} style={{ position: 'relative' }}>
+      <style>{profileTriggerHoverCss}</style>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
+        className="rw-profile-trigger"
         style={profileTrigger}
       >
         <UserIcon />
@@ -229,15 +249,20 @@ const profileTrigger = {
   gap: 8,
   fontSize: 14,
   fontWeight: 600,
-  color: '#A61C24',
-  background: '#FDECEE',
-  padding: '10px 16px',
+  color: '#333',
+  background: 'transparent',
+  padding: '8px 4px',
   borderRadius: 8,
   border: 'none',
   cursor: 'pointer',
   marginLeft: 16
 };
 
+const profileTriggerHoverCss = `
+  .rw-profile-trigger:hover {
+    color: #A61C24;
+  }
+`;
 const dropdownMenu = {
   position: 'absolute',
   top: 'calc(100% + 8px)',

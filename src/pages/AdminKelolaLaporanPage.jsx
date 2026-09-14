@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   fetchAllReportsForAdmin,
   rejectReport,
@@ -6,8 +6,9 @@ import {
   startProgress,
   completeReportWithActuals
 } from '../lib/reports.js';
-import { damageTypeDisplayLabel } from '../ai/hazardScore.js';
+import { damageTypeDisplayLabel, severityDisplayLabel } from '../ai/hazardScore.js';
 import { estimateMaterialsAndCost, formatMaterialItems } from '../ai/materialEstimate.js';
+import { findKecamatan, getKecamatanNames } from '../lib/kecamatanBoundaries.js';
 
 const STATUS_LABEL = {
   open: 'Menunggu Verifikasi',
@@ -34,6 +35,19 @@ const FILTER_TABS = [
   { key: 'rejected', label: 'Ditolak' }
 ];
 
+const SEVERITY_OPTIONS = [
+  { key: '', label: 'Semua Tingkat' },
+  { key: 'aman', label: 'Aman' },
+  { key: 'sedang', label: 'Sedang' },
+  { key: 'darurat', label: 'Darurat' }
+];
+
+const SEVERITY_COLOR = {
+  aman: { bg: '#E6F8EC', color: '#1c8a4b' },
+  sedang: { bg: '#FFF3CD', color: '#8A6D00' },
+  darurat: { bg: '#FDECEE', color: '#A61C24' }
+};
+
 export default function AdminKelolaLaporanPage() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +58,13 @@ export default function AdminKelolaLaporanPage() {
   const [rejectTarget, setRejectTarget] = useState(null);
   const [progressTarget, setProgressTarget] = useState(null);
   const [completeTarget, setCompleteTarget] = useState(null);
+
+  const [severityFilter, setSeverityFilter] = useState('');
+  const [kecamatanFilter, setKecamatanFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [zoomImage, setZoomImage] = useState(null);
+
+  const kecamatanOptions = useMemo(() => getKecamatanNames(), []);
 
   useEffect(() => {
     load();
@@ -83,7 +104,7 @@ export default function AdminKelolaLaporanPage() {
     setBusyId(reportId);
     try {
       await rejectReport(reportId, reason);
-      patchLocal(reportId, { status: 'rejected', rejection_reason: reason });
+      patchLocal(reportId, { status: 'rejected', rejection_reason: reason, rejected_at: new Date().toISOString() });
       setRejectTarget(null);
     } catch (err) {
       alert('Gagal menolak laporan: ' + err.message);
@@ -98,6 +119,7 @@ export default function AdminKelolaLaporanPage() {
       await startProgress(reportId, { estimatedDate, materials, materialsJson, cost });
       patchLocal(reportId, {
         status: 'in_progress',
+        started_at: new Date().toISOString(),
         estimated_completion_date: estimatedDate,
         estimated_materials: materials,
         estimated_materials_json: materialsJson,
@@ -115,7 +137,13 @@ export default function AdminKelolaLaporanPage() {
     setBusyId(reportId);
     try {
       await completeReportWithActuals(reportId, { file, actualMaterials, actualMaterialsJson, actualCost });
-      patchLocal(reportId, { status: 'resolved', actual_materials: actualMaterials, actual_materials_json: actualMaterialsJson, actual_cost: actualCost });
+      patchLocal(reportId, {
+        status: 'resolved',
+        resolved_at: new Date().toISOString(),
+        actual_materials: actualMaterials,
+        actual_materials_json: actualMaterialsJson,
+        actual_cost: actualCost
+      });
       setCompleteTarget(null);
     } catch (err) {
       alert('Gagal menandai selesai: ' + err.message);
@@ -124,7 +152,29 @@ export default function AdminKelolaLaporanPage() {
     }
   }
 
-  const filtered = filter === 'all' ? reports : reports.filter((r) => r.status === filter);
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+
+    return reports.filter((r) => {
+      if (filter !== 'all' && r.status !== filter) return false;
+      if (severityFilter && r.severity !== severityFilter) return false;
+
+      if (kecamatanFilter) {
+        const nama = typeof r.lat === 'number' && typeof r.lng === 'number'
+          ? findKecamatan(r.lat, r.lng)
+          : null;
+        if (nama !== kecamatanFilter) return false;
+      }
+
+      if (q) {
+        const kode = `#${String(r.id).slice(0, 6).toUpperCase()}-JASIDA`.toLowerCase();
+        const nama = (r.profile?.username ?? '').toLowerCase();
+        if (!kode.includes(q) && !nama.includes(q)) return false;
+      }
+
+      return true;
+    });
+  }, [reports, filter, severityFilter, kecamatanFilter, searchQuery]);
 
   return (
     <section>
@@ -138,13 +188,36 @@ export default function AdminKelolaLaporanPage() {
 
       {!loading && (
         <div style={panelCard}>
-          <div style={{ padding: '16px 20px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {FILTER_TABS.map((tab) => (
-              <button key={tab.key} style={filterBtn(filter === tab.key)} onClick={() => setFilter(tab.key)}>
-                {tab.label}
-                {tab.key !== 'all' && ` (${reports.filter((r) => r.status === tab.key).length})`}
-              </button>
-            ))}
+          <div style={toolbarRow}>
+            <input
+              type="text"
+              placeholder="Cari kode laporan atau nama pelapor…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={searchInputStyle}
+            />
+
+            <select value={filter} onChange={(e) => setFilter(e.target.value)} style={selectFilterStyle}>
+              {FILTER_TABS.map((tab) => (
+                <option key={tab.key} value={tab.key}>
+                  {tab.label}
+                  {tab.key !== 'all' ? ` (${reports.filter((r) => r.status === tab.key).length})` : ''}
+                </option>
+              ))}
+            </select>
+
+            <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} style={selectFilterStyle}>
+              {SEVERITY_OPTIONS.map((opt) => (
+                <option key={opt.key} value={opt.key}>{opt.label}</option>
+              ))}
+            </select>
+
+            <select value={kecamatanFilter} onChange={(e) => setKecamatanFilter(e.target.value)} style={selectFilterStyle}>
+              <option value="">Semua Kecamatan</option>
+              {kecamatanOptions.map((nama) => (
+                <option key={nama} value={nama}>{nama}</option>
+              ))}
+            </select>
           </div>
 
           <div style={{ overflowX: 'auto' }}>
@@ -153,6 +226,7 @@ export default function AdminKelolaLaporanPage() {
                 <tr style={{ background: '#A61C24', color: '#fff', textAlign: 'left' }}>
                   <th style={th}>Kode</th>
                   <th style={th}>Pelapor</th>
+                  <th style={th}>Lokasi</th>
                   <th style={th}>Waktu Lapor</th>
                   <th style={th}>Foto</th>
                   <th style={th}>Kondisi</th>
@@ -173,6 +247,7 @@ export default function AdminKelolaLaporanPage() {
                     onRejectClick={() => setRejectTarget(r)}
                     onProgressClick={() => setProgressTarget(r)}
                     onCompleteClick={() => setCompleteTarget(r)}
+                    onZoomPhoto={() => setZoomImage(r.imageUrl)}
                   />
                 ))}
               </tbody>
@@ -204,27 +279,50 @@ export default function AdminKelolaLaporanPage() {
           onConfirm={(payload) => handleComplete(completeTarget.id, payload)}
         />
       )}
+
+      {zoomImage && (
+        <div style={zoomOverlay} onClick={() => setZoomImage(null)}>
+          <img src={zoomImage} alt="Foto laporan diperbesar" style={zoomImg} onClick={(e) => e.stopPropagation()} />
+          <button type="button" style={zoomCloseBtn} onClick={() => setZoomImage(null)} aria-label="Tutup">✕</button>
+        </div>
+      )}
     </section>
   );
 }
 
-function RowItem({ report, busy, onAccept, onRejectClick, onProgressClick, onCompleteClick }) {
+function RowItem({ report, busy, onAccept, onRejectClick, onProgressClick, onCompleteClick, onZoomPhoto }) {
   const statusColor = STATUS_COLOR[report.status] ?? STATUS_COLOR.open;
+  const severityColor = SEVERITY_COLOR[report.severity] ?? SEVERITY_COLOR.aman;
   const kode = `#${String(report.id).slice(0, 6).toUpperCase()}-JASIDA`;
   const nama = report.profile?.username ?? '-';
+  const lokasi = typeof report.lat === 'number' && typeof report.lng === 'number'
+    ? (findKecamatan(report.lat, report.lng) ?? '-')
+    : '-';
 
   return (
     <tr style={{ borderBottom: '1px solid #eee' }}>
       <td style={td}>{kode}</td>
       <td style={td}>{nama}</td>
+      <td style={td}>{lokasi}</td>
       <td style={td}>{new Date(report.created_at).toLocaleString('id-ID')}</td>
       <td style={td}>
         {report.imageUrl && (
-          <img src={report.imageUrl} alt={damageTypeDisplayLabel(report.damage_type)}
-               style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }} />
+          <img
+            src={report.imageUrl}
+            alt={damageTypeDisplayLabel(report.damage_type)}
+            onClick={onZoomPhoto}
+            style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, cursor: 'pointer' }}
+          />
         )}
       </td>
-      <td style={td}>{damageTypeDisplayLabel(report.damage_type)} · {report.hazard_score}</td>
+      <td style={td}>
+        <div>{damageTypeDisplayLabel(report.damage_type)} · {report.hazard_score}</div>
+        {report.severity && (
+          <span style={{ ...badge, background: severityColor.bg, color: severityColor.color, marginTop: 4 }}>
+            {severityDisplayLabel(report.severity)}
+          </span>
+        )}
+      </td>
       <td style={td}>
         <span style={{ ...badge, background: statusColor.bg, color: statusColor.color }}>
           {STATUS_LABEL[report.status] ?? report.status}
@@ -288,15 +386,11 @@ function RejectModal({ report, onCancel, onConfirm }) {
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
           <button style={secondaryBtn} onClick={onCancel}>Batal</button>
           <button
-            style={{ ...actionBtn, background: '#1c5dcf' }}
-            disabled={!estimatedDate || !estimate}
-            onClick={() => onConfirm({
-              estimatedDate,
-              materials: materialsText.split('\n').map((m) => m.trim()).filter(Boolean).join(', '),
-              cost
-            })}
+            style={{ ...actionBtn, background: '#A61C24' }}
+            disabled={!reason.trim()}
+            onClick={() => onConfirm(reason.trim())}
           >
-            Konfirmasi & Mulai Kerjakan
+            Tolak Laporan
           </button>
         </div>
       </div>
@@ -537,6 +631,66 @@ const panelCard = {
   borderRadius: 16,
   boxShadow: '0 1px 2px rgba(25,27,31,0.06), 0 4px 16px rgba(25,27,31,0.06)',
   overflow: 'hidden'
+};
+
+const toolbarRow = {
+  padding: '16px 20px',
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  alignItems: 'center'
+};
+
+const searchInputStyle = {
+  flex: '1 1 240px',
+  padding: '9px 14px',
+  borderRadius: 8,
+  border: '1px solid #dee2e6',
+  fontSize: 13,
+  fontFamily: 'inherit'
+};
+
+const selectFilterStyle = {
+  padding: '9px 12px',
+  borderRadius: 8,
+  border: '1px solid #dee2e6',
+  fontSize: 13,
+  fontFamily: 'inherit',
+  background: '#fff',
+  color: '#333',
+  cursor: 'pointer'
+};
+
+const zoomOverlay = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(0,0,0,0.8)',
+  zIndex: 800,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 20
+};
+
+const zoomImg = {
+  maxWidth: '90vw',
+  maxHeight: '90vh',
+  borderRadius: 12,
+  display: 'block'
+};
+
+const zoomCloseBtn = {
+  position: 'fixed',
+  top: 20,
+  right: 20,
+  width: 40,
+  height: 40,
+  borderRadius: '50%',
+  border: 'none',
+  background: '#fff',
+  color: '#333',
+  fontSize: 16,
+  cursor: 'pointer'
 };
 
 const filterBtn = (active) => ({

@@ -82,6 +82,7 @@ export async function completeReportWithActuals(reportId, { file, actualMaterial
     .from('reports')
     .update({
       status: 'resolved',
+      resolved_at: new Date().toISOString(),
       actual_materials: actualMaterials,
       actual_materials_json: actualMaterialsJson,
       actual_cost: actualCost
@@ -308,7 +309,7 @@ export async function fetchAllReportsForAdmin({ statusFilter } = {}) {
 export async function rejectReport(reportId, reason) {
   const { data, error } = await supabase
     .from('reports')
-    .update({ status: 'rejected', rejection_reason: reason })
+    .update({ status: 'rejected', rejection_reason: reason, rejected_at: new Date().toISOString() })
     .eq('id', reportId)
     .select()
     .single();
@@ -332,6 +333,7 @@ export async function startProgress(reportId, { estimatedDate, materials, materi
     .from('reports')
     .update({
       status: 'in_progress',
+      started_at: new Date().toISOString(),
       estimated_completion_date: estimatedDate,
       estimated_materials: materials,
       estimated_materials_json: materialsJson,

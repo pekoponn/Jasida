@@ -122,7 +122,7 @@ const overlay = {
   alignItems: 'center',
   justifyContent: 'center',
   padding: 16,
-  zIndex: 100
+  zIndex: 2000
 };
 
 const panel = {

@@ -312,10 +312,6 @@ export default function ReportPage() {
               )}
             </div>
 
-            {file && step !== 'idle' && (
-              <p style={noteStyle}>Foto siap dikirim · WebP · {(file.size / 1000).toLocaleString('id-ID', { maximumFractionDigits: 3 })} KB</p>
-            )}
-
             {previewUrl && ['analyzed', 'idle'].includes(step) && (
               <button type="button" onClick={reset} style={retakeBtn}>
                 <CameraIcon small /> Ambil Foto Ulang

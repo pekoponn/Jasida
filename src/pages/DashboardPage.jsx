@@ -174,7 +174,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Pagination Arrows */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 30 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 30, marginBottom: 60 }}>
           <button style={pageArrowStyle}>‹</button>
           <button style={pageArrowStyle}>›</button>
         </div>
@@ -182,20 +182,34 @@ export default function DashboardPage() {
     </div>
   );
 }
+function PinIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A61C24" strokeWidth="2.2" style={{ flexShrink: 0 }}>
+      <path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z" />
+      <circle cx="12" cy="9" r="2.3" />
+    </svg>
+  );
+}
+
+function ThumbsUpIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d="M7 10v11" />
+      <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h2.76a2 2 0 0 0 1.79-1.11L12 3a1.5 1.5 0 0 1 3 1.5v1.38z" />
+    </svg>
+  );
+}
+
+const DASHBOARD_STATUS_INFO = {
+  open: { label: 'Menunggu Verifikasi', bg: '#f1f3f5', color: '#868e96' },
+  accepted: { label: 'Diterima', bg: '#E7F1FF', color: '#1c5dcf' },
+  in_progress: { label: 'Sedang Diperbaiki', bg: '#fff3bf', color: '#996a00' },
+  resolved: { label: 'Sudah Dikerjakan', bg: '#d3f9d8', color: '#2b8a3e' },
+  rejected: { label: 'Ditolak', bg: '#FDECEE', color: '#A61C24' }
+};
 
 function reportStatusInfo(status) {
-  const normalized = (status ?? '').toString().trim().toLowerCase();
-
-  const doneValues = ['selesai', 'done', 'resolved', 'sudah_dikerjakan', 'diperbaiki'];
-  const inProgressValues = ['diproses', 'in_progress', 'sedang_diperbaiki', 'diperbaiki_sebagian'];
-
-  if (doneValues.includes(normalized)) {
-    return { label: 'Sudah Dikerjakan', bg: '#d3f9d8', color: '#2b8a3e' };
-  }
-  if (inProgressValues.includes(normalized)) {
-    return { label: 'Sedang Diperbaiki', bg: '#fff3bf', color: '#996a00' };
-  }
-  return { label: 'Belum Dikerjakan', bg: '#f1f3f5', color: '#868e96' };
+  return DASHBOARD_STATUS_INFO[status] ?? DASHBOARD_STATUS_INFO.open;
 }
 
 function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
@@ -262,7 +276,7 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
       <div style={{ padding: 12, flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <span style={{ fontSize: 11, color: '#495057', display: 'flex', alignItems: 'center', gap: 4 }}>
-            📍 {address || 'Sekardangan, Sidoarjo, Jawa Timur'}
+            <PinIcon /> {address || 'Sekardangan, Sidoarjo, Jawa Timur'}
           </span>
 
           <div style={posterBadge}>
@@ -283,7 +297,7 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
             className="rw-btn-anim"
             style={alreadySupported || isOwner ? dukungBadgeDisabled : dukungBadge}
           >
-            👍 Dukung {supportCount}+
+            <ThumbsUpIcon /> Dukung {supportCount}+
           </button>
 
           <CommentSection reportId={report.id} photoUrl={currentPhoto?.url} />
@@ -337,7 +351,7 @@ const heroIconStyle = {
 
 const btnHeroStyle = {
   backgroundColor: '#ffffff',
-  color: '#a61e4d',
+  color: '#A42C2B',
   border: 'none',
   padding: '8px 16px',
   borderRadius: 20,
@@ -386,7 +400,7 @@ const dateInputStyle = {
 };
 
 const searchBtnStyle = {
-  backgroundColor: '#a61e4d',
+  backgroundColor: '#A42C2B',
   border: 'none',
   width: 44,
   height: 44,

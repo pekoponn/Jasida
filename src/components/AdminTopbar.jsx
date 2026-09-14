@@ -97,6 +97,9 @@ const topbar = {
   padding: '0 32px',
   background: '#fff',
   borderBottom: '1px solid #EDEEF2',
+  position: 'sticky',
+  top: 0,
+  zIndex: 90,
 };
 
 const hamburgerBtn = {

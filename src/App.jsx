@@ -18,12 +18,14 @@ import Navbar from './components/Navbar.jsx';
 import { useIsMobileDevice } from './lib/useIsMobileDevice.js';
 import AdminTopbar from './components/AdminTopbar.jsx';
 
+const ADMIN_SIDEBAR_WIDTH = 260;
+
 export default function App() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
   const location = useLocation();
   const isMobileDevice = useIsMobileDevice();
-  const [sidebarOpen, setSidebarOpen] = useState(false); // ⬅️ BARU
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (location.pathname === '/login') {
     return <LoginPage />;
@@ -33,13 +35,23 @@ export default function App() {
 
   if (isAdminArea) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
+      <div style={{ minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
         <AdminSidebar
           mobileOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
         />
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', background: '#F5F6FA' }}>
-          <AdminTopbar onMenuClick={() => setSidebarOpen(true)} />
+        <div
+          style={{
+            marginLeft: isMobileDevice ? 0 : ADMIN_SIDEBAR_WIDTH,
+            minHeight: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            background: '#F5F6FA'
+          }}
+        >
+          <div style={{ position: 'sticky', top: 0, zIndex: 90 }}>
+            <AdminTopbar onMenuClick={() => setSidebarOpen(true)} />
+          </div>
           <main style={{ flex: 1, padding: '28px 32px 64px' }}>
             <Routes>
               <Route

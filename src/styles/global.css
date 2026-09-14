@@ -42,10 +42,9 @@
 html, body, #root {
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
   margin: 0;
   padding: 0;
-  scroll-behavior: smooth;
 }
 
 body {

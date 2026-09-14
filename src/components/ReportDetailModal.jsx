@@ -146,22 +146,36 @@ export default function ReportDetailModal({ report, onClose }) {
                 date={formatDate(report.created_at)}
                 done
               />
-              <TimelineStep
-                label="Diverifikasi"
-                date={report.status !== 'open' ? '—' : null}
-                done={report.status !== 'open'}
-              />
-              <TimelineStep
-                label="Sedang Diproses"
-                date={['in_progress', 'resolved'].includes(report.status) ? '—' : null}
-                done={['in_progress', 'resolved'].includes(report.status)}
-              />
-              <TimelineStep
-                label="Selesai"
-                date={report.status === 'resolved' ? '—' : null}
-                done={report.status === 'resolved'}
-                isLast
-              />
+
+              {report.status === 'rejected' ? (
+                <TimelineStep
+                  label="Ditolak"
+                  date={formatDate(report.rejected_at ?? report.updated_at)}
+                  done
+                  danger
+                  note={report.rejection_reason || 'Tidak ada alasan yang dicantumkan.'}
+                  isLast
+                />
+              ) : (
+                <>
+                  <TimelineStep
+                    label="Diverifikasi"
+                    date={report.status !== 'open' ? formatDate(report.accepted_at) : null}
+                    done={report.status !== 'open'}
+                  />
+                  <TimelineStep
+                    label="Sedang Diproses"
+                    date={['in_progress', 'resolved'].includes(report.status) ? '—' : null}
+                    done={['in_progress', 'resolved'].includes(report.status)}
+                  />
+                  <TimelineStep
+                    label="Selesai"
+                    date={report.status === 'resolved' ? '—' : null}
+                    done={report.status === 'resolved'}
+                    isLast
+                  />
+                </>
+              )}
             </div>
 
             <div style={{ ...supportCard, marginTop: 16 }}>
@@ -233,7 +247,8 @@ export default function ReportDetailModal({ report, onClose }) {
   );
 }
 
-function TimelineStep({ label, date, done, isLast }) {
+function TimelineStep({ label, date, done, isLast, danger, note }) {
+  const activeColor = danger ? '#A61C24' : '#1c8a4b';
   return (
     <div style={{ display: 'flex', gap: 10, position: 'relative', paddingBottom: isLast ? 0 : 18 }}>
       {!isLast && (
@@ -244,7 +259,7 @@ function TimelineStep({ label, date, done, isLast }) {
             top: 20,
             bottom: 0,
             width: 2,
-            background: done ? '#1c8a4b' : '#e9ecef'
+            background: done ? activeColor : '#e9ecef'
           }}
         />
       )}
@@ -253,7 +268,7 @@ function TimelineStep({ label, date, done, isLast }) {
           width: 20,
           height: 20,
           borderRadius: '50%',
-          background: done ? '#1c8a4b' : '#e9ecef',
+          background: done ? activeColor : '#e9ecef',
           color: '#fff',
           display: 'flex',
           alignItems: 'center',
@@ -262,11 +277,18 @@ function TimelineStep({ label, date, done, isLast }) {
           flexShrink: 0
         }}
       >
-        {done ? '✓' : ''}
+        {done ? (danger ? '✕' : '✓') : ''}
       </div>
       <div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: done ? '#212529' : '#adb5bd' }}>{label}</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: done ? (danger ? '#A61C24' : '#212529') : '#adb5bd' }}>
+          {label}
+        </div>
         {date && <div style={{ fontSize: 11, color: '#adb5bd' }}>{date}</div>}
+        {note && (
+          <div style={{ fontSize: 12, color: '#A61C24', background: '#FDECEE', borderRadius: 8, padding: '6px 10px', marginTop: 6, maxWidth: 220 }}>
+            {note}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -295,7 +317,7 @@ function NoteIcon() {
 
 function HeartIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="#A61C24" style={{ flexShrink: 0 }}>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="#A61C24" style={{ flexShrink: 0, display: 'block' }}>
       <path d="M12 21s-7.5-4.9-10.1-9.3C.3 8.8 1.6 5.3 4.9 4.4c2-.5 4 .3 5.1 2 1.1-1.7 3.1-2.5 5.1-2 3.3.9 4.6 4.4 3 7.3C19.5 16.1 12 21 12 21z" />
     </svg>
   );
@@ -303,7 +325,7 @@ function HeartIcon() {
 
 function ChatIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A61C24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A61C24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, display: 'block' }}>
       <path d="M21 12c0 4.4-4 8-9 8-1.3 0-2.6-.2-3.7-.7L3 21l1.3-4.1C3.5 15.6 3 13.9 3 12c0-4.4 4-8 9-8s9 3.6 9 8z" />
     </svg>
   );
