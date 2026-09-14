@@ -8,9 +8,6 @@ import { FileText, CheckCircle2, Clock3, AlertTriangle } from 'lucide-react';
 import { fetchAllReportsForAdmin, updateReportStatus, resolveReport } from '../lib/reports.js';
 import { damageTypeDisplayLabel } from '../ai/hazardScore.js';
 import AdminMap from '../components/AdminMap.jsx';
-
-// Cache di level modul, supaya koordinat yang sama tidak query berkali-kali.
-// Dipersist ke localStorage juga supaya reload halaman tidak nge-fetch ulang semuanya.
 const CACHE_KEY = 'jasida_geocode_cache_v1';
 let geocodeCache;
 try {
@@ -24,14 +21,9 @@ function persistGeocodeCache() {
     const entries = [...geocodeCache.entries()].slice(-1000);
     localStorage.setItem(CACHE_KEY, JSON.stringify(entries));
   } catch {
-    // localStorage penuh/diblok — abaikan, cache tetap jalan di memori
   }
 }
 
-// Nominatim (OpenStreetMap) membatasi MAKSIMAL 1 request/detik. Kalau semua
-// baris tabel fetch bersamaan (mis. 20 baris), request ke-2 dst kena
-// rate-limit dan gagal — itu sebabnya lokasi selalu tampil "-". Fix-nya:
-// antre satu per satu dengan jeda, bukan fire semua sekaligus.
 let geocodeQueue = Promise.resolve();
 
 function enqueueGeocode(task) {
@@ -85,7 +77,7 @@ export const SEVERITY_STYLE = {
   emergency: { color: '#e03131', label: 'Darurat' }
 };
 
-const DONUT_COLORS = ['#2f9e44', '#f5c518', '#e03131']; // Ringan, Sedang, Parah
+const DONUT_COLORS = ['#2f9e44', '#f5c518', '#e03131']; 
 
 export default function AdminDashboardPage() {
   const location = useLocation();
@@ -166,7 +158,6 @@ export default function AdminDashboardPage() {
     resolved: weekOverWeek((r) => r.status === 'resolved'),
     open: weekOverWeek((r) => r.status === 'open'),
     darurat: weekOverWeek((r) => r.severity === 'darurat' || r.severity === 'emergency'),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [reports]);
 
   const trendData = useMemo(() => {

@@ -6,11 +6,11 @@ import { SEVERITY_STYLE } from '../pages/AdminDashboardPage.jsx';
 import { findKecamatan, getKecamatanGeoJSON } from '../lib/kecamatanBoundaries.js';
 
 const STATUS_LABEL = { open: 'Baru', in_progress: 'Diproses', resolved: 'Selesai' };
-const DEFAULT_CENTER = [-7.4558, 112.6817]; // Tengah Kabupaten Sidoarjo
+const DEFAULT_CENTER = [-7.4558, 112.6817]
 const DEFAULT_ZOOM = 11;
 
 export function colorForScore(score) {
-  if (score == null) return '#e9ecef'; // belum ada laporan di kecamatan ini
+  if (score == null) return '#e9ecef';
   if (score < 25) return '#d3f9d8';
   if (score < 50) return '#ffe066';
   if (score < 75) return '#ffa94d';
@@ -52,14 +52,12 @@ export default function AdminMap({ reports }) {
     const nama = feature.properties.kecamatan;
     const stat = kecamatanStats[nama];
 
-    // Label nama kecamatan, selalu tampil di tengah wilayah
     layer.bindTooltip(nama, {
       permanent: true,
       direction: 'center',
       className: 'kecamatan-label'
     });
 
-    // Detail statistik muncul saat kecamatan diklik
     layer.bindPopup(
       stat
         ? `<strong>${nama}</strong><br/>Skor rata-rata: ${stat.avgScore}<br/>${stat.count} laporan`

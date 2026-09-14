@@ -13,14 +13,7 @@ const MENU = [
   { to: '/admin/pengguna', label: 'Pengguna', icon: Users },
 ];
 
-/**
- * mobileOpen / onClose dikontrol dari App.jsx lewat tombol hamburger di
- * AdminTopbar. Kapan drawer ini aktif (posisi fixed + bisa di-slide) murni
- * ditentukan lewat CSS media query di bawah, bukan deteksi device di JS —
- * supaya reaktif ke resize/DevTools, bukan cuma user-agent asli.
- */
 export default function AdminSidebar({ mobileOpen = false, onClose }) {
-  // Kunci scroll body saat drawer mobile terbuka
   useEffect(() => {
     if (mobileOpen) {
       document.body.style.overflow = 'hidden';
@@ -56,7 +49,6 @@ export default function AdminSidebar({ mobileOpen = false, onClose }) {
   );
 }
 
-// Breakpoint 900px, harus sama dengan yang dipakai di AdminTopbar.jsx.
 const sidebarCss = `
   .admin-sidebar-close { display: none; }
   .admin-sidebar-backdrop { display: none; }

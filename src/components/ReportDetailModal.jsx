@@ -309,7 +309,6 @@ function ChatIcon() {
   );
 }
 
-/* --- Styles --- */
 const modalResponsiveCss = `
   @media (max-width: 720px) {
     .rw-modal-panel {

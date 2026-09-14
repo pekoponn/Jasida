@@ -77,8 +77,6 @@ export default function AdminTopbar({ onMenuClick }) {
   );
 }
 
-// Breakpoint 900px: di bawah itu -> hamburger muncul, nama/role di tombol utama hilang
-// (tapi tetap ada di header dropdown), topbar padding menyempit.
 const topbarCss = `
   .admin-topbar-hamburger { display: none; }
   .admin-topbar-dropdown-header { display: none; }

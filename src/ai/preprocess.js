@@ -1,8 +1,5 @@
 import { Tensor } from 'onnxruntime-web';
 
-/**
- * Load a File/Blob into an HTMLImageElement.
- */
 export function loadImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -19,21 +16,11 @@ export function loadImage(file) {
   });
 }
 
-/**
- * Draw an image onto a square canvas of `size` x `size`, letterboxing
- * (padding) so aspect ratio is preserved — this MUST match whatever
- * preprocessing was used during training/export, or accuracy silently drops.
- *
- * Returns { canvas, scale, padX, padY } so callers can map bounding boxes
- * back to original image coordinates.
- */
 export function letterbox(img, size = 640) {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
-
-  // fill with neutral gray padding (common YOLO convention)
   ctx.fillStyle = 'rgb(114,114,114)';
   ctx.fillRect(0, 0, size, size);
 

@@ -1,4 +1,3 @@
-// Decimal KB: every uploaded photo must be strictly smaller than 100,000 bytes.
 export const PHOTO_MAX_BYTES = 99_999;
 export const PHOTO_INPUT_ACCEPT = 'image/jpeg,image/png,image/webp';
 const INPUT_MAX_BYTES = 25 * 1024 * 1024;
@@ -40,8 +39,6 @@ export async function prepareUploadPhoto(file) {
     if (!longestSide) throw new Error('Ukuran gambar tidak valid.');
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Browser tidak dapat memproses foto.');
-
-    // Try quality reduction before resizing further; always draw from the source.
     let targetSide = Math.min(1600, longestSide);
     for (;;) {
       const scale = targetSide / longestSide;

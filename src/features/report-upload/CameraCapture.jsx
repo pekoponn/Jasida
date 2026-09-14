@@ -2,20 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import { getCurrentPosition } from '../../lib/geolocation.js';
 import { PHOTO_INPUT_ACCEPT } from '../../lib/imageUpload.js';
 
-// Camera captures and gallery selections both use the same WebP preparation flow.
-// GPS for a gallery selection is the current device location, not photo metadata.
 export default function CameraCapture({ onCapture, disabled }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const fileInputRef = useRef(null);
-  const [status, setStatus] = useState('idle'); // idle -> starting -> live -> error
+  const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
   const [capturing, setCapturing] = useState(false);
 
   useEffect(() => {
     startCamera();
     return () => stopCamera();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function startCamera() {
@@ -23,7 +20,7 @@ export default function CameraCapture({ onCapture, disabled }) {
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } }, // prefer back camera
+        video: { facingMode: { ideal: 'environment' } },
         audio: false
       });
       streamRef.current = stream;
@@ -53,7 +50,6 @@ export default function CameraCapture({ onCapture, disabled }) {
     setError(null);
 
     try {
-      // Grab GPS at the exact moment of capture — locks location to this photo.
       const positionPromise = getCurrentPosition().catch(() => null);
 
       const video = videoRef.current;
@@ -78,10 +74,9 @@ export default function CameraCapture({ onCapture, disabled }) {
     }
   }
 
-  // Select JPEG/PNG/WebP; onCapture prepares the image before analysis/upload.
   async function handleFileUpload(e) {
     const file = e.target.files?.[0];
-    e.target.value = ''; // reset supaya bisa pilih file yang sama lagi kalau perlu
+    e.target.value = '';
     if (!file || capturing) return;
     setCapturing(true);
     setError(null);

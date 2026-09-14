@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import logo from '../assets/logo.png';
 
-const JASIDA_FONT = 'Jacques Francois'; // <-- ganti nilai ini manual
+const JASIDA_FONT = 'Jacques Francois';
 
 export default function Footer() {
   return (
@@ -68,8 +68,6 @@ const footerSection = {
   isolation: 'isolate'
 };
 
-// Layer background terpisah: dikasih radius + overflow hidden di sini,
-// jadi sudutnya melengkung jelas TANPA memotong logo (karena logo di luar layer ini)
 const footerBgLayer = {
   position: 'absolute',
   inset: 0,
@@ -100,9 +98,6 @@ const logoImg = {
   filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.12))'
 };
 
-// Grid 3 kolom: kiri (1fr) - tengah (auto, kosong) - kanan (1fr)
-// Karena kiri & kanan sama-sama 1fr, kolom tengah selalu jadi TITIK TENGAH PERSIS
-// dan gap (jarak) ke kiri & ke kanan otomatis SAMA, apapun lebar teks di dalamnya
 const footerGrid = {
   display: 'grid',
   gridTemplateColumns: '1fr auto 1fr',
@@ -115,14 +110,12 @@ const footerGrid = {
   zIndex: 1
 };
 
-// Grup kiri: Contact + Menu, ditempel ke ujung KANAN kolomnya (dekat ke tengah/logo)
 const leftGroup = {
   display: 'flex',
   gap: 80,
   justifySelf: 'end'
 };
 
-// Grup kanan: Tentang + Sosial Media, ditempel ke ujung KIRI kolomnya (dekat ke tengah/logo)
 const rightGroup = {
   display: 'flex',
   gap: 80,

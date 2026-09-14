@@ -102,7 +102,6 @@ export async function supportReport(reportId, file) {
     try {
       await addReportPhoto(reportId, photo);
     } catch (err) {
-      // Dukungan tetap tercatat walau upload foto tambahan gagal
       console.warn('[support-photo]', err.message);
     }
   }
@@ -278,9 +277,6 @@ export async function fetchAllReportsForAdmin({ statusFilter } = {}) {
   const { data: reports, error } = await query;
   if (error) throw error;
   if (!reports.length) return [];
-
-  // The existing coordinate view does not expose the newer admin columns.
-  // Read them from reports under the same user's RLS permissions.
   const { data: details, error: detailsError } = await supabase
     .from('reports')
     .select('id, bbox_area_pct, address, rejection_reason, accepted_at, estimated_completion_date, estimated_materials, estimated_materials_json, estimated_cost, actual_materials, actual_materials_json, actual_cost')
@@ -348,7 +344,6 @@ export async function startProgress(reportId, { estimatedDate, materials, materi
   return data;
 }
 
-/** Update status laporan (open / in_progress / resolved). Butuh policy admin di reports (sudah dibuat di LANGKAH 1 SQL). */
 export async function updateReportStatus(reportId, status) {
   const { data, error } = await supabase
     .from('reports')

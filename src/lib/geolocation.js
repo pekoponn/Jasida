@@ -12,12 +12,7 @@ export function getCurrentPosition(options = { enableHighAccuracy: true, timeout
   });
 }
 
-// --- Antrian sederhana buat reverseGeocode ---
-// Nominatim (OpenStreetMap) membatasi maksimal ±1 request/detik dari satu sumber.
-// Kalau banyak komponen (misal tiap ReportCard di Dashboard) manggil reverseGeocode
-// bersamaan, requestnya bisa langsung ditolak/di-rate-limit. Antrian ini memastikan
-// semua pemanggilan di seluruh app dijalankan berurutan dengan jeda minimal.
-const MIN_INTERVAL_MS = 1100; // sedikit di atas 1 detik, kasih buffer aman
+const MIN_INTERVAL_MS = 1100;
 let queueTail = Promise.resolve();
 let lastCallAt = 0;
 
@@ -31,13 +26,10 @@ function scheduleGeocodeCall(task) {
     lastCallAt = Date.now();
     return task();
   });
-  // pastikan antrian tetap jalan meski satu task gagal
   queueTail = run.catch(() => {});
   return run;
 }
 
-// Cache sederhana biar koordinat yang sama (misal dibuka berkali-kali) nggak
-// nge-request ulang ke Nominatim.
 const geocodeCache = new Map();
 
 export async function reverseGeocode(lat, lng) {
@@ -61,9 +53,6 @@ export async function reverseGeocode(lat, lng) {
 
     const data = await res.json();
     const addr = data.address || {};
-
-    // Susun jadi "Nama Jalan, Kecamatan, Kabupaten" — lebih ringkas & rapi
-    // dibanding display_name mentah yang biasanya kepanjangan.
     const parts = [
       addr.road || addr.pedestrian || addr.footway || addr.neighbourhood,
       addr.suburb || addr.village || addr.town || addr.city_district,

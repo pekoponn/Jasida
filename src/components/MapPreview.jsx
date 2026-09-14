@@ -1,10 +1,5 @@
 import { useEffect, useRef } from 'react';
 
-/**
- * Peta kecil menampilkan titik lokasi laporan.
- * Pakai Leaflet + OpenStreetMap (gratis, tidak perlu API key),
- * dimuat lewat CDN di index.html.
- */
 export default function MapPreview({ lat, lng, label = 'Lokasi Laporan' }) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -38,11 +33,10 @@ export default function MapPreview({ lat, lng, label = 'Lokasi Laporan' }) {
       markerRef.current.setTooltipContent(label);
     }
 
-    // Leaflet butuh ini kalau container-nya baru muncul/berubah ukuran
     setTimeout(() => mapInstanceRef.current?.invalidateSize(), 100);
 
     return () => {
-      // jangan destroy map tiap render — cukup update posisi saja (di atas)
+
     };
   }, [lat, lng, label]);
 
@@ -63,7 +57,6 @@ export default function MapPreview({ lat, lng, label = 'Lokasi Laporan' }) {
   );
 }
 
-/** Icon pin merah + lingkaran putus-putus, dibuat sebagai divIcon HTML (bukan gambar). */
 const reportPinIcon = window.L
   ? window.L.divIcon({
       className: 'rw-marker-wrap',

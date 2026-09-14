@@ -1,4 +1,3 @@
-// Run only in a local terminal. The admin key is never written to disk or bundled.
 import { createInterface } from 'node:readline/promises';
 import { Writable } from 'node:stream';
 import { loadEnv } from 'vite';

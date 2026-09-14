@@ -9,9 +9,6 @@ import avatar8 from '../assets/avatars/avatar-8.png';
 import avatar9 from '../assets/avatars/avatar-9.png';
 
 const avatars = [avatar1, avatar2, avatar3, avatar4, avatar5, avatar6, avatar7, avatar8, avatar9];
-
-// Existing profiles can contain Vite development URLs or hashes from an older build.
-// Resolve built-in avatars against this build; preserve custom/external image URLs.
 export function withResolvedAvatar(profile) {
   const match = profile?.avatar_url?.match(
     /^\/(?:src\/assets\/avatars|assets)\/avatar-([1-9])(?:-[A-Za-z0-9_-]+)?\.png(?:[?#].*)?$/

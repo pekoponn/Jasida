@@ -21,12 +21,6 @@ function getSession() {
   return sessionPromise;
 }
 
-/**
- * Menilai keseluruhan foto jalan, mengembalikan kategori keparahan
- * (aman/sedang/darurat) beserta confidence-nya.
- *
- * Return: { severity, confidence, scores: { aman, sedang, darurat } }
- */
 export async function classifyRoadSeverity(file) {
   const session = await getSession();
   const img = await loadImage(file);
@@ -36,7 +30,7 @@ export async function classifyRoadSeverity(file) {
   const inputName = session.inputNames[0];
   const outputs = await session.run({ [inputName]: inputTensor });
   const outputName = session.outputNames[0];
-  const raw = outputs[outputName].data; // array probabilitas per kelas
+  const raw = outputs[outputName].data; 
 
   const scores = {};
   SEVERITY_CLASSES.forEach((cls, i) => {
@@ -55,9 +49,6 @@ export async function classifyRoadSeverity(file) {
   };
 }
 
-/**
- * Stand-in untuk demo/testing sebelum model asli ke-load.
- */
 export async function classifyRoadSeverityMock(file) {
   await new Promise((r) => setTimeout(r, 600));
   return {

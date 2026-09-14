@@ -1,12 +1,3 @@
-/**
- * Turns one candidate row from the `find_similar_reports` RPC into a
- * duplicate probability (0-1) plus a recommended action, so the UI can
- * decide: auto-merge / ask user to confirm / treat as new report.
- *
- * Tune these weights against real validation data before the actual demo —
- * these are reasonable starting points, not universal constants.
- */
-
 const WEIGHTS = {
   distance: 0.3,
   imageSimilarity: 0.5,
@@ -17,7 +8,6 @@ const RADIUS_METERS = 50;
 const RECENCY_WINDOW_HOURS = 72;
 
 function distanceScore(distanceMeters) {
-  // 1.0 at 0m, tapering to 0 at RADIUS_METERS
   return Math.max(0, 1 - distanceMeters / RADIUS_METERS);
 }
 
@@ -53,9 +43,6 @@ export function recommendedAction(probability) {
   return 'new_report';
 }
 
-/**
- * Ranks and returns the best candidate (or null) from a list of RPC rows.
- */
 export function pickBestDuplicate(candidates) {
   if (!candidates?.length) return null;
   const scored = candidates.map(scoreDuplicateCandidate);

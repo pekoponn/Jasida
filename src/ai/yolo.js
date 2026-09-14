@@ -3,9 +3,6 @@ import { loadImage, letterbox, canvasToCHWTensor } from './preprocess';
 
 ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/';
 
-// PENTING: urutan ini harus sama persis dengan urutan class di data.yaml
-// waktu training combined_train2. Kalau urutannya beda, label yang
-// muncul akan salah walau kotaknya tepat. Cek ulang data.yaml kalau ragu.
 export const DAMAGE_CLASSES = [
   'pothole',
   'alligator_crack',
@@ -34,13 +31,6 @@ function getSession() {
   return sessionPromise;
 }
 
-/**
- * Runs damage detection on a File/Blob image.
- *
- * Returns { detections, imageWidth, imageHeight }
- *   detections: [{ damage_type, confidence, bbox: [x, y, w, h] }] (bbox px, gambar asli)
- *   imageWidth/imageHeight: dimensi asli foto (dipakai hazardScore.js buat bboxAreaRatio)
- */
 export async function detectDamage(file) {
   const session = await getSession();
   const img = await loadImage(file);

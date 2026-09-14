@@ -29,11 +29,8 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    let active = true; // guard biar tidak setState setelah unmount
+    let active = true; 
 
-    // Alur awal: ambil session DULU, lalu tunggu profile-nya juga selesai,
-    // baru loading di-set false. Ini kunci fix-nya — sebelumnya loading
-    // langsung false begitu session ada, padahal profile belum tentu ready.
     async function init() {
       const { data: { session } } = await supabase.auth.getSession();
       const sessionUser = session?.user ?? null;
@@ -51,9 +48,6 @@ export function AuthProvider({ children }) {
     }
 
     init();
-
-    // Untuk perubahan auth SETELAH initial load (login/logout di tab yang sama,
-    // token refresh, dll) — user & profile di-update bareng juga di sini.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const sessionUser = session?.user ?? null;
       setUser(sessionUser);

@@ -27,10 +27,9 @@ function pointInPolygonGeometry(point, geometry) {
   return false;
 }
 
-/** Cari nama kecamatan berdasarkan koordinat laporan (lat, lng). */
 export function findKecamatan(lat, lng) {
   if (typeof lat !== 'number' || typeof lng !== 'number') return null;
-  const point = [lng, lat]; // GeoJSON pakai urutan [lng, lat]
+  const point = [lng, lat];
   const feature = sidoarjoKecamatan.features.find((f) =>
     pointInPolygonGeometry(point, f.geometry)
   );

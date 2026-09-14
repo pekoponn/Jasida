@@ -4,7 +4,7 @@ import { loadImage, resizeSquare, canvasToClipTensor } from './preprocess';
 ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/';
 
 const MODEL_URL = '/models/clip-image-encoder.onnx';
-const INPUT_SIZE = 224; // standard CLIP ViT-B/32 input size
+const INPUT_SIZE = 224;
 export const EMBEDDING_DIM = 512;
 
 let sessionPromise = null;
@@ -25,11 +25,6 @@ function getSession() {
   return sessionPromise;
 }
 
-/**
- * Returns a 512-dim, L2-normalized embedding vector (plain array) for an image.
- * This vector is what gets stored in Supabase's `embedding vector(512)` column
- * and compared with pgvector's cosine distance operator (<=>).
- */
 export async function embedImage(file) {
   const session = await getSession();
   const img = await loadImage(file);
@@ -55,14 +50,9 @@ function l2Normalize(vec) {
 export function cosineSimilarity(a, b) {
   let dot = 0;
   for (let i = 0; i < a.length; i++) dot += a[i] * b[i];
-  return dot; // both vectors are already L2-normalized, so dot product == cosine similarity
+  return dot;
 }
 
-/**
- * Stand-in for embedImage() before clip-image-encoder.onnx is wired up.
- * Produces a stable-ish pseudo-embedding from the file so the duplicate-
- * detection UI can be built and tested end-to-end ahead of the real model.
- */
 export async function embedImageMock(file) {
   await new Promise((r) => setTimeout(r, 400));
   const seed = Array.from(file.name).reduce((s, c) => s + c.charCodeAt(0), file.size);
