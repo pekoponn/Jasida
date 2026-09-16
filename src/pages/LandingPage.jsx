@@ -128,8 +128,9 @@ export default function LandingPage() {
           Cek wilayahmu dan pastikan jalanan sekitarmu aman.
         </p>
 
-        {!loading && (
+                {!loading && (
           <div className="rw-map-box" style={mapBox}>
+            <style>{leafletZIndexFixCss}</style>
             <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -266,6 +267,16 @@ const stepNumberText = {
 const mapSection = { padding: '80px 5% 100px', background: '#fff' };
 const mapBox = {
   maxWidth: 1100, margin: '40px auto 24px', height: 460,
-  borderRadius: 16, overflow: 'hidden', border: '2px dashed #A61C24'
+  borderRadius: 16, overflow: 'hidden', border: '2px dashed #A61C24',
+  position: 'relative',
+  isolation: 'isolate'
 };
+
+const leafletZIndexFixCss = `
+  .rw-map-box .leaflet-top,
+  .rw-map-box .leaflet-bottom,
+  .rw-map-box .leaflet-control-container {
+    z-index: 400;
+  }
+`;
 const legendRow = { display: 'flex', justifyContent: 'center', gap: 40, flexWrap: 'wrap', marginTop: 24 };

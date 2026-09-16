@@ -7,7 +7,7 @@ import { detectDamage } from '../ai/yolo.js';
 import { embedImage } from '../ai/clip.js';
 import { computeHazardScore, damageTypeDisplayLabel } from '../ai/hazardScore.js';
 import { pickBestDuplicate } from '../ai/duplicateScore.js';
-import { findSimilarReports, createReport, uploadReportImage, supportReport } from '../lib/reports.js';
+import { findSimilarReports, createReport, uploadReportImage, addReporter } from '../lib/reports.js';
 import { reverseGeocode } from '../lib/geolocation.js';
 import MapPreview from '../components/MapPreview.jsx';
 import { useAuth } from '../lib/AuthContext.jsx';
@@ -35,6 +35,7 @@ export default function ReportPage() {
   const [duplicate, setDuplicate] = useState(null);
   const [duplicateUnavailable, setDuplicateUnavailable] = useState(false);
   const [locatingSelf, setLocatingSelf] = useState(false);
+  const [testingMode, setTestingMode] = useState(false);
 
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -48,7 +49,7 @@ export default function ReportPage() {
     setDuplicateUnavailable(false);
     setHazard(null);
 
-    if (gps && !isWithinSidoarjo(gps.lat, gps.lng)) {
+    if (gps && !testingMode && !isWithinSidoarjo(gps.lat, gps.lng)) {
       setError('Laporan hanya bisa dikirim untuk lokasi di dalam wilayah Kabupaten Sidoarjo. Foto ini terdeteksi di luar area tersebut.');
       return;
     }
@@ -131,7 +132,7 @@ export default function ReportPage() {
 
   async function handleSubmitNewReport() {
     if (step !== 'analyzed' || !hazard || !file) return;
-    if (!position || !isWithinSidoarjo(position.lat, position.lng)) {
+    if (!position || (!testingMode && !isWithinSidoarjo(position.lat, position.lng))) {
       setError('Lokasi di Sidoarjo wajib terdeteksi sebelum laporan dikirim. Izinkan GPS, lalu tekan Lokasi saat ini.');
       return;
     }
@@ -163,10 +164,10 @@ export default function ReportPage() {
 
   async function handleSupportExisting(candidate) {
     try {
-      await supportReport(candidate.id, file);
+      await addReporter(candidate.id);
     } catch (err) {
-      console.warn('[support]', err.message);
-      setError(err.message || 'Gagal mengirim dukungan. Coba lagi.');
+      console.warn('[add-reporter]', err.message);
+      setError(err.message || 'Gagal menambahkan laporanmu. Coba lagi.');
       return;
     }
     setDuplicate(null);
@@ -182,7 +183,7 @@ export default function ReportPage() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const gps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        if (!isWithinSidoarjo(gps.lat, gps.lng)) {
+        if (!testingMode && !isWithinSidoarjo(gps.lat, gps.lng)) {
           setError('Lokasi saat ini berada di luar wilayah Kabupaten Sidoarjo.');
           setLocatingSelf(false);
           return;
@@ -288,6 +289,30 @@ export default function ReportPage() {
       <p className="rp-subtitle" style={rpSubtitleStyle}>
         Ambil atau pilih foto kondisi jalan. AI akan mendeteksi lubang/retak dan memeriksa laporan serupa di sekitar lokasimu.
       </p>
+
+      <div style={modeToggleRow}>
+        <button
+          type="button"
+          onClick={() => setTestingMode(false)}
+          style={testingMode ? modeBtnInactive : modeBtnActive}
+        >
+          Laporan Real (Khusus Sidoarjo)
+        </button>
+        <button
+          type="button"
+          onClick={() => setTestingMode(true)}
+          style={testingMode ? modeBtnActiveWarn : modeBtnInactive}
+        >
+          Mode Uji Coba (Bebas Lokasi)
+        </button>
+      </div>
+
+      {testingMode && (
+        <div style={testingBanner}>
+          ⚠️ <strong>Mode Uji Coba aktif</strong> — laporan bisa dikirim dari lokasi mana saja untuk keperluan demo/testing.
+          Di penggunaan nyata, Jasida difokuskan hanya untuk laporan kerusakan jalan di wilayah Kabupaten Sidoarjo.
+        </div>
+      )}
 
       <div className="rp-card" style={rpCardStyle}>
         <div className="rp-grid" style={rpGridStyle}>
@@ -557,6 +582,33 @@ const responsiveCss = `
 
 const rpTitleStyle = { fontSize: 32, marginBottom: 6 };
 const rpSubtitleStyle = { color: 'var(--color-ink-soft)', marginTop: 0, marginBottom: 24, fontSize: 14, maxWidth: 700 };
+
+const modeToggleRow = { display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' };
+
+const modeBtnBase = {
+  padding: '10px 18px',
+  borderRadius: 999,
+  fontSize: 13,
+  fontWeight: 700,
+  cursor: 'pointer',
+  border: '1.5px solid #dee2e6',
+  background: '#fff',
+  color: '#495057'
+};
+const modeBtnActive = { ...modeBtnBase, border: '1.5px solid #A61C24', background: '#A61C24', color: '#fff' };
+const modeBtnActiveWarn = { ...modeBtnBase, border: '1.5px solid #E8A93B', background: '#E8A93B', color: '#1a1a1a' };
+const modeBtnInactive = { ...modeBtnBase };
+
+const testingBanner = {
+  background: '#FFF8E1',
+  border: '1px solid #F0D9A8',
+  color: '#8A6D00',
+  borderRadius: 10,
+  padding: '12px 16px',
+  fontSize: 13,
+  marginBottom: 16,
+  lineHeight: 1.5
+};
 
 const rpCardStyle = {
   background: '#fff',

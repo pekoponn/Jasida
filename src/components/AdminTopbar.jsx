@@ -64,7 +64,7 @@ export default function AdminTopbar({ onMenuClick }) {
               <div style={nameText}>{name}</div>
               {roleLabel && <div style={roleText}>{roleLabel}</div>}
             </div>
-            <button style={dropdownItem} onClick={() => { setOpen(false); navigate('/profil'); }}>
+            <button style={dropdownItem} onClick={() => { setOpen(false); navigate('/admin/profil'); }}>
               <User size={16} /> Profil Saya
             </button>
             <button style={{ ...dropdownItem, color: '#e03131' }} onClick={handleSignOut}>

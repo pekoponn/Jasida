@@ -5,7 +5,6 @@ import { PHOTO_INPUT_ACCEPT } from '../../lib/imageUpload.js';
 export default function CameraCapture({ onCapture, disabled }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
-  const fileInputRef = useRef(null);
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
   const [capturing, setCapturing] = useState(false);
@@ -74,60 +73,11 @@ export default function CameraCapture({ onCapture, disabled }) {
     }
   }
 
-  async function handleFileUpload(e) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file || capturing) return;
-    setCapturing(true);
-    setError(null);
-
-    try {
-      const positionPromise = getCurrentPosition().catch(() => null);
-      const position = await positionPromise;
-      const capturedAt = new Date().toISOString();
-
-      await onCapture({ file, position, capturedAt });
-    } catch (err) {
-      console.error('[photo-upload]', err);
-      setError('Gagal memproses foto. Coba lagi.');
-    } finally {
-      setCapturing(false);
-    }
-  }
-
-  function UploadBlock() {
-    return (
-      <div style={uploadBox}>
-        <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700, color: '#8a5a12' }}>
-          JPEG, PNG, atau WebP · otomatis diperkecil di bawah 100 KB
-        </p>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={PHOTO_INPUT_ACCEPT}
-          style={{ display: 'none' }}
-          onChange={handleFileUpload}
-        />
-        <button
-          type="button"
-          disabled={disabled || capturing}
-          onClick={() => fileInputRef.current?.click()}
-          style={uploadBtn}
-        >
-          📁 Pilih Foto
-        </button>
-      </div>
-    );
-  }
-
   if (status === 'error') {
     return (
-      <div>
-        <div style={errorBox}>
-          <p style={{ margin: 0, fontWeight: 600 }}>📷 {error}</p>
-          <button style={retryBtn} onClick={startCamera}>Coba lagi</button>
-        </div>
-        <UploadBlock />
+      <div style={errorBox}>
+        <p style={{ margin: 0, fontWeight: 600 }}>📷 {error}</p>
+        <button style={retryBtn} onClick={startCamera}>Coba lagi</button>
       </div>
     );
   }
@@ -157,10 +107,8 @@ export default function CameraCapture({ onCapture, disabled }) {
       </button>
 
       <p style={{ fontSize: 12, color: 'var(--color-ink-soft)', textAlign: 'center', marginTop: 6 }}>
-        Gunakan foto terbaru. Lokasi laporan mengikuti GPS perangkat saat foto diambil atau dipilih.
+        Gunakan foto terbaru. Lokasi laporan mengikuti GPS perangkat saat foto diambil.
       </p>
-
-      <UploadBlock />
     </div>
   );
 }
@@ -211,23 +159,4 @@ const retryBtn = {
   border: '1px solid var(--color-border)',
   background: 'var(--color-surface)',
   fontWeight: 600
-};
-
-const uploadBox = {
-  marginTop: 12,
-  padding: '10px 12px',
-  borderRadius: 'var(--radius-md)',
-  background: '#FBF0DA',
-  border: '1px dashed #F0D9A8'
-};
-
-const uploadBtn = {
-  width: '100%',
-  padding: '10px 16px',
-  borderRadius: 'var(--radius-md)',
-  border: '1px solid #F0D9A8',
-  background: '#fff',
-  color: '#8a5a12',
-  fontWeight: 700,
-  fontSize: 14
 };

@@ -9,7 +9,10 @@ import AdminDashboardPage from './pages/AdminDashboardPage.jsx';
 import RoleRedirect from './components/RoleRedirect.jsx';
 import AdminRoute from './components/AdminRoute.jsx';
 import AdminSidebar from './components/AdminSidebar.jsx';
+import ScrollToTop from './components/ScrollToTop.jsx';
 import AdminKelolaLaporanPage from './pages/AdminKelolaLaporanPage.jsx';
+import AdminPenggunaPage from './pages/AdminPenggunaPage.jsx';
+import AdminStatistikPage from './pages/AdminStatistikPage.jsx';
 import { useAuth } from './lib/AuthContext.jsx';
 import EditProfilePage from './pages/EditProfilePage.jsx';
 import RiwayatPage from './pages/RiwayatPage.jsx';
@@ -28,7 +31,12 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (location.pathname === '/login') {
-    return <LoginPage />;
+    return (
+      <>
+        <ScrollToTop />
+        <LoginPage />
+      </>
+    );
   }
 
   const isAdminArea = location.pathname.startsWith('/admin');
@@ -36,6 +44,7 @@ export default function App() {
   if (isAdminArea) {
     return (
       <div style={{ minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
+        <ScrollToTop />
         <AdminSidebar
           mobileOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
@@ -78,6 +87,30 @@ export default function App() {
                   </AdminRoute>
                 }
               />
+              <Route
+                path="/admin/pengguna"
+                element={
+                  <AdminRoute>
+                    <AdminPenggunaPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/profil"
+                element={
+                  <AdminRoute>
+                    <EditProfilePage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/statistik"
+                element={
+                  <AdminRoute>
+                    <AdminStatistikPage />
+                  </AdminRoute>
+                }
+              />
             </Routes>
           </main>
         </div>
@@ -90,11 +123,12 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Inter, sans-serif', userSelect: 'none', WebkitUserSelect: 'none' }}>
+      <ScrollToTop />
 
       {/* NAVBAR KOMPONEN BARU */}
       <Navbar />
 
-      <div style={dashedDivider(isMobileDevice)} />
+      <div style={dashedDivider()} />
 
       <main
           style={{
@@ -122,8 +156,8 @@ export default function App() {
   );
 }
 
-function dashedDivider(isMobileDevice) {
-  const color = isMobileDevice ? '#E5A3A3' : '#C9C9C9';
+function dashedDivider() {
+  const color = '#C9C9C9';
   return {
     height: 3,
     width: '100%',

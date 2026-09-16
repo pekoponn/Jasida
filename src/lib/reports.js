@@ -94,18 +94,14 @@ export async function completeReportWithActuals(reportId, { file, actualMaterial
   return data;
 }
 
-export async function supportReport(reportId, file) {
-  const photo = file ? await prepareUploadPhoto(file) : null;
+export async function supportReport(reportId) {
   const { error } = await supabase.rpc('support_report', { p_report_id: reportId });
   if (error) throw error;
+}
 
-  if (photo) {
-    try {
-      await addReportPhoto(reportId, photo);
-    } catch (err) {
-      console.warn('[support-photo]', err.message);
-    }
-  }
+export async function addReporter(reportId) {
+  const { error } = await supabase.rpc('add_reporter', { p_report_id: reportId });
+  if (error) throw error;
 }
 
 export async function addReportPhoto(reportId, file, photoType = 'support') {
@@ -205,9 +201,18 @@ export async function listMyReports() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
   if (error) throw error;
+  if (!data.length) return [];
 
-  return (data ?? []).map((r) => ({
+  const { data: details, error: detailsError } = await supabase
+    .from('reports')
+    .select('id, started_at, resolved_at, accepted_at, rejected_at')
+    .in('id', data.map((r) => r.id));
+  if (detailsError) throw detailsError;
+  const detailsById = Object.fromEntries(details.map((r) => [r.id, r]));
+
+  return data.map((r) => ({
     ...r,
+    ...detailsById[r.id],
     imageUrl: r.image_path
       ? supabase.storage.from('report-images').getPublicUrl(r.image_path).data.publicUrl
       : null
@@ -263,6 +268,17 @@ export async function addComment(reportId, content) {
     .single();
   if (error) throw error;
   return data;
+}
+
+export async function getReportCountsByUser() {
+  const { data, error } = await supabase.from('reports').select('user_id');
+  if (error) throw error;
+  const counts = {};
+  (data ?? []).forEach((r) => {
+    if (!r.user_id) return;
+    counts[r.user_id] = (counts[r.user_id] ?? 0) + 1;
+  });
+  return counts;
 }
 
 export async function fetchAllReportsForAdmin({ statusFilter } = {}) {

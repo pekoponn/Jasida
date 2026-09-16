@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { damageTypeDisplayLabel, severityDisplayLabel } from '../ai/hazardScore.js';
-import { listComments, listSupporters } from '../lib/reports.js';
+import { listComments, listSupporters, getReportPhotos } from '../lib/reports.js';
 import { reverseGeocode } from '../lib/geolocation.js';
 
 const AVATAR_COLORS = ['#E8A93B', '#E0561F', '#191B1F', '#24506F'];
@@ -23,6 +23,7 @@ export default function ReportDetailModal({ report, onClose }) {
   const [supporters, setSupporters] = useState([]);
   const [address, setAddress] = useState(null);
   const [addressLoading, setAddressLoading] = useState(false);
+  const [afterPhotoUrl, setAfterPhotoUrl] = useState(null);
 
   useEffect(() => {
     function handleEsc(e) {
@@ -47,6 +48,15 @@ export default function ReportDetailModal({ report, onClose }) {
     listSupporters(report.id)
       .then(setSupporters)
       .catch((err) => console.warn('[supporters]', err.message));
+
+    setAfterPhotoUrl(null);
+    getReportPhotos(report.id)
+      .then((photos) => {
+        const resolutionPhotos = photos.filter((p) => p.photo_type === 'resolution');
+        const latest = resolutionPhotos[resolutionPhotos.length - 1];
+        setAfterPhotoUrl(latest?.url ?? null);
+      })
+      .catch((err) => console.warn('[report-photos]', err.message));
 
     if (typeof report.lat === 'number' && typeof report.lng === 'number') {
       setAddress(null);
@@ -103,7 +113,9 @@ export default function ReportDetailModal({ report, onClose }) {
               </div>
               <div>
                 <div style={photoLabel}>Sesudah Perbaikan</div>
-                {report.status === 'resolved' ? (
+                {afterPhotoUrl ? (
+                  <img src={afterPhotoUrl} alt="Foto sesudah perbaikan" style={photoStyle} />
+                ) : report.status === 'resolved' ? (
                   <div style={{ ...photoStyle, ...placeholderBox }}>
                     Foto sesudah belum tersedia di sistem
                   </div>
@@ -165,12 +177,12 @@ export default function ReportDetailModal({ report, onClose }) {
                   />
                   <TimelineStep
                     label="Sedang Diproses"
-                    date={['in_progress', 'resolved'].includes(report.status) ? '—' : null}
+                    date={['in_progress', 'resolved'].includes(report.status) ? formatDate(report.started_at) : null}
                     done={['in_progress', 'resolved'].includes(report.status)}
                   />
                   <TimelineStep
                     label="Selesai"
-                    date={report.status === 'resolved' ? '—' : null}
+                    date={report.status === 'resolved' ? formatDate(report.resolved_at) : null}
                     done={report.status === 'resolved'}
                     isLast
                   />

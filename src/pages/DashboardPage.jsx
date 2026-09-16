@@ -191,6 +191,26 @@ function PinIcon() {
   );
 }
 
+function ChevronIcon({ direction }) {
+  const points = direction === 'left' ? '15 18 9 12 15 6' : '9 18 15 12 9 6';
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points={points} />
+    </svg>
+  );
+}
+
+function ReporterIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, display: 'block' }}>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
 function ThumbsUpIcon() {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -251,9 +271,26 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
 
   const currentPhoto = photos[index];
 
+  function goPrev(e) {
+    e.stopPropagation();
+    setIndex((i) => (i - 1 + photos.length) % photos.length);
+  }
+
+  function goNext(e) {
+    e.stopPropagation();
+    setIndex((i) => (i + 1) % photos.length);
+  }
+  
+  const PHOTO_TYPE_LABEL = {
+    original: 'Sebelum',
+    resolution: 'Sesudah',
+    support: 'Dukungan'
+  };
+
   const posterName = report.profile?.username?.trim() || 'Anonim';
   const posterInitial = posterName[0]?.toUpperCase() ?? 'A';
   const supportCount = report.support_count ?? 0;
+  const reporterCount = report.reporter_count ?? 1;
   const statusInfo = reportStatusInfo(report.status);
 
   return (
@@ -270,6 +307,32 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
         <div style={{ position: 'absolute', top: 8, left: 8 }}>
           <SeverityBadge severity={report.severity} score={report.hazard_score} />
         </div>
+
+        {currentPhoto?.photo_type && photos.length > 1 && (
+          <span style={photoTypeBadge}>
+            {PHOTO_TYPE_LABEL[currentPhoto.photo_type] ?? currentPhoto.photo_type}
+          </span>
+        )}
+
+        {photos.length > 1 && (
+          <>
+            <button type="button" onClick={goPrev} style={{ ...photoNavBtn, left: 8 }} aria-label="Foto sebelumnya">
+              <ChevronIcon direction="left" />
+            </button>
+            <button type="button" onClick={goNext} style={{ ...photoNavBtn, right: 8 }} aria-label="Foto berikutnya">
+              <ChevronIcon direction="right" />
+            </button>
+
+            <div style={photoDotsRow}>
+              {photos.map((p, i) => (
+                <span
+                  key={p.id ?? i}
+                  style={{ ...photoDot, opacity: i === index ? 1 : 0.4, transform: i === index ? 'scale(1.2)' : 'scale(1)' }}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Details Section */}
@@ -291,6 +354,10 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
 
         {/* Dukung + Komentar + Status — dikasih jarak dari baris di atasnya */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+          <span style={reporterBadge}>
+            <ReporterIcon /> {reporterCount} Pelapor
+          </span>
+
           <button
             onClick={handleSupport}
             disabled={supporting || alreadySupported || isOwner}
@@ -443,6 +510,50 @@ const reportDateText = {
   margin: '8px 0 0'
 };
 
+const photoTypeBadge = {
+  position: 'absolute',
+  top: 8,
+  right: 8,
+  background: 'rgba(0,0,0,0.6)',
+  color: '#fff',
+  fontSize: 10.5,
+  fontWeight: 700,
+  padding: '4px 10px',
+  borderRadius: 999
+};
+
+const photoNavBtn = {
+  position: 'absolute',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  width: 30,
+  height: 30,
+  borderRadius: '50%',
+  border: 'none',
+  background: 'rgba(0,0,0,0.4)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer'
+};
+
+const photoDotsRow = {
+  position: 'absolute',
+  bottom: 8,
+  left: '50%',
+  transform: 'translateX(-50%)',
+  display: 'flex',
+  gap: 5
+};
+
+const photoDot = {
+  width: 6,
+  height: 6,
+  borderRadius: '50%',
+  background: '#fff',
+  transition: 'transform 0.15s ease, opacity 0.15s ease'
+};
+
 const posterBadge = {
   display: 'flex',
   alignItems: 'center',
@@ -476,6 +587,19 @@ const posterNameText = {
   fontSize: 11,
   fontWeight: 600,
   color: '#343a40',
+  whiteSpace: 'nowrap'
+};
+
+const reporterBadge = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
+  backgroundColor: '#f1f3f5',
+  color: '#495057',
+  padding: '5px 12px',
+  borderRadius: 20,
+  fontWeight: 700,
+  fontSize: 11,
   whiteSpace: 'nowrap'
 };
 
