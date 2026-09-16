@@ -693,16 +693,6 @@ const zoomCloseBtn = {
   cursor: 'pointer'
 };
 
-const filterBtn = (active) => ({
-  padding: '6px 14px',
-  borderRadius: 999,
-  border: '1px solid #dee2e6',
-  background: active ? '#141B2E' : 'transparent',
-  color: active ? '#fff' : 'inherit',
-  fontSize: 13,
-  cursor: 'pointer'
-});
-
 const th = { padding: '12px 16px', fontWeight: 600 };
 const td = { padding: '12px 16px', verticalAlign: 'middle' };
 

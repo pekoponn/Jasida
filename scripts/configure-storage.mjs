@@ -30,7 +30,7 @@ try {
 
 let role;
 if (key.split('.').length === 3) {
-  try { role = JSON.parse(Buffer.from(key.split('.')[1], 'base64url').toString()).role; } catch {}
+  try { role = JSON.parse(Buffer.from(key.split('.')[1], 'base64url').toString()).role; } catch { /* Invalid JWT is rejected below. */ }
 }
 if (!key.startsWith('sb_secret_') && role !== 'service_role') {
   throw new Error('Ini bukan key admin. Gunakan secret/service_role hanya untuk script terminal ini.');

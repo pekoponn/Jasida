@@ -21,6 +21,7 @@ function persistGeocodeCache() {
     const entries = [...geocodeCache.entries()].slice(-1000);
     localStorage.setItem(CACHE_KEY, JSON.stringify(entries));
   } catch {
+    // A full/disabled local cache must not prevent the map from loading.
   }
 }
 
@@ -389,22 +390,9 @@ function ReportRowTable({ report, updating, onStatusChange, onResolve }) {
   );
 }
 
-const filterBtn = (active) => ({
-  padding: '6px 12px', borderRadius: 999,
-  border: '1px solid var(--color-border)',
-  background: active ? 'var(--color-ink)' : 'transparent',
-  color: active ? '#fff' : 'inherit',
-  fontSize: 13
-});
-
 const badge = {
   display: 'inline-block', padding: '3px 10px', borderRadius: 999,
   color: '#fff', fontSize: 12, fontWeight: 700
-};
-
-const actionBtn = {
-  padding: '6px 12px', borderRadius: 'var(--radius-md)', border: 'none',
-  background: 'var(--color-primary)', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer'
 };
 
 const summaryGrid = {

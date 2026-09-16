@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
+import RoleRedirect from '../components/RoleRedirect.jsx';
 import { useAuth } from '../lib/AuthContext.jsx';
 import { updateProfile, updateAvatarUrl } from '../lib/profile.js';
 import { useIsMobileDevice } from '../lib/useIsMobileDevice.js';
@@ -21,6 +22,14 @@ const AVATAR_PRESETS = [
 ];
 
 export default function EditProfilePage() {
+  const { user, profile, loading } = useAuth();
+  if (loading) return <p role="status">Memuat profil…</p>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!profile) return <RoleRedirect />;
+  return <ProfileForm key={user.id} />;
+}
+
+function ProfileForm() {
   const { user, profile, refreshProfile, signOut } = useAuth();
   const navigate = useNavigate();
   const isMobileDevice = useIsMobileDevice();
@@ -31,11 +40,6 @@ export default function EditProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
-
-  if (!user) {
-    navigate('/login');
-    return null;
-  }
 
   async function handleSignOut() {
     await signOut();
@@ -111,6 +115,7 @@ export default function EditProfilePage() {
         <input
           type="text"
           placeholder="Username"
+          aria-label="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
@@ -119,6 +124,7 @@ export default function EditProfilePage() {
 
         <input
           type="email"
+          aria-label="Email"
           value={user.email ?? ''}
           disabled
           style={inputDisabledStyle}

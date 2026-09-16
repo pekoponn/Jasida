@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext.jsx';
 import workerIllustration from '../assets/worker-illustration.png';
 import brandLogo from '../assets/brand-logo.png';
@@ -15,20 +15,26 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [error, setError] = useState(null);
+  const [notice, setNotice] = useState(null);
   const [loading, setLoading] = useState(false);
 
   if (user) {
-    navigate('/');
-    return null;
+    return <Navigate to="/redirect" replace />;
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
+    setNotice(null);
     setLoading(true);
     try {
       if (mode === 'register') {
-        await signUp({ email, password, username });
+        const data = await signUp({ email, password, username });
+        if (!data.session) {
+          setNotice('Pendaftaran diterima. Periksa email untuk konfirmasi akun sebelum masuk.');
+          setMode('login');
+          return;
+        }
       } else {
         await signIn({ email, password });
       }
@@ -148,6 +154,7 @@ export default function LoginPage() {
             )}
 
             {error && <p style={{ color: '#ffb3b3', fontSize: 13, margin: 0 }}>{error}</p>}
+            {notice && <p role="status" style={{ color: '#fff', fontSize: 13 }}>{notice}</p>}
 
             <button type="submit" disabled={loading} style={submitBtn}>
               {loading ? 'Memproses…' : mode === 'login' ? 'Masuk Sekarang' : 'Daftar Sekarang'}

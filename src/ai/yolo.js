@@ -1,19 +1,15 @@
-import * as ort from 'onnxruntime-web';
+import { ort } from './runtime.js';
 import { loadImage, letterbox, canvasToCHWTensor } from './preprocess';
 
-ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/';
-
+// Exact class order from the bundled model's ONNX metadata.
 export const DAMAGE_CLASSES = [
   'pothole',
   'alligator_crack',
   'longitudinal_crack',
-  'transverse_crack',
-  'other_corruption',
-  'sampah'
+  'transverse_crack'
 ];
 
 const MODEL_URL = '/models/yolo-damage.onnx';
-const INPUT_SIZE = 640;
 const CONF_THRESHOLD = 0.15;
 const IOU_THRESHOLD = 0.45;
 
@@ -33,8 +29,12 @@ function getSession() {
 
 export async function detectDamage(file) {
   const session = await getSession();
+  const [, channels, height, width] = session.inputMetadata[0].shape;
+  if (channels !== 3 || !Number.isInteger(width) || width !== height || width <= 0) {
+    throw new Error('Model YOLO harus memiliki input RGB persegi berukuran tetap.');
+  }
   const img = await loadImage(file);
-  const { canvas, scale, padX, padY } = letterbox(img, INPUT_SIZE);
+  const { canvas, scale, padX, padY } = letterbox(img, width);
   const inputTensor = canvasToCHWTensor(canvas);
 
   const inputName = session.inputNames[0];
@@ -42,14 +42,17 @@ export async function detectDamage(file) {
   const outputName = session.outputNames[0];
   const raw = outputs[outputName];
 
-  const detections = parseYoloOutput(raw, { scale, padX, padY });
+  const detections = parseYoloOutput(raw, { scale, padX, padY, imageWidth: img.width, imageHeight: img.height });
   return { detections, imageWidth: img.naturalWidth ?? img.width, imageHeight: img.naturalHeight ?? img.height };
 }
 
-function parseYoloOutput(tensor, { scale, padX, padY }) {
+export function parseYoloOutput(tensor, { scale, padX, padY, imageWidth, imageHeight }) {
   const [, numAttrs, numBoxes] = tensor.dims;
   const numClasses = numAttrs - 4;
   const data = tensor.data;
+  if (tensor.dims.length !== 3 || tensor.dims[0] !== 1 || numClasses !== DAMAGE_CLASSES.length || data.length !== numAttrs * numBoxes) {
+    throw new Error('Output/kelas model YOLO tidak cocok dengan konfigurasi aplikasi.');
+  }
 
   const candidates = [];
   for (let i = 0; i < numBoxes; i++) {
@@ -57,7 +60,7 @@ function parseYoloOutput(tensor, { scale, padX, padY }) {
     let bestScore = 0;
     for (let c = 0; c < numClasses; c++) {
       const score = data[(4 + c) * numBoxes + i];
-      if (score > bestScore) {
+      if (Number.isFinite(score) && score <= 1 && score > bestScore) {
         bestScore = score;
         bestClass = c;
       }
@@ -68,11 +71,13 @@ function parseYoloOutput(tensor, { scale, padX, padY }) {
     const cy = data[1 * numBoxes + i];
     const w = data[2 * numBoxes + i];
     const h = data[3 * numBoxes + i];
+    if (![cx, cy, w, h].every(Number.isFinite) || w <= 0 || h <= 0) continue;
 
-    const x = (cx - w / 2 - padX) / scale;
-    const y = (cy - h / 2 - padY) / scale;
-    const boxW = w / scale;
-    const boxH = h / scale;
+    const x = Math.max(0, (cx - w / 2 - padX) / scale);
+    const y = Math.max(0, (cy - h / 2 - padY) / scale);
+    const boxW = Math.min(imageWidth, (cx + w / 2 - padX) / scale) - x;
+    const boxH = Math.min(imageHeight, (cy + h / 2 - padY) / scale) - y;
+    if (boxW <= 0 || boxH <= 0) continue;
 
     candidates.push({
       damage_type: DAMAGE_CLASSES[bestClass] ?? `class_${bestClass}`,
@@ -91,7 +96,7 @@ function nonMaxSuppression(boxes, iouThreshold) {
     const current = sorted.shift();
     kept.push(current);
     for (let i = sorted.length - 1; i >= 0; i--) {
-      if (iou(current.bbox, sorted[i].bbox) > iouThreshold) {
+      if (current.damage_type === sorted[i].damage_type && iou(current.bbox, sorted[i].bbox) > iouThreshold) {
         sorted.splice(i, 1);
       }
     }

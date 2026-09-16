@@ -1,7 +1,6 @@
-import * as ort from 'onnxruntime-web';
+import { ort } from './runtime.js';
 import { loadImage, resizeSquare, canvasToClipTensor } from './preprocess';
 
-ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/';
 
 const MODEL_URL = '/models/clip-image-encoder.onnx';
 const INPUT_SIZE = 224;

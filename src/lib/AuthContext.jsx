@@ -8,6 +8,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [profileError, setProfileError] = useState(null);
 
   async function fetchProfile(userId) {
     const { data, error } = await supabase
@@ -16,52 +17,56 @@ export function AuthProvider({ children }) {
       .eq('id', userId)
       .single();
     if (error) {
-      console.warn('[profile] gagal ambil profil:', error.message);
-      return null;
+      throw error;
     }
     return withResolvedAvatar(data);
   }
 
   async function refreshProfile() {
     if (!user) return;
-    const data = await fetchProfile(user.id);
-    setProfile(data);
+    try {
+      const data = await fetchProfile(user.id);
+      setProfile(data);
+      setProfileError(null);
+    } catch (err) {
+      setProfileError(err.message);
+    }
   }
 
   useEffect(() => {
-    let active = true; 
-
-    async function init() {
-      const { data: { session } } = await supabase.auth.getSession();
+    let active = true;
+    let revision = 0;
+    let timer;
+    async function applySession(session) {
+      const current = ++revision;
       const sessionUser = session?.user ?? null;
       if (!active) return;
+      setLoading(true);
       setUser(sessionUser);
-
-      if (sessionUser) {
-        const data = await fetchProfile(sessionUser.id);
-        if (active) setProfile(data);
-      } else {
-        setProfile(null);
+      setProfile(null);
+      setProfileError(null);
+      try {
+        const data = sessionUser ? await fetchProfile(sessionUser.id) : null;
+        if (active && current === revision) setProfile(data);
+      } catch (err) {
+        if (active && current === revision) setProfileError(err.message);
+      } finally {
+        if (active && current === revision) setLoading(false);
       }
-
-      if (active) setLoading(false);
     }
-
-    init();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const sessionUser = session?.user ?? null;
-      setUser(sessionUser);
-
-      if (sessionUser) {
-        const data = await fetchProfile(sessionUser.id);
-        if (active) setProfile(data);
-      } else {
-        setProfile(null);
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
+      // Leave the auth callback before querying PostgREST (the auth lock is held here).
+      revision += 1;
+      setLoading(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => { void applySession(session); }, 0);
     });
 
     return () => {
       active = false;
+      revision += 1;
+      clearTimeout(timer);
       subscription.unsubscribe();
     };
   }, []);
@@ -90,7 +95,7 @@ export function AuthProvider({ children }) {
   const isAdmin = profile?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isAdmin, signUp, signIn, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, profileError, isAdmin, signUp, signIn, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

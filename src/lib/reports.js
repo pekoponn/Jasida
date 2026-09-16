@@ -1,8 +1,25 @@
 import { supabase } from './supabaseClient';
 import { withResolvedAvatar } from './profileAvatar.js';
 import { prepareUploadPhoto } from './imageUpload.js';
+import { distanceMeters, validateReportLocation } from './reportLocation.js';
 
 export async function findSimilarReports({ lat, lng, damageType, embedding, radiusMeters = 50 }) {
+  if (!embedding) {
+    if (validateReportLocation({ lat, lng }, true)) throw new Error('Lokasi pemeriksaan tidak valid.');
+    if (!damageType) return [];
+    const latDelta = radiusMeters / 111000;
+    const lngDelta = Math.min(180, latDelta / Math.max(0.00001, Math.cos(lat * Math.PI / 180)));
+    const { data, error } = await supabase.from('reports_with_coords')
+      .select('*').in('status', ['open', 'accepted', 'in_progress'])
+      .eq('damage_type', damageType)
+      .gte('lat', lat - latDelta).lte('lat', lat + latDelta)
+      .order('created_at', { ascending: false }).limit(100);
+    if (error) throw error;
+    return (data ?? []).filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lng))
+      .filter((r) => Math.min(Math.abs(r.lng - lng), 360 - Math.abs(r.lng - lng)) <= lngDelta)
+      .map((r) => ({ ...r, distance_m: distanceMeters({ lat, lng }, r), similarity: null, match_basis: 'location' }))
+      .filter((r) => r.distance_m <= radiusMeters);
+  }
   const { data, error } = await supabase.rpc('find_similar_reports', {
     new_lat: lat,
     new_lng: lng,
@@ -154,9 +171,9 @@ export async function getMySupports(reportIds) {
 
 export async function listOpenReports() {
   const { data, error } = await supabase
-    .from('reports')
+    .from('reports_with_coords')
     .select('*')
-    .eq('status', 'open')
+    .in('status', ['open', 'accepted', 'in_progress'])
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data ?? [];

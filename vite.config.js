@@ -20,7 +20,7 @@ export default defineConfig(({ command, mode }) => {
       viteStaticCopy({
         targets: [
           {
-            src: 'node_modules/onnxruntime-web/dist/*.wasm',
+            src: ['node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm', 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs'],
             dest: 'ort'
           }
         ]
@@ -28,6 +28,18 @@ export default defineConfig(({ command, mode }) => {
     ],
     server: {
       port: 5173
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules/onnxruntime')) return 'onnx-runtime';
+            if (id.includes('node_modules/d3-')) return 'chart-math';
+            if (id.includes('node_modules/recharts')) return 'charts';
+            if (id.includes('node_modules/leaflet')) return 'maps';
+          }
+        }
+      }
     }
   };
 });

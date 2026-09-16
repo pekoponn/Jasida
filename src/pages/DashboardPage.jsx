@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { listReportsFeed, supportReport, getMySupports, getReportPhotos } from '../lib/reports.js';
 import SeverityBadge from '../components/SeverityBadge.jsx';
 import { useAuth } from '../lib/AuthContext.jsx';
@@ -424,45 +424,6 @@ const btnHeroStyle = {
   borderRadius: 20,
   fontWeight: 700,
   fontSize: 12,
-  cursor: 'pointer'
-};
-
-const selectStyle = {
-  padding: '10px 36px 10px 18px',
-  borderRadius: 24,
-  border: '1px solid #dee2e6',
-  backgroundColor: '#ffffff',
-  fontSize: 13,
-  color: '#495057',
-  outline: 'none',
-  cursor: 'pointer',
-  appearance: 'none',
-  WebkitAppearance: 'none',
-  MozAppearance: 'none',
-  backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a61e4d' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")",
-  backgroundRepeat: 'no-repeat',
-  backgroundPosition: 'right 14px center',
-  backgroundSize: '14px'
-};
-
-const dateRangeWrap = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  padding: '6px 16px',
-  borderRadius: 24,
-  border: '1px solid #dee2e6',
-  backgroundColor: '#ffffff'
-};
-
-const dateInputStyle = {
-  border: 'none',
-  outline: 'none',
-  fontSize: 13,
-  color: '#495057',
-  fontFamily: 'inherit',
-  padding: '4px 0',
-  colorScheme: 'light',
   cursor: 'pointer'
 };
 

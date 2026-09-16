@@ -1,4 +1,4 @@
-import { Tensor } from 'onnxruntime-web';
+import { ort } from './runtime.js';
 
 export function loadImage(file) {
   return new Promise((resolve, reject) => {
@@ -56,7 +56,7 @@ export function canvasToCHWTensor(canvas) {
     chw[plane * 2 + i] = b;     // B plane
   }
 
-  return new Tensor('float32', chw, [1, 3, height, width]);
+  return new ort.Tensor('float32', chw, [1, 3, height, width]);
 }
 
 /**
@@ -83,7 +83,7 @@ export function canvasToClipTensor(canvas) {
     chw[plane * 2 + i] = (b - CLIP_MEAN[2]) / CLIP_STD[2];
   }
 
-  return new Tensor('float32', chw, [1, 3, height, width]);
+  return new ort.Tensor('float32', chw, [1, 3, height, width]);
 }
 
 export function resizeSquare(img, size) {

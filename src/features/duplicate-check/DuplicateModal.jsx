@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import MapPreview from '../../components/MapPreview.jsx';
 import { getReportPhotos, reportImageUrl } from '../../lib/reports.js';
 
-export default function DuplicateModal({ candidate, position, onSupport, onClose }) {
+export default function DuplicateModal({ candidate, position, onSupport, onClose, busy = false }) {
   const [photos, setPhotos] = useState([]);
   const [index, setIndex] = useState(0);
   const touchStartX = useRef(null);
@@ -46,7 +46,7 @@ export default function DuplicateModal({ candidate, position, onSupport, onClose
   return (
     <div style={overlay} role="dialog" aria-modal="true" aria-labelledby="dup-title">
       <div style={panel}>
-        <button style={closeBtn} onClick={onClose} aria-label="Tutup">✕</button>
+        <button style={closeBtn} disabled={busy} onClick={onClose} aria-label="Tutup">✕</button>
 
         <h3 id="dup-title" className="display" style={{ fontSize: 18, marginBottom: 4 }}>
           Laporan serupa ditemukan
@@ -85,8 +85,8 @@ export default function DuplicateModal({ candidate, position, onSupport, onClose
             <dd style={statValue} className="mono">{distance} m</dd>
           </div>
           <div>
-            <dt style={statLabel}>Kecocokan AI</dt>
-            <dd style={statValue} className="mono">{matchPct}%</dd>
+            <dt style={statLabel}>{candidate.match_basis === 'location' ? 'Pemeriksaan' : 'Skor kemiripan'}</dt>
+            <dd style={statValue} className="mono">{candidate.match_basis === 'location' ? 'Lokasi & jenis' : `${matchPct}%`}</dd>
           </div>
           <div>
             <dt style={statLabel}>Dukungan</dt>
@@ -94,8 +94,9 @@ export default function DuplicateModal({ candidate, position, onSupport, onClose
           </div>
         </dl>
 
-        <button style={{ ...primaryBtn, width: '100%', marginTop: 20 }} onClick={() => onSupport(candidate)}>
-          Dukung laporan ini
+        {candidate.match_basis === 'location' && <p style={{ fontSize: 13 }}>Jenis kerusakan sama dan lokasi berdekatan. Bandingkan foto untuk memastikan; laporan tidak digabung otomatis.</p>}
+        <button disabled={busy} style={{ ...primaryBtn, width: '100%', marginTop: 20 }} onClick={() => onSupport(candidate)}>
+          {busy ? 'Memproses…' : 'Dukung laporan ini'}
         </button>
       </div>
     </div>
@@ -110,7 +111,8 @@ const overlay = {
   alignItems: 'center',
   justifyContent: 'center',
   padding: 16,
-  zIndex: 50
+  zIndex: 2000,
+  overflowY: 'auto'
 };
 
 const panel = {
@@ -120,7 +122,9 @@ const panel = {
   borderRadius: 16,
   padding: '24px 20px 28px',
   boxShadow: 'var(--shadow-card)',
-  position: 'relative'
+  position: 'relative',
+  maxHeight: 'calc(100dvh - 32px)',
+  overflowY: 'auto'
 };
 
 const closeBtn = {

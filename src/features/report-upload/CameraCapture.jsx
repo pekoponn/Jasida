@@ -1,20 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 import { getCurrentPosition } from '../../lib/geolocation.js';
-import { PHOTO_INPUT_ACCEPT } from '../../lib/imageUpload.js';
 
-export default function CameraCapture({ onCapture, disabled }) {
+export default function CameraCapture({ onCapture, disabled, onBusyChange }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+  const cameraRequest = useRef(0);
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
   const [capturing, setCapturing] = useState(false);
+  useEffect(() => { onBusyChange?.(capturing); }, [capturing, onBusyChange]);
 
   useEffect(() => {
     startCamera();
-    return () => stopCamera();
+    return () => { cameraRequest.current += 1; stopCamera(); };
   }, []);
 
   async function startCamera() {
+    const request = ++cameraRequest.current;
+    stopCamera();
     setStatus('starting');
     setError(null);
     try {
@@ -22,17 +25,21 @@ export default function CameraCapture({ onCapture, disabled }) {
         video: { facingMode: { ideal: 'environment' } },
         audio: false
       });
+      if (request !== cameraRequest.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
       setStatus('live');
     } catch (err) {
-      console.error('[camera]', err);
+      if (request !== cameraRequest.current) return;
       setStatus('error');
       setError(
         err.name === 'NotAllowedError'
-          ? 'Akses kamera ditolak. Izinkan akses kamera di pengaturan browser untuk melapor.'
+          ? 'Akses kamera ditolak. Izinkan kamera di pengaturan browser, lalu coba lagi.'
           : 'Kamera tidak tersedia di perangkat ini.'
       );
     }
@@ -44,7 +51,7 @@ export default function CameraCapture({ onCapture, disabled }) {
   }
 
   async function handleCapture() {
-    if (!videoRef.current || capturing) return;
+    if (!videoRef.current || capturing || disabled) return;
     setCapturing(true);
     setError(null);
 
@@ -52,6 +59,7 @@ export default function CameraCapture({ onCapture, disabled }) {
       const positionPromise = getCurrentPosition().catch(() => null);
 
       const video = videoRef.current;
+      if (!video.videoWidth || !video.videoHeight) throw new Error('Kamera belum siap. Coba lagi sebentar.');
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -73,18 +81,9 @@ export default function CameraCapture({ onCapture, disabled }) {
     }
   }
 
-  if (status === 'error') {
-    return (
-      <div style={errorBox}>
-        <p style={{ margin: 0, fontWeight: 600 }}>📷 {error}</p>
-        <button style={retryBtn} onClick={startCamera}>Coba lagi</button>
-      </div>
-    );
-  }
-
   return (
     <div>
-      <div style={frameWrap}>
+      <div style={{ ...frameWrap, display: status === 'error' ? 'none' : 'block' }}>
         <video
           ref={videoRef}
           autoPlay
@@ -96,6 +95,10 @@ export default function CameraCapture({ onCapture, disabled }) {
           <div style={overlay}>Menyalakan kamera…</div>
         )}
       </div>
+
+      {error && <div style={errorBox} role="status"><p>{error}</p>
+        {status === 'error' && <button type="button" disabled={disabled || capturing} style={retryBtn} onClick={startCamera}>Coba kamera lagi</button>}
+      </div>}
 
       <button
         type="button"

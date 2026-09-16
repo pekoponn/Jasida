@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { prepareUploadPhoto } from '../lib/imageUpload.js';
 import CameraCapture from '../features/report-upload/CameraCapture.jsx';
 import DuplicateModal from '../features/duplicate-check/DuplicateModal.jsx';
@@ -8,10 +8,10 @@ import { embedImage } from '../ai/clip.js';
 import { computeHazardScore, damageTypeDisplayLabel } from '../ai/hazardScore.js';
 import { pickBestDuplicate } from '../ai/duplicateScore.js';
 import { findSimilarReports, createReport, uploadReportImage, addReporter } from '../lib/reports.js';
-import { reverseGeocode } from '../lib/geolocation.js';
+import { reverseGeocode, getCurrentPosition } from '../lib/geolocation.js';
 import MapPreview from '../components/MapPreview.jsx';
 import { useAuth } from '../lib/AuthContext.jsx';
-import { isWithinSidoarjo } from '../lib/geofence.js';
+import { validateReportLocation } from '../lib/reportLocation.js';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobileDevice } from '../lib/useIsMobileDevice.js';
 
@@ -34,8 +34,20 @@ export default function ReportPage() {
   const [hazard, setHazard] = useState(null);
   const [duplicate, setDuplicate] = useState(null);
   const [duplicateUnavailable, setDuplicateUnavailable] = useState(false);
+  const [duplicateCheckFailed, setDuplicateCheckFailed] = useState(false);
   const [locatingSelf, setLocatingSelf] = useState(false);
   const [testingMode, setTestingMode] = useState(false);
+  const [cameraBusy, setCameraBusy] = useState(false);
+  const submitting = useRef(false);
+  const pendingReport = useRef(null);
+  const busy = cameraBusy || ['preparing', 'analyzing', 'checking-duplicate', 'submitting'].includes(step);
+
+  function changeMode(testing) {
+    if (busy) return;
+    setTestingMode(testing);
+    setError(position ? validateReportLocation(position, testing) : null);
+    setDuplicate(null);
+  }
 
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -44,13 +56,16 @@ export default function ReportPage() {
   const hazardVisible = useMemo(() => step !== 'idle' && step !== 'analyzing' && hazard, [step, hazard]);
 
   async function handlePhotoCaptured({ file: selectedFile, position: gps, capturedAt }) {
+    setCameraBusy(false);
     setError(null);
     setDuplicate(null);
     setDuplicateUnavailable(false);
+    setDuplicateCheckFailed(false);
     setHazard(null);
 
-    if (gps && !testingMode && !isWithinSidoarjo(gps.lat, gps.lng)) {
-      setError('Laporan hanya bisa dikirim untuk lokasi di dalam wilayah Kabupaten Sidoarjo. Foto ini terdeteksi di luar area tersebut.');
+    const locationError = gps && validateReportLocation(gps, testingMode);
+    if (locationError) {
+      setError(locationError);
       return;
     }
 
@@ -93,7 +108,7 @@ export default function ReportPage() {
       setHazard(hazardResult);
       setStep('analyzed');
 
-      if (gps && emb) {
+      if (gps) {
         await checkDuplicates({ gps, damageType: hazardResult.dominant?.damage_type ?? null, embedding: emb });
       }
     } catch (err) {
@@ -116,6 +131,7 @@ export default function ReportPage() {
 
   async function checkDuplicates({ gps, damageType, embedding: emb }) {
     setStep('checking-duplicate');
+    setDuplicateCheckFailed(false);
     try {
       const candidates = await findSimilarReports({ lat: gps.lat, lng: gps.lng, damageType, embedding: emb });
       const best = pickBestDuplicate(candidates);
@@ -125,22 +141,24 @@ export default function ReportPage() {
       setStep('analyzed');
     } catch (err) {
       console.warn('[duplicate-check] dilewati:', err.message);
-      setDuplicateUnavailable(true);
+      setDuplicateCheckFailed(true);
       setStep('analyzed');
     }
   }
 
   async function handleSubmitNewReport() {
-    if (step !== 'analyzed' || !hazard || !file) return;
-    if (!position || (!testingMode && !isWithinSidoarjo(position.lat, position.lng))) {
-      setError('Lokasi di Sidoarjo wajib terdeteksi sebelum laporan dikirim. Izinkan GPS, lalu tekan Lokasi saat ini.');
+    if (submitting.current || step !== 'analyzed' || !hazard || !file || locatingSelf || duplicate) return;
+    const locationError = validateReportLocation(position, testingMode);
+    if (locationError) {
+      setError(locationError);
       return;
     }
+    submitting.current = true;
     setStep('submitting');
     setError(null);
     try {
       const photo = await prepareUploadPhoto(file);
-      const report = await createReport({
+      const report = pendingReport.current ?? await createReport({
         damageType: hazard.dominant?.damage_type ?? 'other_corruption',
         confidence: hazard.dominant?.confidence ?? 0,
         hazardScore: hazard.total,
@@ -149,43 +167,52 @@ export default function ReportPage() {
         lng: position.lng,
         embedding,
         capturedAt,
-        note,
+        note: testingMode ? `[UJI COBA LOMBA — BEBAS LOKASI] ${note}`.trim() : note,
         bboxAreaPct: computeBboxAreaPct(detections, imageDims?.width, imageDims?.height),
         address
       });
+      pendingReport.current = report;
       await uploadReportImage(photo, report.id);
+      pendingReport.current = null;
       setStep('done');
     } catch (err) {
       console.error(err);
       setError(err.message || 'Gagal mengirim laporan. Periksa koneksi dan coba lagi.');
       setStep('analyzed');
+    } finally {
+      submitting.current = false;
     }
   }
 
   async function handleSupportExisting(candidate) {
+    if (submitting.current) return;
+    submitting.current = true;
+    setStep('submitting');
     try {
       await addReporter(candidate.id);
     } catch (err) {
       console.warn('[add-reporter]', err.message);
       setError(err.message || 'Gagal menambahkan laporanmu. Coba lagi.');
+      setStep('analyzed');
       return;
+    } finally {
+      submitting.current = false;
     }
     setDuplicate(null);
     setStep('done');
   }
 
-  function handleUseCurrentLocation() {
-    if (!navigator.geolocation) {
-      setError('Perangkat ini tidak mendukung deteksi lokasi otomatis.');
-      return;
-    }
+  async function handleUseCurrentLocation() {
+    if (busy || locatingSelf) return;
     setLocatingSelf(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const gps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        if (!testingMode && !isWithinSidoarjo(gps.lat, gps.lng)) {
-          setError('Lokasi saat ini berada di luar wilayah Kabupaten Sidoarjo.');
-          setLocatingSelf(false);
+    setError(null);
+    setDuplicate(null);
+    try {
+        const gps = await getCurrentPosition();
+        const locationError = validateReportLocation(gps, testingMode);
+        if (locationError) {
+          setPosition(null);
+          setError(locationError);
           return;
         }
         setPosition(gps);
@@ -197,17 +224,18 @@ export default function ReportPage() {
             setAddress(`${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)}`);
           })
           .finally(() => setAddressLoading(false));
-        setLocatingSelf(false);
-      },
-      (err) => {
+        if (hazard && step === 'analyzed') {
+          await checkDuplicates({ gps, damageType: hazard.dominant?.damage_type, embedding });
+        }
+    } catch (err) {
         console.warn('[geolocation]', err.message);
         setError('Gagal mendeteksi lokasi saat ini. Izinkan akses GPS di browser.');
-        setLocatingSelf(false);
-      }
-    );
+    } finally { setLocatingSelf(false); }
   }
 
   function reset() {
+    pendingReport.current = null;
+    setCameraBusy(false);
     setFile(null);
     setPreviewUrl(null);
     setNote('');
@@ -219,6 +247,7 @@ export default function ReportPage() {
     setCapturedAt(null);
     setHazard(null);
     setDuplicateUnavailable(false);
+    setDuplicateCheckFailed(false);
     setDuplicate(null);
     setError(null);
   }
@@ -287,20 +316,24 @@ export default function ReportPage() {
 
       <h1 className="display rp-title" style={rpTitleStyle}>Buat Laporan Kerusakan Jalan</h1>
       <p className="rp-subtitle" style={rpSubtitleStyle}>
-        Ambil atau pilih foto kondisi jalan. AI akan mendeteksi lubang/retak dan memeriksa laporan serupa di sekitar lokasimu.
+        Ambil foto kondisi jalan langsung dari kamera. AI akan mendeteksi lubang/retak dan memeriksa laporan serupa di sekitar lokasimu.
       </p>
 
       <div style={modeToggleRow}>
         <button
           type="button"
-          onClick={() => setTestingMode(false)}
+          disabled={busy || locatingSelf || !!pendingReport.current}
+          aria-pressed={!testingMode}
+          onClick={() => changeMode(false)}
           style={testingMode ? modeBtnInactive : modeBtnActive}
         >
           Laporan Real (Khusus Sidoarjo)
         </button>
         <button
           type="button"
-          onClick={() => setTestingMode(true)}
+          disabled={busy || locatingSelf || !!pendingReport.current}
+          aria-pressed={testingMode}
+          onClick={() => changeMode(true)}
           style={testingMode ? modeBtnActiveWarn : modeBtnInactive}
         >
           Mode Uji Coba (Bebas Lokasi)
@@ -318,7 +351,7 @@ export default function ReportPage() {
         <div className="rp-grid" style={rpGridStyle}>
           {/* KOLOM KIRI: FOTO */}
           <div className="rp-col">
-            <SectionHeading icon={<CameraIcon />} title="Foto Kerusakan" subtitle="Ambil foto atau unggah dari perangkat" />
+            <SectionHeading icon={<CameraIcon />} title="Foto Kerusakan" subtitle="Ambil foto langsung dari kamera perangkat" />
 
             <div className="rp-photo-box" style={{ marginTop: 16, position: 'relative' }}>
               {previewUrl && step !== 'idle' ? (
@@ -333,7 +366,7 @@ export default function ReportPage() {
                   )}
                 </div>
               ) : (
-                <CameraCapture onCapture={handlePhotoCaptured} disabled={['preparing', 'analyzing', 'submitting'].includes(step)} />
+                <CameraCapture onCapture={handlePhotoCaptured} onBusyChange={setCameraBusy} disabled={locatingSelf || ['preparing', 'analyzing', 'submitting'].includes(step)} />
               )}
             </div>
 
@@ -343,9 +376,10 @@ export default function ReportPage() {
               </button>
             )}
 
-            {duplicateUnavailable && step !== 'idle' && (
+            {duplicateCheckFailed && step !== 'idle' && <p style={noteStyle}>Pemeriksaan laporan serupa gagal dimuat. Periksa daftar laporan sebelum mengirim atau coba perbarui lokasi.</p>}
+            {duplicateUnavailable && !duplicateCheckFailed && step !== 'idle' && (
               <p style={noteStyle}>
-                Pemeriksaan foto duplikat belum tersedia. Periksa daftar laporan sebelum mengirim laporan baru.
+                Perbandingan foto otomatis belum tersedia. Sistem memeriksa lokasi dan jenis kerusakan; bandingkan foto laporan yang disarankan sebelum mengirim.
               </p>
             )}
           </div>
@@ -364,7 +398,7 @@ export default function ReportPage() {
               <button
                 type="button"
                 onClick={handleUseCurrentLocation}
-                disabled={locatingSelf}
+                disabled={locatingSelf || busy || !!pendingReport.current}
                 style={useLocationBtn}
               >
                 <TargetIcon /> {locatingSelf ? 'Mencari…' : 'Lokasi saat ini'}
@@ -417,7 +451,7 @@ export default function ReportPage() {
               rows={4}
               style={noteInput}
             />
-            <button style={submitBtn} onClick={handleSubmitNewReport}>
+            <button disabled={locatingSelf || !!duplicate} style={submitBtn} onClick={handleSubmitNewReport}>
               Kirim Laporan <SendIcon />
             </button>
           </div>
@@ -431,6 +465,7 @@ export default function ReportPage() {
         position={position}
         onSupport={handleSupportExisting}
         onClose={() => setDuplicate(null)}
+        busy={step === 'submitting'}
       />
     </section>
   );

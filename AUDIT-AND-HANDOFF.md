@@ -1,5 +1,10 @@
 # Pemeriksaan deployment Jasida — 12 September 2026
 
+> Catatan historis. Model dan kode telah berubah setelah audit ini. Untuk
+> pemeriksaan lokal terbaru, lihat [LOCAL-VERIFICATION.md](LOCAL-VERIFICATION.md).
+> Model saat ini berinput 960×960 dengan empat kelas, dan geofence menggunakan
+> poligon kecamatan. Angka/model 640×640 enam kelas di bawah bukan kontrak terbaru.
+
 ## Hasil yang sudah diperiksa
 
 - Build produksi lolos. Website: https://jasida.vercel.app.

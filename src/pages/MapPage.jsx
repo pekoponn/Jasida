@@ -5,13 +5,12 @@ import { listOpenReports } from '../lib/reports.js';
 import SeverityBadge from '../components/SeverityBadge.jsx';
 
 const SEVERITY_COLOR = {
-  low: '#2F9E44',
-  medium: '#E8A93B',
-  high: '#E0561F',
-  emergency: '#D62828'
+  aman: '#2F9E44',
+  sedang: '#E8A93B',
+  darurat: '#D62828'
 };
 
-const DEFAULT_CENTER = [-6.2088, 106.8456]; // Jakarta — ganti sesuai kota demo kamu
+const DEFAULT_CENTER = [-7.4478, 112.7183];
 
 export default function MapPage() {
   const [reports, setReports] = useState([]);
@@ -34,7 +33,7 @@ export default function MapPage() {
 
       {loadError && (
         <p style={{ fontSize: 13, color: 'var(--color-ink-soft)', marginTop: 8 }}>
-          Belum bisa memuat data ({loadError}). Pastikan Supabase sudah dikonfigurasi di .env.
+          Laporan belum dapat dimuat. Periksa koneksi dan muat ulang halaman.
         </p>
       )}
 
@@ -44,8 +43,8 @@ export default function MapPage() {
             attribution='&copy; OpenStreetMap contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          {reports.map((r) => {
-            const [lng, lat] = parsePoint(r.location);
+          {reports.filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lng)).map((r) => {
+            const { lat, lng } = r;
             return (
               <CircleMarker
                 key={r.id}
@@ -58,7 +57,7 @@ export default function MapPage() {
                 }}
               >
                 <Popup>
-                  <strong style={{ textTransform: 'capitalize' }}>{r.damage_type.replaceAll('_', ' ')}</strong>
+                  <strong style={{ textTransform: 'capitalize' }}>{(r.damage_type ?? 'Kerusakan jalan').replaceAll('_', ' ')}</strong>
                   <div style={{ marginTop: 4 }}>
                     <SeverityBadge severity={r.severity} score={r.hazard_score} />
                   </div>
@@ -79,16 +78,4 @@ export default function MapPage() {
       )}
     </section>
   );
-}
-
-// PostGIS geography returns as WKT/GeoJSON-ish text depending on select shape;
-// with supabase-js + PostgREST it typically comes back as GeoJSON when cast.
-// Adjust this parser to match what your `reports` select actually returns.
-function parsePoint(location) {
-  if (location?.coordinates) return location.coordinates; // GeoJSON: [lng, lat]
-  if (typeof location === 'string') {
-    const match = location.match(/POINT\(([-\d.]+) ([-\d.]+)\)/);
-    if (match) return [Number(match[1]), Number(match[2])];
-  }
-  return [DEFAULT_CENTER[1], DEFAULT_CENTER[0]];
 }

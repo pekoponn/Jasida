@@ -1,8 +1,11 @@
 node_modules
 dist
+dist-test
 .env
 .env.*
 .env.local
 !.env.example
 .vercel
 .DS_Store
+test-results
+playwright-report

@@ -1,7 +1,6 @@
-import * as ort from 'onnxruntime-web';
+import { ort } from './runtime.js';
 import { loadImage, resizeSquare, canvasToCHWTensor } from './preprocess';
 
-ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/';
 
 export const SEVERITY_CLASSES = ['aman', 'darurat', 'sedang']; // urutan PERSIS dari model.names Colab
 const MODEL_URL = '/models/severity-classifier.onnx';

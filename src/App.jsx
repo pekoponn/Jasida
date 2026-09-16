@@ -1,29 +1,33 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import ReportPage from './pages/ReportPage.jsx';
-import MapPage from './pages/MapPage.jsx';
-import LoginPage from './pages/LoginPage.jsx';
-import DashboardPage from './pages/DashboardPage.jsx';
 import LandingPage from './pages/LandingPage.jsx';
-import AdminDashboardPage from './pages/AdminDashboardPage.jsx';
 import RoleRedirect from './components/RoleRedirect.jsx';
 import AdminRoute from './components/AdminRoute.jsx';
 import AdminSidebar from './components/AdminSidebar.jsx';
 import ScrollToTop from './components/ScrollToTop.jsx';
-import AdminKelolaLaporanPage from './pages/AdminKelolaLaporanPage.jsx';
-import AdminPenggunaPage from './pages/AdminPenggunaPage.jsx';
-import AdminStatistikPage from './pages/AdminStatistikPage.jsx';
 import { useAuth } from './lib/AuthContext.jsx';
-import EditProfilePage from './pages/EditProfilePage.jsx';
-import RiwayatPage from './pages/RiwayatPage.jsx';
 import Footer from './components/Footer.jsx';
 import Navbar from './components/Navbar.jsx';
 import { useIsMobileDevice } from './lib/useIsMobileDevice.js';
 import AdminTopbar from './components/AdminTopbar.jsx';
 
 const ADMIN_SIDEBAR_WIDTH = 260;
+const ReportPage = lazy(() => import('./pages/ReportPage.jsx'));
+const MapPage = lazy(() => import('./pages/MapPage.jsx'));
+const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'));
+const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage.jsx'));
+const AdminKelolaLaporanPage = lazy(() => import('./pages/AdminKelolaLaporanPage.jsx'));
+const AdminPenggunaPage = lazy(() => import('./pages/AdminPenggunaPage.jsx'));
+const AdminStatistikPage = lazy(() => import('./pages/AdminStatistikPage.jsx'));
+const EditProfilePage = lazy(() => import('./pages/EditProfilePage.jsx'));
+const RiwayatPage = lazy(() => import('./pages/RiwayatPage.jsx'));
 
 export default function App() {
+  return <Suspense fallback={<p role="status" style={{ padding: 24 }}>Memuat halaman…</p>}><AppContent /></Suspense>;
+}
+
+function AppContent() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
   const location = useLocation();
@@ -111,6 +115,7 @@ export default function App() {
                   </AdminRoute>
                 }
               />
+              <Route path="*" element={<Navigate to="/admin" replace />} />
             </Routes>
           </main>
         </div>
@@ -148,6 +153,7 @@ export default function App() {
           <Route path="/peta" element={<MapPage />} />
           <Route path="/profil" element={<EditProfilePage />} />
           <Route path="/riwayat" element={<RiwayatPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
 

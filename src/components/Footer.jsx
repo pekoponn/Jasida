@@ -27,7 +27,7 @@ export default function Footer() {
 
           <div>
             <h4 style={footerHeading}>Menu</h4>
-            <p style={footerText}><a href="#beranda" style={footerLink}>Beranda</a></p>
+            <p style={footerText}><Link to="/" style={footerLink}>Beranda</Link></p>
             <p style={footerText}><Link to="/dashboard" style={footerLink}>Daftar Laporan</Link></p>
             <p style={footerText}><Link to="/lapor" style={footerLink}>Laporkan</Link></p>
           </div>
