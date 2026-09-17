@@ -99,6 +99,16 @@ export default function ReportPage() {
 
     try {
       const { detections: dets, imageWidth, imageHeight } = await detectDamage(photo);
+
+      if (!dets || dets.length === 0) {
+        setDetections([]);
+        setImageDims({ width: imageWidth, height: imageHeight });
+        setEmbedding(null);
+        setHazard(null);
+        setStep('rejected');
+        return;
+      }
+
       const emb = await runEmbedding(photo);
 
       setDetections(dets);
@@ -358,6 +368,20 @@ export default function ReportPage() {
     );
   }
 
+  if (step === 'rejected') {
+    return (
+      <section style={{ textAlign: 'center', paddingTop: 48 }}>
+        <WarningIcon2 />
+        <h2 className="display" style={{ fontSize: 22, marginTop: 12 }}>Kerusakan Jalan Tidak Terdeteksi</h2>
+        <p style={{ color: 'var(--color-ink-soft)', maxWidth: 480, margin: '8px auto 0', lineHeight: 1.5 }}>
+          AI tidak menemukan tanda-tanda kerusakan jalan (lubang/retak) pada foto ini, jadi laporan tidak bisa dikirim.
+          Pastikan foto diambil dari jarak yang jelas menunjukkan bagian jalan yang rusak, lalu coba lagi.
+        </p>
+        <button style={primaryBtn} onClick={reset}>Ambil Foto Ulang</button>
+      </section>
+    );
+  }
+
   return (
     <section className="rp-wrap" style={{ paddingBottom: isMobileDevice ? 90 : 24 }}>
       <style>{responsiveCss}</style>
@@ -517,6 +541,16 @@ export default function ReportPage() {
         busy={step === 'submitting'}
       />
     </section>
+  );
+}
+
+function WarningIcon2() {
+  return (
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#A61C24" strokeWidth="1.8" style={{ display: 'block', margin: '0 auto' }} aria-hidden="true">
+      <path d="M12 3 2 20h20L12 3z" />
+      <line x1="12" y1="10" x2="12" y2="14" strokeLinecap="round" />
+      <circle cx="12" cy="17" r="0.75" fill="#A61C24" stroke="none" />
+    </svg>
   );
 }
 

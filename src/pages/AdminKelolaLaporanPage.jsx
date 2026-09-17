@@ -332,7 +332,7 @@ function RowItem({ report, busy, onAccept, onRejectClick, onProgressClick, onCom
         <ZoomableImage
           src={report.imageUrl}
           alt={damageTypeDisplayLabel(report.damage_type)}
-          style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }}
+          style={{ width: 150, height: 62, objectFit: 'cover', borderRadius: 8 }}
         />
       </td>
       <td style={td}>
