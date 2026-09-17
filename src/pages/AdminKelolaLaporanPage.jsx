@@ -9,13 +9,15 @@ import {
 import { damageTypeDisplayLabel, severityDisplayLabel } from '../ai/hazardScore.js';
 import { estimateMaterialsAndCost, formatMaterialItems } from '../ai/materialEstimate.js';
 import { findKecamatan, getKecamatanNames } from '../lib/kecamatanBoundaries.js';
+import ZoomableImage from '../components/ZoomableImage.jsx';
 
 const STATUS_LABEL = {
   open: 'Menunggu Verifikasi',
   rejected: 'Ditolak',
   accepted: 'Diterima — Menunggu Dikerjakan',
   in_progress: 'Sedang Dikerjakan',
-  resolved: 'Selesai'
+  resolved: 'Selesai',
+  pending_duplicate_review: 'Menunggu Validasi Admin'
 };
 
 const STATUS_COLOR = {
@@ -23,7 +25,8 @@ const STATUS_COLOR = {
   rejected: { bg: '#FDECEE', color: '#A61C24' },
   accepted: { bg: '#E7F1FF', color: '#1c5dcf' },
   in_progress: { bg: '#E3F1FD', color: '#1c7ed6' },
-  resolved: { bg: '#E6F8EC', color: '#1c8a4b' }
+  resolved: { bg: '#E6F8EC', color: '#1c8a4b' },
+  pending_duplicate_review: { bg: '#E7DFFB', color: '#5F3DC4' }
 };
 
 const FILTER_TABS = [
@@ -47,6 +50,17 @@ const SEVERITY_COLOR = {
   sedang: { bg: '#FFF3CD', color: '#8A6D00' },
   darurat: { bg: '#FDECEE', color: '#A61C24' }
 };
+
+const SEVERITY_ALIAS = {
+  medium: 'sedang',
+  emergency: 'darurat',
+  low: 'aman',
+  safe: 'aman'
+};
+
+function normalizeSeverity(severity) {
+  return SEVERITY_ALIAS[severity] ?? severity;
+}
 
 export default function AdminKelolaLaporanPage() {
   const [reports, setReports] = useState([]);
@@ -132,17 +146,25 @@ export default function AdminKelolaLaporanPage() {
       setBusyId(null);
     }
   }
-
-  async function handleComplete(reportId, { file, actualMaterials, actualMaterialsJson, actualCost }) {
+  
+  async function handleComplete(reportId, { file, actualMaterials, actualMaterialsJson, actualCost, fallbackEstimatedCost, fallbackEstimatedMaterials, fallbackEstimatedMaterialsJson }) {
     setBusyId(reportId);
     try {
-      await completeReportWithActuals(reportId, { file, actualMaterials, actualMaterialsJson, actualCost });
+      await completeReportWithActuals(reportId, {
+        file, actualMaterials, actualMaterialsJson, actualCost,
+        fallbackEstimatedCost, fallbackEstimatedMaterials, fallbackEstimatedMaterialsJson
+      });
       patchLocal(reportId, {
         status: 'resolved',
         resolved_at: new Date().toISOString(),
         actual_materials: actualMaterials,
         actual_materials_json: actualMaterialsJson,
-        actual_cost: actualCost
+        actual_cost: actualCost,
+        ...(fallbackEstimatedCost != null ? {
+          estimated_cost: fallbackEstimatedCost,
+          estimated_materials: fallbackEstimatedMaterials,
+          estimated_materials_json: fallbackEstimatedMaterialsJson
+        } : {})
       });
       setCompleteTarget(null);
     } catch (err) {
@@ -157,7 +179,7 @@ export default function AdminKelolaLaporanPage() {
 
     return reports.filter((r) => {
       if (filter !== 'all' && r.status !== filter) return false;
-      if (severityFilter && r.severity !== severityFilter) return false;
+      if (severityFilter && normalizeSeverity(r.severity) !== severityFilter) return false;
 
       if (kecamatanFilter) {
         const nama = typeof r.lat === 'number' && typeof r.lng === 'number'
@@ -292,7 +314,8 @@ export default function AdminKelolaLaporanPage() {
 
 function RowItem({ report, busy, onAccept, onRejectClick, onProgressClick, onCompleteClick, onZoomPhoto }) {
   const statusColor = STATUS_COLOR[report.status] ?? STATUS_COLOR.open;
-  const severityColor = SEVERITY_COLOR[report.severity] ?? SEVERITY_COLOR.aman;
+  const normalizedSeverity = normalizeSeverity(report.severity);
+  const severityColor = SEVERITY_COLOR[normalizedSeverity] ?? SEVERITY_COLOR.aman;
   const kode = `#${String(report.id).slice(0, 6).toUpperCase()}-JASIDA`;
   const nama = report.profile?.username ?? '-';
   const lokasi = typeof report.lat === 'number' && typeof report.lng === 'number'
@@ -306,20 +329,17 @@ function RowItem({ report, busy, onAccept, onRejectClick, onProgressClick, onCom
       <td style={td}>{lokasi}</td>
       <td style={td}>{new Date(report.created_at).toLocaleString('id-ID')}</td>
       <td style={td}>
-        {report.imageUrl && (
-          <img
-            src={report.imageUrl}
-            alt={damageTypeDisplayLabel(report.damage_type)}
-            onClick={onZoomPhoto}
-            style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, cursor: 'pointer' }}
-          />
-        )}
+        <ZoomableImage
+          src={report.imageUrl}
+          alt={damageTypeDisplayLabel(report.damage_type)}
+          style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }}
+        />
       </td>
       <td style={td}>
         <div>{damageTypeDisplayLabel(report.damage_type)} · {report.hazard_score}</div>
         {report.severity && (
           <span style={{ ...badge, background: severityColor.bg, color: severityColor.color, marginTop: 4 }}>
-            {severityDisplayLabel(report.severity)}
+            {severityDisplayLabel(normalizedSeverity)}
           </span>
         )}
       </td>
@@ -404,6 +424,7 @@ function CompleteModal({ report, onCancel, onConfirm }) {
     : [];
   const [items, setItems] = useState(initialItems);
   const [file, setFile] = useState(null);
+  const [fallbackEstimate, setFallbackEstimate] = useState(null);
 
   useEffect(() => {
     if (initialItems.length === 0) {
@@ -411,7 +432,12 @@ function CompleteModal({ report, onCancel, onConfirm }) {
         damageType: report.damage_type,
         hazardScore: report.hazard_score,
         areaPct: report.bbox_area_pct
-      }).then((result) => setItems(result.items));
+      }).then((result) => {
+        setItems(result.items);
+        if (report.estimated_cost == null) {
+          setFallbackEstimate(result);
+        }
+      });
     }
   }, []);
 
@@ -499,7 +525,10 @@ function CompleteModal({ report, onCancel, onConfirm }) {
               file,
               actualMaterials: formatMaterialItems(items),
               actualMaterialsJson: items,
-              actualCost: total
+              actualCost: total,
+              fallbackEstimatedCost: fallbackEstimate?.totalCost ?? null,
+              fallbackEstimatedMaterials: fallbackEstimate ? formatMaterialItems(fallbackEstimate.items) : null,
+              fallbackEstimatedMaterialsJson: fallbackEstimate?.items ?? null
             })}
           >
             Simpan & Selesaikan

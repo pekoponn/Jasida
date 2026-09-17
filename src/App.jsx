@@ -18,6 +18,7 @@ const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'));
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage.jsx'));
 const AdminKelolaLaporanPage = lazy(() => import('./pages/AdminKelolaLaporanPage.jsx'));
+const AdminDoubleCheckPage = lazy(() => import('./pages/AdminDoubleCheckPage.jsx'));
 const AdminPenggunaPage = lazy(() => import('./pages/AdminPenggunaPage.jsx'));
 const AdminStatistikPage = lazy(() => import('./pages/AdminStatistikPage.jsx'));
 const EditProfilePage = lazy(() => import('./pages/EditProfilePage.jsx'));
@@ -88,6 +89,14 @@ function AppContent() {
                 element={
                   <AdminRoute>
                     <AdminKelolaLaporanPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/double-check"
+                element={
+                  <AdminRoute>
+                    <AdminDoubleCheckPage />
                   </AdminRoute>
                 }
               />

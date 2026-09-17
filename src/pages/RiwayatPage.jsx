@@ -5,6 +5,7 @@ import { damageTypeDisplayLabel, severityDisplayLabel } from '../ai/hazardScore.
 import { listMyReports } from '../lib/reports.js';
 import { useIsMobileDevice } from '../lib/useIsMobileDevice.js';
 import ReportDetailModal from '../components/ReportDetailModal.jsx';
+import ZoomableImage from '../components/ZoomableImage.jsx';
 
 const STATUS_TABS = [
   { key: 'semua', label: 'Semua' },
@@ -19,7 +20,8 @@ const STATUS_META = {
   accepted: { label: 'Diterima', bg: '#E7F1FF', color: '#1c5dcf' },
   in_progress: { label: 'Diproses', bg: '#E3F1FD', color: '#1c7ed6' },
   resolved: { label: 'Selesai', bg: '#E6F8EC', color: '#1c8a4b' },
-  rejected: { label: 'Ditolak', bg: '#FDECEE', color: '#A61C24' }
+  rejected: { label: 'Ditolak', bg: '#FDECEE', color: '#A61C24' },
+  pending_duplicate_review: { label: 'Menunggu Validasi Admin', bg: '#E7DFFB', color: '#5F3DC4' }
 };
 
 export default function RiwayatPage() {
@@ -112,7 +114,7 @@ function ReportCard({ report, onViewDetail }) {
       </div>
 
       <div className="riwayat-row" style={rowStyle}>
-        <img
+        <ZoomableImage
           src={report.imageUrl || 'https://placehold.co/160x120?text=Foto'}
           alt=""
           className="riwayat-photo"

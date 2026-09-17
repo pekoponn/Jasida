@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, Map, BarChart3, Users, X } from 'lucide-react';
-import jasidaLogo from '../assets/jasida-logo-white.png'; // ⬅️ sesuaikan nama file & path-nya
+import { LayoutDashboard, ClipboardList, Map, BarChart3, Users, X, GitCompare } from 'lucide-react';
+import jasidaLogo from '../assets/jasida-logo-white.png';
 
 const MENU = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/laporan', label: 'Kelola Laporan', icon: ClipboardList },
+  { to: '/admin/double-check', label: 'Double Check', icon: GitCompare },
   { to: '/admin/peta', label: 'Peta Laporan', icon: Map },
   { to: '/admin/statistik', label: 'Statistik', icon: BarChart3 },
   { to: '/admin/pengguna', label: 'Pengguna', icon: Users },

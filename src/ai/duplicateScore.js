@@ -36,11 +36,14 @@ export function scoreDuplicateCandidate(candidate) {
   return {
     ...candidate,
     probability,
-    action: recommendedAction(probability)
+    action: recommendedAction(probability, iScore)
   };
 }
 
-export function recommendedAction(probability) {
+const IMAGE_SIMILARITY_THRESHOLD = 0.5; 
+
+export function recommendedAction(probability, similarity) {
+  if (similarity >= IMAGE_SIMILARITY_THRESHOLD) return 'ask_user';
   if (probability >= 0.75) return 'auto_merge';
   if (probability >= 0.45) return 'ask_user';
   return 'new_report';
@@ -49,6 +52,10 @@ export function recommendedAction(probability) {
 export function pickBestDuplicate(candidates) {
   if (!candidates?.length) return null;
   const scored = candidates.map(scoreDuplicateCandidate);
-  scored.sort((a, b) => (b.probability ?? 0) - (a.probability ?? 0) || a.distance_m - b.distance_m);
+  scored.sort((a, b) => {
+    const scoreA = Math.max(a.similarity ?? 0, a.probability ?? 0);
+    const scoreB = Math.max(b.similarity ?? 0, b.probability ?? 0);
+    return scoreB - scoreA || (a.distance_m ?? 0) - (b.distance_m ?? 0);
+  });
   return scored[0];
 }

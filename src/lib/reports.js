@@ -91,19 +91,27 @@ export async function getCostHistory(damageType) {
   return data ?? [];
 }
 
-export async function completeReportWithActuals(reportId, { file, actualMaterials, actualMaterialsJson, actualCost }) {
+export async function completeReportWithActuals(reportId, { file, actualMaterials, actualMaterialsJson, actualCost, fallbackEstimatedCost, fallbackEstimatedMaterials, fallbackEstimatedMaterialsJson }) {
   if (!file) throw new Error('Foto bukti perbaikan wajib diunggah.');
   await addReportPhoto(reportId, file, 'resolution');
 
+  const updatePayload = {
+    status: 'resolved',
+    resolved_at: new Date().toISOString(),
+    actual_materials: actualMaterials,
+    actual_materials_json: actualMaterialsJson,
+    actual_cost: actualCost
+  };
+
+  if (fallbackEstimatedCost != null) {
+    updatePayload.estimated_cost = fallbackEstimatedCost;
+    updatePayload.estimated_materials = fallbackEstimatedMaterials;
+    updatePayload.estimated_materials_json = fallbackEstimatedMaterialsJson;
+  }
+
   const { data, error } = await supabase
     .from('reports')
-    .update({
-      status: 'resolved',
-      resolved_at: new Date().toISOString(),
-      actual_materials: actualMaterials,
-      actual_materials_json: actualMaterialsJson,
-      actual_cost: actualCost
-    })
+    .update(updatePayload)
     .eq('id', reportId)
     .select()
     .single();
@@ -183,6 +191,7 @@ export async function listReportsFeed() {
   const { data: reports, error } = await supabase
     .from('reports_with_coords')
     .select('*')
+    .neq('status', 'pending_duplicate_review')
     .order('created_at', { ascending: false })
     .limit(50);
   if (error) throw error;
@@ -306,6 +315,8 @@ export async function fetchAllReportsForAdmin({ statusFilter } = {}) {
 
   if (statusFilter && statusFilter !== 'all') {
     query = query.eq('status', statusFilter);
+  } else {
+    query = query.neq('status', 'pending_duplicate_review');
   }
 
   const { data: reports, error } = await query;
@@ -388,4 +399,96 @@ export async function updateReportStatus(reportId, status) {
     .single();
   if (error) throw error;
   return data;
+}
+
+export async function createDisputedReport({
+  damageType,
+  confidence,
+  hazardScore,
+  severity,
+  lat,
+  lng,
+  embedding,
+  capturedAt,
+  note,
+  bboxAreaPct,
+  address,
+  candidateId,
+  similarity,
+  distanceM
+}) {
+  const { data, error } = await supabase.rpc('create_disputed_report', {
+    p_damage_type: damageType,
+    p_confidence: confidence,
+    p_hazard_score: hazardScore,
+    p_severity: severity,
+    p_lat: lat,
+    p_lng: lng,
+    p_embedding: embedding,
+    p_captured_at: capturedAt,
+    p_note: note || null,
+    p_bbox_area_pct: bboxAreaPct ?? null,
+    p_address: address || null,
+    p_candidate_id: candidateId,
+    p_similarity: similarity ?? null,
+    p_distance_m: distanceM ?? null
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchPendingDuplicateReviews() {
+  const { data: reports, error } = await supabase
+    .from('reports')
+    .select('*')
+    .eq('status', 'pending_duplicate_review')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  if (!reports.length) return [];
+
+  const candidateIds = [...new Set(reports.map((r) => r.duplicate_candidate_id).filter(Boolean))];
+  let candidatesById = {};
+  if (candidateIds.length) {
+    const { data: candidates, error: candidateError } = await supabase
+      .from('reports')
+      .select('*')
+      .in('id', candidateIds);
+    if (candidateError) throw candidateError;
+    candidatesById = Object.fromEntries(candidates.map((c) => [c.id, c]));
+  }
+
+  const userIds = [...new Set(reports.map((r) => r.user_id).filter(Boolean))];
+  let profilesById = {};
+  if (userIds.length) {
+    const { data: profiles, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url')
+      .in('id', userIds);
+    if (profileError) throw profileError;
+    profilesById = Object.fromEntries(profiles.map((p) => [p.id, withResolvedAvatar(p)]));
+  }
+
+  return reports.map((r) => ({
+    ...r,
+    profile: profilesById[r.user_id] ?? null,
+    imageUrl: r.image_path
+      ? supabase.storage.from('report-images').getPublicUrl(r.image_path).data.publicUrl
+      : null,
+    candidate: candidatesById[r.duplicate_candidate_id]
+      ? {
+          ...candidatesById[r.duplicate_candidate_id],
+          imageUrl: candidatesById[r.duplicate_candidate_id].image_path
+            ? supabase.storage.from('report-images').getPublicUrl(candidatesById[r.duplicate_candidate_id].image_path).data.publicUrl
+            : null
+        }
+      : null
+  }));
+}
+
+export async function resolveDuplicateReview(reportId, aiCorrect) {
+  const { error } = await supabase.rpc('admin_resolve_duplicate_review', {
+    p_report_id: reportId,
+    p_ai_correct: aiCorrect
+  });
+  if (error) throw error;
 }

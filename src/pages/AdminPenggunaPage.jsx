@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { listAllUsers, updateUserRole } from '../lib/profile.js';
 import { getReportCountsByUser } from '../lib/reports.js';
 import { useAuth } from '../lib/AuthContext.jsx';
+import { withResolvedAvatar } from '../lib/profileAvatar.js';
 
 const ROLE_META = {
   admin: { label: 'Admin', bg: '#FDECEE', color: '#A61C24' },
@@ -28,7 +29,7 @@ export default function AdminPenggunaPage() {
     setError(null);
     try {
       const [usersData, counts] = await Promise.all([listAllUsers(), getReportCountsByUser()]);
-      setUsers(usersData);
+      setUsers(usersData.map(withResolvedAvatar));
       setReportCounts(counts);
     } catch (err) {
       console.error(err);

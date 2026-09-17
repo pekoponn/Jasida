@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { CheckCircle2, Clock3 } from 'lucide-react';
 import { prepareUploadPhoto } from '../lib/imageUpload.js';
 import CameraCapture from '../features/report-upload/CameraCapture.jsx';
 import DuplicateModal from '../features/duplicate-check/DuplicateModal.jsx';
@@ -7,7 +8,7 @@ import { detectDamage } from '../ai/yolo.js';
 import { embedImage } from '../ai/clip.js';
 import { computeHazardScore, damageTypeDisplayLabel } from '../ai/hazardScore.js';
 import { pickBestDuplicate } from '../ai/duplicateScore.js';
-import { findSimilarReports, createReport, uploadReportImage, addReporter } from '../lib/reports.js';
+import { findSimilarReports, createReport, createDisputedReport, uploadReportImage, addReporter } from '../lib/reports.js';
 import { reverseGeocode, getCurrentPosition } from '../lib/geolocation.js';
 import MapPreview from '../components/MapPreview.jsx';
 import { useAuth } from '../lib/AuthContext.jsx';
@@ -202,6 +203,38 @@ export default function ReportPage() {
     setStep('done');
   }
 
+  async function handleDisputeDuplicate() {
+    if (!duplicate || !hazard || !file || !position) return;
+    setStep('submitting');
+    setError(null);
+    try {
+      const photo = await prepareUploadPhoto(file);
+      const report = await createDisputedReport({
+        damageType: hazard.dominant?.damage_type ?? 'other_corruption',
+        confidence: hazard.dominant?.confidence ?? 0,
+        hazardScore: hazard.total,
+        severity: hazard.severity,
+        lat: position.lat,
+        lng: position.lng,
+        embedding,
+        capturedAt,
+        note,
+        bboxAreaPct: computeBboxAreaPct(detections, imageDims?.width, imageDims?.height),
+        address,
+        candidateId: duplicate.id,
+        similarity: duplicate.similarity,
+        distanceM: duplicate.distance_m
+      });
+      await uploadReportImage(photo, report.id);
+      setDuplicate(null);
+      setStep('disputed');
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Gagal mengirim laporan. Periksa koneksi dan coba lagi.');
+      setStep('analyzed');
+    }
+  }
+
   async function handleUseCurrentLocation() {
     if (busy || locatingSelf) return;
     setLocatingSelf(true);
@@ -302,9 +335,24 @@ export default function ReportPage() {
   if (step === 'done') {
     return (
       <section style={{ textAlign: 'center', paddingTop: 48 }}>
-        <div style={{ fontSize: 40 }} aria-hidden="true">✅</div>
+        <CheckCircle2 size={44} color="#2f9e44" style={{ display: 'block', margin: '0 auto' }} aria-hidden="true" />
         <h2 className="display" style={{ fontSize: 22, marginTop: 12 }}>Laporan terkirim</h2>
         <p style={{ color: 'var(--color-ink-soft)' }}>Terima kasih sudah membantu memantau infrastruktur kota.</p>
+        <button style={primaryBtn} onClick={reset}>Lapor kerusakan lain</button>
+      </section>
+    );
+  }
+
+  if (step === 'disputed') {
+    return (
+      <section style={{ textAlign: 'center', paddingTop: 48 }}>
+        <Clock3 size={44} color="#f08c00" style={{ display: 'block', margin: '0 auto' }} aria-hidden="true" />
+        <h2 className="display" style={{ fontSize: 22, marginTop: 12 }}>Menunggu Validasi Admin</h2>
+        <p style={{ color: 'var(--color-ink-soft)', maxWidth: 480, margin: '8px auto 0', lineHeight: 1.5 }}>
+          AI mendeteksi laporanmu mirip dengan laporan lain, tapi kamu menandainya sebagai kerusakan berbeda.
+          Laporan ini sudah tercatat di riwayatmu dengan status <strong>"Menunggu Validasi Admin"</strong> dan akan
+          diperiksa admin sebelum tampil di daftar laporan publik.
+        </p>
         <button style={primaryBtn} onClick={reset}>Lapor kerusakan lain</button>
       </section>
     );
@@ -464,6 +512,7 @@ export default function ReportPage() {
         candidate={duplicate}
         position={position}
         onSupport={handleSupportExisting}
+        onDispute={handleDisputeDuplicate}
         onClose={() => setDuplicate(null)}
         busy={step === 'submitting'}
       />
@@ -631,7 +680,7 @@ const modeBtnBase = {
   color: '#495057'
 };
 const modeBtnActive = { ...modeBtnBase, border: '1.5px solid #A61C24', background: '#A61C24', color: '#fff' };
-const modeBtnActiveWarn = { ...modeBtnBase, border: '1.5px solid #E8A93B', background: '#E8A93B', color: '#1a1a1a' };
+const modeBtnActiveWarn = { ...modeBtnBase, border: '1.5px solid #A61C24', background: '#A61C24', color: '#fff' };
 const modeBtnInactive = { ...modeBtnBase };
 
 const testingBanner = {
@@ -713,7 +762,7 @@ const pendingBadge = {
   fontWeight: 600
 };
 
-const primaryBtn = { padding: '13px 20px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--color-primary)', color: 'var(--color-primary-ink)', fontWeight: 700, fontSize: 15, marginTop: 20 };
+const primaryBtn = { padding: '13px 20px', borderRadius: 'var(--radius-md)', border: 'none', background: '#A61C24', color: '#fff', fontWeight: 700, fontSize: 15, marginTop: 20, cursor: 'pointer' };
 const locationLine = { fontSize: 13, color: 'var(--color-ink-soft)', marginTop: 8, marginBottom: 0 };
 const noteInput = { width: '100%', marginTop: 16, padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', fontSize: 14, fontFamily: 'inherit', resize: 'vertical' };
 const errorStyle = { color: 'var(--sev-emergency)', fontSize: 14, marginTop: 12, fontWeight: 500 };

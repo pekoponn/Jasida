@@ -5,6 +5,7 @@ import { useAuth } from '../lib/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
 import { reverseGeocode } from '../lib/geolocation.js';
 import CommentSection from '../components/CommentSection.jsx';
+import ZoomableImage from '../components/ZoomableImage.jsx';
 import { findKecamatan, getKecamatanNames } from '../lib/kecamatanBoundaries.js';
 import roadIcon from '../assets/RoadIcon.png';
 import { useIsMobileDevice } from '../lib/useIsMobileDevice.js';
@@ -42,6 +43,8 @@ export default function DashboardPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [appliedFilters, setAppliedFilters] = useState({ kecamatan: '', from: '', to: '' });
+  const [page, setPage] = useState(0);
+  const REPORTS_PER_PAGE = 9;
 
   const kecamatanOptions = useMemo(() => getKecamatanNames(), []);
 
@@ -89,6 +92,24 @@ export default function DashboardPage() {
       return true;
     });
   }, [reports, appliedFilters]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [appliedFilters]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredReports.length / REPORTS_PER_PAGE));
+  const pagedReports = useMemo(() => {
+    const start = page * REPORTS_PER_PAGE;
+    return filteredReports.slice(start, start + REPORTS_PER_PAGE);
+  }, [filteredReports, page]);
+
+  function goPrevPage() {
+    setPage((p) => Math.max(0, p - 1));
+  }
+
+  function goNextPage() {
+    setPage((p) => Math.min(totalPages - 1, p + 1));
+  }
 
   return (
     <div style={{ backgroundColor: 'var(--color-bg, #f8f9fa)', minHeight: '100vh' }}>
@@ -162,7 +183,7 @@ export default function DashboardPage() {
 
         {/* 3-Column Grid Layout */}
         <div style={gridStyle}>
-          {filteredReports.map((r) => (
+          {pagedReports.map((r) => (
             <ReportCard
               key={r.id}
               report={r}
@@ -174,9 +195,24 @@ export default function DashboardPage() {
         </div>
 
         {/* Pagination Arrows */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 30, marginBottom: 60 }}>
-          <button style={pageArrowStyle}>‹</button>
-          <button style={pageArrowStyle}>›</button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 30, marginBottom: 60 }}>
+          <button
+            style={{ ...pageArrowStyle, opacity: page === 0 ? 0.4 : 1, cursor: page === 0 ? 'default' : 'pointer' }}
+            onClick={goPrevPage}
+            disabled={page === 0}
+          >
+            ‹
+          </button>
+          <span style={{ fontSize: 13, color: '#868e96', minWidth: 60, textAlign: 'center' }}>
+            {page + 1} / {totalPages}
+          </span>
+          <button
+            style={{ ...pageArrowStyle, opacity: page >= totalPages - 1 ? 0.4 : 1, cursor: page >= totalPages - 1 ? 'default' : 'pointer' }}
+            onClick={goNextPage}
+            disabled={page >= totalPages - 1}
+          >
+            ›
+          </button>
         </div>
       </main>
     </div>
@@ -298,7 +334,7 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
       {/* Top Image Preview & Severity */}
       <div style={{ position: 'relative', height: 220, backgroundColor: '#e9ecef', overflow: 'hidden' }}>
         {currentPhoto?.url ? (
-          <img src={currentPhoto.url} alt="Kerusakan" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <ZoomableImage src={currentPhoto.url} alt="Kerusakan" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
           <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#adb5bd' }}>
             No Image

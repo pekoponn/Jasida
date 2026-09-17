@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { damageTypeDisplayLabel, severityDisplayLabel } from '../ai/hazardScore.js';
 import { listComments, listSupporters, getReportPhotos } from '../lib/reports.js';
 import { reverseGeocode } from '../lib/geolocation.js';
+import ZoomableImage from './ZoomableImage.jsx';
 
 const AVATAR_COLORS = ['#E8A93B', '#E0561F', '#191B1F', '#24506F'];
 
@@ -105,7 +106,7 @@ export default function ReportDetailModal({ report, onClose }) {
             <div style={photoGrid} className="rw-modal-photo-grid">
               <div>
                 <div style={photoLabel}>Foto Laporan</div>
-                <img
+                <ZoomableImage
                   src={report.imageUrl || 'https://placehold.co/400x260?text=Belum+ada+foto'}
                   alt="Foto laporan"
                   style={photoStyle}
@@ -114,7 +115,7 @@ export default function ReportDetailModal({ report, onClose }) {
               <div>
                 <div style={photoLabel}>Sesudah Perbaikan</div>
                 {afterPhotoUrl ? (
-                  <img src={afterPhotoUrl} alt="Foto sesudah perbaikan" style={photoStyle} />
+                  <ZoomableImage src={afterPhotoUrl} alt="Foto sesudah perbaikan" style={photoStyle} />
                 ) : report.status === 'resolved' ? (
                   <div style={{ ...photoStyle, ...placeholderBox }}>
                     Foto sesudah belum tersedia di sistem

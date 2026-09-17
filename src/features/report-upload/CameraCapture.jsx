@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Camera } from 'lucide-react';
 import { getCurrentPosition } from '../../lib/geolocation.js';
 
 export default function CameraCapture({ onCapture, disabled, onBusyChange }) {
@@ -106,7 +107,13 @@ export default function CameraCapture({ onCapture, disabled, onBusyChange }) {
         onClick={handleCapture}
         style={shutterBtn}
       >
-        {capturing ? 'Memproses…' : '📸 Ambil Foto'}
+        {capturing ? (
+          'Memproses…'
+        ) : (
+          <>
+            <Camera size={18} /> Ambil Foto
+          </>
+        )}
       </button>
 
       <p style={{ fontSize: 12, color: 'var(--color-ink-soft)', textAlign: 'center', marginTop: 6 }}>
@@ -141,10 +148,15 @@ const shutterBtn = {
   padding: '14px',
   borderRadius: 'var(--radius-md)',
   border: 'none',
-  background: 'var(--color-accent)',
-  color: 'var(--color-accent-ink)',
+  background: '#A61C24',
+  color: '#fff',
   fontWeight: 700,
-  fontSize: 16
+  fontSize: 16,
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8
 };
 
 const errorBox = {

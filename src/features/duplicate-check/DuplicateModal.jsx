@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import MapPreview from '../../components/MapPreview.jsx';
 import { getReportPhotos, reportImageUrl } from '../../lib/reports.js';
 
-export default function DuplicateModal({ candidate, position, onSupport, onClose, busy = false }) {
+export default function DuplicateModal({ candidate, position, onSupport, onDispute, onClose, busy = false }) {
   const [photos, setPhotos] = useState([]);
   const [index, setIndex] = useState(0);
   const touchStartX = useRef(null);
@@ -55,29 +55,37 @@ export default function DuplicateModal({ candidate, position, onSupport, onClose
           Sepertinya ada laporan lain untuk kerusakan yang sama di dekat lokasi kamu.
         </p>
 
-        {photos.length > 0 && (
-          <div
-            style={photoWrap}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-          >
-            <img src={photos[index].url} alt="Foto laporan" style={photoImg} />
+        <div style={mediaRow}>
+          {photos.length > 0 && (
+            <div style={mediaCol}>
+              <div
+                style={photoWrap}
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+              >
+                <img src={photos[index].url} alt="Foto laporan" style={photoImg} />
 
-            {photos.length > 1 && (
-              <>
-                <button style={{ ...arrowBtn, left: 8 }} onClick={() => goTo(index - 1)} aria-label="Foto sebelumnya">‹</button>
-                <button style={{ ...arrowBtn, right: 8 }} onClick={() => goTo(index + 1)} aria-label="Foto berikutnya">›</button>
-                <div style={dotsRow}>
-                  {photos.map((_, i) => (
-                    <span key={i} style={{ ...dot, opacity: i === index ? 1 : 0.35 }} />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
+                {photos.length > 1 && (
+                  <>
+                    <button style={{ ...arrowBtn, left: 8 }} onClick={() => goTo(index - 1)} aria-label="Foto sebelumnya">‹</button>
+                    <button style={{ ...arrowBtn, right: 8 }} onClick={() => goTo(index + 1)} aria-label="Foto berikutnya">›</button>
+                    <div style={dotsRow}>
+                      {photos.map((_, i) => (
+                        <span key={i} style={{ ...dot, opacity: i === index ? 1 : 0.35 }} />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
-        {position && <MapPreview lat={position.lat} lng={position.lng} />}
+          {position && (
+            <div style={mediaCol}>
+              <MapPreview lat={position.lat} lng={position.lng} />
+            </div>
+          )}
+        </div>
 
         <dl style={statGrid}>
           <div>
@@ -93,11 +101,21 @@ export default function DuplicateModal({ candidate, position, onSupport, onClose
             <dd style={statValue} className="mono">{candidate.support_count}</dd>
           </div>
         </dl>
-
         {candidate.match_basis === 'location' && <p style={{ fontSize: 13 }}>Jenis kerusakan sama dan lokasi berdekatan. Bandingkan foto untuk memastikan; laporan tidak digabung otomatis.</p>}
-        <button disabled={busy} style={{ ...primaryBtn, width: '100%', marginTop: 20 }} onClick={() => onSupport(candidate)}>
-          {busy ? 'Memproses…' : 'Dukung laporan ini'}
-        </button>
+        <p style={{ fontSize: 12.5, color: 'var(--color-ink-soft)', marginTop: 16, marginBottom: 0 }}>
+          Apakah ini kerusakan yang sama dengan laporan di atas?
+        </p>
+        <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+          <button disabled={busy} style={{ ...primaryBtn, flex: 1 }} onClick={() => onSupport(candidate)}>
+            {busy ? 'Memproses…' : 'Ya, kerusakan sama'}
+          </button>
+          <button disabled={busy} style={{ ...secondaryDisputeBtn, flex: 1 }} onClick={onDispute}>
+            Tidak, kerusakan beda
+          </button>
+        </div>
+        <p style={{ fontSize: 11.5, color: 'var(--color-ink-soft)', marginTop: 10, marginBottom: 0, lineHeight: 1.4 }}>
+          Kalau kamu pilih "kerusakan beda", laporanmu akan diperiksa dulu oleh admin sebelum tampil di daftar laporan publik.
+        </p>
       </div>
     </div>
   );
@@ -117,14 +135,26 @@ const overlay = {
 
 const panel = {
   width: '100%',
-  maxWidth: 480,
+  maxWidth: 720,
   background: 'var(--color-surface)',
   borderRadius: 16,
-  padding: '24px 20px 28px',
+  padding: '24px 24px 28px',
   boxShadow: 'var(--shadow-card)',
   position: 'relative',
   maxHeight: 'calc(100dvh - 32px)',
   overflowY: 'auto'
+};
+
+const mediaRow = {
+  display: 'flex',
+  gap: 16,
+  marginTop: 14,
+  flexWrap: 'wrap'
+};
+
+const mediaCol = {
+  flex: '1 1 260px',
+  minWidth: 0
 };
 
 const closeBtn = {
@@ -143,11 +173,10 @@ const closeBtn = {
 
 const photoWrap = {
   position: 'relative',
-  marginTop: 14,
   borderRadius: 'var(--radius-md)',
   overflow: 'hidden',
   background: '#000',
-  aspectRatio: '4 / 3'
+  aspectRatio: '16 / 10'
 };
 
 const photoImg = { width: '100%', height: '100%', objectFit: 'cover', display: 'block' };
@@ -196,8 +225,18 @@ const primaryBtn = {
   padding: '13px 16px',
   borderRadius: 'var(--radius-md)',
   border: 'none',
-  background: 'var(--color-primary)',
-  color: 'var(--color-primary-ink)',
+  background: '#A61C24',
+  color: '#fff',
+  fontWeight: 700,
+  fontSize: 15
+};
+
+const secondaryDisputeBtn = {
+  padding: '13px 16px',
+  borderRadius: 'var(--radius-md)',
+  border: '1.5px solid #A61C24',
+  background: '#fff',
+  color: '#A61C24',
   fontWeight: 700,
   fontSize: 15
 };

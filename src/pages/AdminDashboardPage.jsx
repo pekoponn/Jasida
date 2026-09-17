@@ -8,6 +8,7 @@ import { FileText, CheckCircle2, Clock3, AlertTriangle } from 'lucide-react';
 import { fetchAllReportsForAdmin, updateReportStatus, resolveReport } from '../lib/reports.js';
 import { damageTypeDisplayLabel } from '../ai/hazardScore.js';
 import AdminMap from '../components/AdminMap.jsx';
+import ZoomableImage from '../components/ZoomableImage.jsx';
 const CACHE_KEY = 'jasida_geocode_cache_v1';
 let geocodeCache;
 try {
@@ -65,7 +66,8 @@ export const STATUS_LABEL = {
   rejected: 'Ditolak',
   accepted: 'Menunggu Dikerjakan',
   in_progress: 'Diproses',
-  resolved: 'Selesai'
+  resolved: 'Selesai',
+  pending_duplicate_review: 'Menunggu Validasi Admin'
 };
 
 export const SEVERITY_STYLE = {
@@ -377,10 +379,11 @@ function ReportRowTable({ report, updating, onStatusChange, onResolve }) {
       <td style={td}>{lat}</td>
       <td style={td}>{new Date(report.created_at).toLocaleString('id-ID')}</td>
       <td style={td}>
-        {report.imageUrl && (
-          <img src={report.imageUrl} alt={damageTypeDisplayLabel(report.damage_type)}
-               style={{ width: 56, height: 56, minWidth: 56, objectFit: 'cover', objectPosition: 'center', borderRadius: 6, display: 'block' }} />
-        )}
+        <ZoomableImage
+          src={report.imageUrl}
+          alt={damageTypeDisplayLabel(report.damage_type)}
+          style={{ width: 56, height: 56, minWidth: 56, objectFit: 'cover', objectPosition: 'center', borderRadius: 6, display: 'block' }}
+        />
       </td>
       <td style={td}>
         <span style={{ ...badge, background: style.color }}>{style.label} · {report.hazard_score}</span>
