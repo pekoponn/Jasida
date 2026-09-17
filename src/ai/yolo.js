@@ -10,7 +10,7 @@ export const DAMAGE_CLASSES = [
 ];
 
 const MODEL_URL = '/models/yolo-damage.onnx';
-const CONF_THRESHOLD = 0.15;
+const CONF_THRESHOLD = 0.35;
 const IOU_THRESHOLD = 0.45;
 
 let sessionPromise = null;
@@ -114,16 +114,4 @@ function iou(a, b) {
   const interArea = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
   const unionArea = aw * ah + bw * bh - interArea;
   return unionArea <= 0 ? 0 : interArea / unionArea;
-}
-
-export async function detectDamageMock(file) {
-  await new Promise((r) => setTimeout(r, 600));
-  return {
-    detections: [
-      { damage_type: 'pothole', confidence: 0.91, bbox: [120, 340, 180, 140] },
-      { damage_type: 'longitudinal_crack', confidence: 0.58, bbox: [400, 200, 320, 40] }
-    ],
-    imageWidth: 1280,
-    imageHeight: 960
-  };
 }

@@ -99,8 +99,9 @@ export default function ReportPage() {
 
     try {
       const { detections: dets, imageWidth, imageHeight } = await detectDamage(photo);
-
-      if (!dets || dets.length === 0) {
+      const MIN_ACCEPTED_CONFIDENCE = 0.4;
+      const bestConfidence = dets?.length ? Math.max(...dets.map((d) => d.confidence)) : 0;
+      if (!dets || dets.length === 0 || bestConfidence < MIN_ACCEPTED_CONFIDENCE) {
         setDetections([]);
         setImageDims({ width: imageWidth, height: imageHeight });
         setEmbedding(null);
