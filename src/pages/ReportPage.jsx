@@ -369,20 +369,6 @@ export default function ReportPage() {
     );
   }
 
-  if (step === 'rejected') {
-    return (
-      <section style={{ textAlign: 'center', paddingTop: 48 }}>
-        <WarningIcon2 />
-        <h2 className="display" style={{ fontSize: 22, marginTop: 12 }}>Kerusakan Jalan Tidak Terdeteksi</h2>
-        <p style={{ color: 'var(--color-ink-soft)', maxWidth: 480, margin: '8px auto 0', lineHeight: 1.5 }}>
-          AI tidak menemukan tanda-tanda kerusakan jalan (lubang/retak) pada foto ini, jadi laporan tidak bisa dikirim.
-          Pastikan foto diambil dari jarak yang jelas menunjukkan bagian jalan yang rusak, lalu coba lagi.
-        </p>
-        <button style={primaryBtn} onClick={reset}>Ambil Foto Ulang</button>
-      </section>
-    );
-  }
-
   return (
     <section className="rp-wrap" style={{ paddingBottom: isMobileDevice ? 90 : 24 }}>
       <style>{responsiveCss}</style>
@@ -541,6 +527,22 @@ export default function ReportPage() {
         onClose={() => setDuplicate(null)}
         busy={step === 'submitting'}
       />
+
+      {step === 'rejected' && (
+        <div style={rejectedOverlay} role="dialog" aria-modal="true" aria-labelledby="rejected-title">
+          <div style={rejectedPanel}>
+            <WarningIcon2 />
+            <h2 id="rejected-title" className="display" style={{ fontSize: 20, marginTop: 12 }}>
+              Kerusakan Jalan Tidak Terdeteksi
+            </h2>
+            <p style={{ color: 'var(--color-ink-soft)', fontSize: 14, margin: '8px 0 0', lineHeight: 1.5 }}>
+              AI tidak menemukan tanda-tanda kerusakan jalan (lubang/retak) pada foto ini, jadi laporan tidak bisa dikirim.
+              Pastikan foto diambil dari jarak yang jelas menunjukkan bagian jalan yang rusak, lalu coba lagi.
+            </p>
+            <button style={{ ...primaryBtn, width: '100%' }} onClick={reset}>Ambil Foto Ulang</button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -798,6 +800,27 @@ const pendingBadge = {
 };
 
 const primaryBtn = { padding: '13px 20px', borderRadius: 'var(--radius-md)', border: 'none', background: '#A61C24', color: '#fff', fontWeight: 700, fontSize: 15, marginTop: 20, cursor: 'pointer' };
+
+const rejectedOverlay = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(25,27,31,0.5)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 16,
+  zIndex: 2000
+};
+
+const rejectedPanel = {
+  width: '100%',
+  maxWidth: 420,
+  background: '#fff',
+  borderRadius: 16,
+  padding: '28px 24px',
+  textAlign: 'center',
+  boxShadow: 'var(--shadow-card)'
+};
 const locationLine = { fontSize: 13, color: 'var(--color-ink-soft)', marginTop: 8, marginBottom: 0 };
 const noteInput = { width: '100%', marginTop: 16, padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', fontSize: 14, fontFamily: 'inherit', resize: 'vertical' };
 const errorStyle = { color: 'var(--sev-emergency)', fontSize: 14, marginTop: 12, fontWeight: 500 };
