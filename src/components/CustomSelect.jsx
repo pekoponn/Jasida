@@ -5,6 +5,12 @@ export default function CustomSelect({ value, onChange, options, placeholder = '
   const [hoverIndex, setHoverIndex] = useState(-1);
   const wrapperRef = useRef(null);
 
+  // Terima options sebagai array string (perilaku lama, tetap dipakai filter Kecamatan)
+  // ATAU array objek { value, label } (dipakai untuk filter yang value & labelnya beda,
+  // misal value "open" tapi label "Masuk (5)").
+  const isObjectOptions = options.length > 0 && typeof options[0] === 'object';
+  const normalizedOptions = isObjectOptions ? options : options.map((opt) => ({ value: opt, label: opt }));
+
   useEffect(() => {
     function handleClickOutside(e) {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
@@ -15,16 +21,18 @@ export default function CustomSelect({ value, onChange, options, placeholder = '
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  function handleSelect(opt) {
-    onChange(opt);
+  function handleSelect(optValue) {
+    onChange(optValue);
     setOpen(false);
   }
+
+  const selectedLabel = normalizedOptions.find((o) => o.value === value)?.label;
 
   return (
     <div ref={wrapperRef} style={{ position: 'relative', minWidth: 180 }}>
       <button type="button" onClick={() => setOpen((o) => !o)} style={triggerStyle}>
-        <span style={{ color: value ? '#495057' : '#868e96' }}>
-          {value || placeholder}
+        <span style={{ color: selectedLabel ? '#495057' : '#868e96' }}>
+          {selectedLabel || placeholder}
         </span>
         <svg
           width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -37,31 +45,35 @@ export default function CustomSelect({ value, onChange, options, placeholder = '
 
       {open && (
         <div style={panelStyle}>
-          <div
-            onMouseEnter={() => setHoverIndex(-1)}
-            onClick={() => handleSelect('')}
-            style={{
-              ...optionStyle,
-              backgroundColor: hoverIndex === -1 ? '#FDECEE' : '#fff',
-              color: value === '' ? '#a61e4d' : '#495057',
-              fontWeight: value === '' ? 700 : 500
-            }}
-          >
-            {placeholder}
-          </div>
-          {options.map((opt, i) => (
+          {/* Baris placeholder "Semua ..." cuma ditampilkan otomatis untuk mode string biasa
+              (mis. filter Kecamatan). Untuk mode objek, sertakan sendiri opsi "Semua" di data-nya. */}
+          {!isObjectOptions && (
             <div
-              key={opt}
+              onMouseEnter={() => setHoverIndex(-1)}
+              onClick={() => handleSelect('')}
+              style={{
+                ...optionStyle,
+                backgroundColor: hoverIndex === -1 ? '#FDECEE' : '#fff',
+                color: value === '' ? '#a61e4d' : '#495057',
+                fontWeight: value === '' ? 700 : 500
+              }}
+            >
+              {placeholder}
+            </div>
+          )}
+          {normalizedOptions.map((opt, i) => (
+            <div
+              key={opt.value}
               onMouseEnter={() => setHoverIndex(i)}
-              onClick={() => handleSelect(opt)}
+              onClick={() => handleSelect(opt.value)}
               style={{
                 ...optionStyle,
                 backgroundColor: hoverIndex === i ? '#FDECEE' : '#fff',
-                color: value === opt ? '#a61e4d' : '#495057',
-                fontWeight: value === opt ? 700 : 500
+                color: value === opt.value ? '#a61e4d' : '#495057',
+                fontWeight: value === opt.value ? 700 : 500
               }}
             >
-              {opt}
+              {opt.label}
             </div>
           ))}
         </div>

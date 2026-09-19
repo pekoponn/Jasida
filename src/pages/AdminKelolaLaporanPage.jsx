@@ -10,6 +10,7 @@ import { damageTypeDisplayLabel, severityDisplayLabel } from '../ai/hazardScore.
 import { estimateMaterialsAndCost, formatMaterialItems } from '../ai/materialEstimate.js';
 import { findKecamatan, getKecamatanNames } from '../lib/kecamatanBoundaries.js';
 import ZoomableImage from '../components/ZoomableImage.jsx';
+import CustomSelect from '../components/CustomSelect.jsx';
 
 const STATUS_LABEL = {
   open: 'Menunggu Verifikasi',
@@ -198,8 +199,9 @@ export default function AdminKelolaLaporanPage() {
     });
   }, [reports, filter, severityFilter, kecamatanFilter, searchQuery]);
 
-  return (
+   return (
     <section>
+      <style>{reportPhotoCss}</style>
       <h1 className="display" style={{ fontSize: 24, marginBottom: 4 }}>Kelola Laporan</h1>
       <p style={{ color: '#868e96', marginTop: 0, fontSize: 14 }}>
         Proses laporan warga: terima/tolak, jadwalkan pengerjaan, lalu tandai selesai.
@@ -219,27 +221,31 @@ export default function AdminKelolaLaporanPage() {
               style={searchInputStyle}
             />
 
-            <select value={filter} onChange={(e) => setFilter(e.target.value)} style={selectFilterStyle}>
-              {FILTER_TABS.map((tab) => (
-                <option key={tab.key} value={tab.key}>
-                  {tab.label}
-                  {tab.key !== 'all' ? ` (${reports.filter((r) => r.status === tab.key).length})` : ''}
-                </option>
-              ))}
-            </select>
+            <CustomSelect
+              value={filter}
+              onChange={setFilter}
+              placeholder="Semua"
+              options={FILTER_TABS.map((tab) => ({
+                value: tab.key,
+                label: tab.key !== 'all'
+                  ? `${tab.label} (${reports.filter((r) => r.status === tab.key).length})`
+                  : tab.label
+              }))}
+            />
 
-            <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} style={selectFilterStyle}>
-              {SEVERITY_OPTIONS.map((opt) => (
-                <option key={opt.key} value={opt.key}>{opt.label}</option>
-              ))}
-            </select>
+            <CustomSelect
+              value={severityFilter}
+              onChange={setSeverityFilter}
+              placeholder="Semua Tingkat"
+              options={SEVERITY_OPTIONS.map((opt) => ({ value: opt.key, label: opt.label }))}
+            />
 
-            <select value={kecamatanFilter} onChange={(e) => setKecamatanFilter(e.target.value)} style={selectFilterStyle}>
-              <option value="">Semua Kecamatan</option>
-              {kecamatanOptions.map((nama) => (
-                <option key={nama} value={nama}>{nama}</option>
-              ))}
-            </select>
+            <CustomSelect
+              value={kecamatanFilter}
+              onChange={setKecamatanFilter}
+              options={kecamatanOptions}
+              placeholder="Semua Kecamatan"
+            />
           </div>
 
           <div style={{ overflowX: 'auto' }}>
@@ -329,11 +335,13 @@ function RowItem({ report, busy, onAccept, onRejectClick, onProgressClick, onCom
       <td style={td}>{lokasi}</td>
       <td style={td}>{new Date(report.created_at).toLocaleString('id-ID')}</td>
       <td style={td}>
-        <ZoomableImage
-          src={report.imageUrl}
-          alt={damageTypeDisplayLabel(report.damage_type)}
-          style={{ width: 150, height: 62, objectFit: 'cover', borderRadius: 8 }}
-        />
+        <div className="report-photo-thumb">
+          <ZoomableImage
+            src={report.imageUrl}
+            alt={damageTypeDisplayLabel(report.damage_type)}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          />
+        </div>
       </td>
       <td style={td}>
         <div>{damageTypeDisplayLabel(report.damage_type)} · {report.hazard_score}</div>
@@ -833,3 +841,22 @@ const totalRow = {
   padding: '10px 4px 0',
   marginTop: 4
 };
+
+const reportPhotoCss = `
+  .report-photo-thumb {
+    width: 90px;
+    height: 60px;
+    overflow: hidden;
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 640px) {
+    .report-photo-thumb {
+      width: 110px;
+      height: 110px;
+    }
+    table { font-size: 12px; }
+    th, td { padding: 8px 10px !important; }
+  }
+`;

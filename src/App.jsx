@@ -63,7 +63,7 @@ function AppContent() {
             background: '#F5F6FA'
           }}
         >
-          <div style={{ position: 'sticky', top: 0, zIndex: 90 }}>
+          <div style={{ position: 'sticky', top: 0, zIndex: 2100 }}>
             <AdminTopbar onMenuClick={() => setSidebarOpen(true)} />
           </div>
           <main style={{ flex: 1, padding: '28px 32px 64px' }}>

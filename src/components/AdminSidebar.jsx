@@ -58,7 +58,9 @@ const sidebarCss = `
       top: 0;
       left: 0;
       height: 100vh;
-      z-index: 60;
+      /* Leaflet nge-set kontrolnya (tombol zoom, popup, dll) sampai z-index: 1000,
+         jadi sidebar & backdrop harus di atas itu supaya nggak ketembus peta. */
+      z-index: 2000;
       transform: translateX(-105%);
       transition: transform 0.25s ease;
       box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
@@ -78,7 +80,7 @@ const sidebarCss = `
       position: fixed;
       inset: 0;
       background: rgba(0, 0, 0, 0.45);
-      z-index: 50;
+      z-index: 1900;
     }
   }
 `;
@@ -93,7 +95,7 @@ const sidebar = {
   background: '#141B2E',
   padding: '28px 16px',
   flexShrink: 0,
-  zIndex: 100,
+  zIndex: 2000,
 };
 
 const logoRow = { display: 'flex', alignItems: 'center', gap: 10, padding: '0 8px' };

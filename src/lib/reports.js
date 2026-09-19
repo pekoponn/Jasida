@@ -197,6 +197,13 @@ export async function listReportsFeed() {
   if (error) throw error;
   if (!reports.length) return [];
 
+  const { data: details, error: detailsError } = await supabase
+    .from('reports')
+    .select('id, rejection_reason')
+    .in('id', reports.map((r) => r.id));
+  if (detailsError) throw detailsError;
+  const detailsById = Object.fromEntries((details ?? []).map((r) => [r.id, r]));
+
   const userIds = [...new Set(reports.map((r) => r.user_id).filter(Boolean))];
   let profilesById = {};
   if (userIds.length) {
@@ -210,6 +217,7 @@ export async function listReportsFeed() {
 
   return reports.map((r) => ({
     ...r,
+    ...detailsById[r.id],
     profile: profilesById[r.user_id] ?? null,
     imageUrl: r.image_path
       ? supabase.storage.from('report-images').getPublicUrl(r.image_path).data.publicUrl

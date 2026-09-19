@@ -410,6 +410,12 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
           </span>
         </div>
 
+        {report.status === 'rejected' && report.rejection_reason && (
+          <div style={rejectionReasonPill}>
+            Alasan ditolak: {report.rejection_reason}
+          </div>
+        )}
+
         <div style={noteBox}>
           {report.note ? (
             <p style={{ fontSize: 12, color: '#495057', margin: 0, lineHeight: 1.4 }}>
@@ -631,6 +637,17 @@ const statusBadge = {
   fontWeight: 700,
   fontSize: 11,
   whiteSpace: 'nowrap'
+};
+
+const rejectionReasonPill = {
+  marginTop: 8,
+  fontSize: 11.5,
+  fontWeight: 600,
+  color: '#A61C24',
+  background: '#FDECEE',
+  padding: '8px 12px',
+  borderRadius: 8,
+  lineHeight: 1.4
 };
 
 const pageArrowStyle = {

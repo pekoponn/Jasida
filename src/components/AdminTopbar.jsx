@@ -99,7 +99,7 @@ const topbar = {
   borderBottom: '1px solid #EDEEF2',
   position: 'sticky',
   top: 0,
-  zIndex: 90,
+  zIndex: 2100, 
 };
 
 const hamburgerBtn = {
