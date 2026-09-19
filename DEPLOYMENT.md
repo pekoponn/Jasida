@@ -1,174 +1,130 @@
-# Setup dan deploy Jasida
+# Menjalankan Jasida di Vercel
 
-- Website: https://jasida.vercel.app
-- Dashboard Vercel: https://vercel.com/iszz100s-projects/jasida
-- Akun Vercel: `iszz100`, workspace `iszz100s-projects`, project `jasida`.
-- Supabase: https://supabase.com/dashboard/project/zduhufrmvvlvuyzpqscu
+Dokumen ini dipakai saat website perlu dipasang ulang atau diperbarui.
 
-## Frontend dan backend
+- Website: [www.jasida.web.id](https://www.jasida.web.id/)
+- Project Vercel: `iszz100s-projects/jasida`
+- Project Supabase: `zduhufrmvvlvuyzpqscu`
 
-Vercel membangun React + Vite menjadi file statis dari folder ini. Aplikasi
-di browser mengakses Supabase untuk database, autentikasi, dan penyimpanan
-foto. Model ONNX ikut disajikan sebagai file statis oleh Vercel.
+## Gambaran singkat
 
-Project Supabase sudah memiliki data dan tabel yang digunakan aplikasi.
-Tidak perlu membuat database baru atau menjalankan ulang `supabase/schema.sql`
-untuk deployment frontend ini; file tersebut hanya berisi skema awal.
+Vercel menyajikan aplikasi React, file gambar, dan model ONNX. Supabase menangani
+akun, database, serta penyimpanan foto laporan. Database yang digunakan website
+sudah aktif, jadi pembaruan frontend tidak memerlukan database baru.
 
-## Konfigurasi Vercel
+Jangan menjalankan `supabase/schema.sql` pada database production tanpa meninjau
+query-nya. File tersebut disimpan sebagai contoh skema awal, bukan migration.
 
-| Pengaturan | Nilai |
-| --- | --- |
-| Framework | Vite |
-| Root Directory | `.` (root repository) |
-| Build Command | `npm run build` |
-| Output Directory | `dist` |
-| Install Command | Default (`npm install`) |
+## Pengaturan build
 
-`vercel.json` mengatur fallback ke `index.html` agar URL seperti `/login`,
-`/dashboard`, dan `/riwayat` tetap berjalan saat dibuka langsung.
+| Pengaturan       | Nilai           |
+| ---------------- | --------------- |
+| Framework        | Vite            |
+| Root Directory   | `.`             |
+| Build Command    | `npm run build` |
+| Output Directory | `dist`          |
+| Install Command  | `npm install`   |
 
-Dua variabel berikut sudah dipasang untuk Production, Preview, dan Development:
+`vercel.json` mengarahkan semua route aplikasi ke `index.html`. Pengaturan ini
+membuat halaman seperti `/login`, `/dashboard`, dan `/riwayat` tetap dapat dibuka
+langsung atau di-refresh.
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY` (key publik/anon; bukan secret/service_role)
+## Environment variable
 
-Nilai asli disimpan di `.env` lokal dan Environment Variables Vercel.
-`.env.example` hanya template; Vite tidak membaca file itu.
-Perubahan variabel frontend di Vercel memerlukan deployment ulang.
+Frontend membutuhkan dua nilai berikut:
 
-## Menjalankan lokal
-
-Pada mesin baru, salin `.env.example` ke `.env` lalu isi kedua variabel dengan
-konfigurasi Supabase project yang sama. Setelah itu:
-
-```bash
-npm install
-npm run dev
+```env
+VITE_SUPABASE_URL=https://project.supabase.co
+VITE_SUPABASE_ANON_KEY=public-key
 ```
 
-## Memperbarui website
+Keduanya digunakan oleh browser dan harus dipasang pada environment Vercel yang
+dibutuhkan. Nilai lokal disimpan di `.env`, sedangkan `.env.example` hanya menjadi
+contoh nama variabel. File `.env` tidak boleh dimasukkan ke Git.
 
-Deployment pertama menggunakan Vercel CLI dari folder lokal. Workflow
-`.github/workflows/deploy-vercel.yml` menyiapkan deployment otomatis dari
-push ke `main`, setelah `VERCEL_TOKEN` dipasang di GitHub Actions Secrets
-dan workflow dipush. Akses kolaborator GitHub dan akses Vercel terpisah.
+Fitur reset password langsung membutuhkan konfigurasi server tambahan:
 
-Versi kerja bersama menggunakan branch `main`. Ambil pembaruan sebelum mulai
-bekerja dengan `git pull --ff-only origin main`. Vercel memeriksa akses penulis
-commit pada repo private, sehingga akses GitHub saja belum menjamin akun tersebut
-bisa melakukan deployment ke workspace Vercel ini.
-
-Repo pribadi `pekoponn/Jasida` tidak dapat dihubungkan lewat integrasi Git
-native oleh kolaborator `iszz100`. Workflow menggunakan CLI di GitHub Actions
-untuk mengirim hasil build ke project Vercel yang sudah ada.
-
-### Mengaktifkan GitHub Actions
-
-1. Pada akun Vercel `iszz100`, buka https://vercel.com/account/tokens dan
-   buat token bernama `jasida-github-actions`, dengan scope workspace
-   `iszz100s-projects`. Pilih masa berlaku yang sesuai; ganti Secret ketika
-   token kedaluwarsa atau dicabut.
-2. Pada repo `pekoponn/Jasida`, buka Settings > Secrets and variables >
-   Actions > New repository secret. Isi nama `VERCEL_TOKEN` dan nilai token.
-   Pemilik repo dapat membantu jika pengaturan Secrets tidak dapat diakses.
-   Jangan simpan token di file, chat, atau variabel `VITE_`.
-3. Push commit workflow ke `main`. Buka tab Actions > Deploy Jasida to Vercel
-   dan tunggu sampai sukses. Untuk mengulang tanpa commit baru, pilih
-   Run workflow pada branch `main`.
-
-Project ID dan organization ID sudah dicantumkan dalam workflow; keduanya
-identifier, bukan kredensial. Variabel Supabase Production ditarik dari
-Vercel, jadi tidak perlu menyalin key Supabase ke GitHub. Workflow tidak
-mengubah database, bucket, domain, atau membuat project Vercel baru.
-
-Workflow menjalankan `npm ci`, menarik konfigurasi Production, membangun
-sekali, lalu deploy menggunakan `--prebuilt --prod`. Build gagal menghentikan
-deployment. Periksa hasil Actions; push sukses belum menjamin deploy sukses.
-Pengujian browser di bawah dijalankan lokal sebelum push, belum otomatis
-dijalankan oleh workflow. Tidak ada deployment dari pull request atau branch
-selain `main`. Jangan aktifkan integrasi native sekaligus tanpa menonaktifkan
-salah satu jalur agar tidak terjadi deployment ganda.
-
-Jika push workflow ditolak karena izin token GitHub, credential untuk push
-memerlukan izin workflow (PAT classic: `workflow`; fine-grained: izin tulis
-Workflows dan Contents). Ini berbeda dari `VERCEL_TOKEN` untuk deployment.
-
-Referensi: https://vercel.com/docs/git/vercel-for-github#using-github-actions.
-
-### Deployment manual
-
-Setelah mengambil atau menyelesaikan perubahan kode, jalankan:
-
-```bash
-npm install
-npm run build
-npx vercel deploy --prod --scope iszz100s-projects
+```env
+SUPABASE_SERVICE_ROLE_KEY=server-secret-key
+ALLOW_EMAIL_ONLY_PASSWORD_RESET=true
 ```
 
-Jika login CLI kedaluwarsa, jalankan `npx vercel login` dengan akun `iszz100`.
-Pada mesin baru, hubungkan folder dengan:
+`SUPABASE_SERVICE_ROLE_KEY` hanya boleh tersedia pada server Vercel. Jangan beri
+awalan `VITE_`, jangan simpan di source code, dan jangan kirim nilainya melalui
+chat atau screenshot.
+
+Reset password saat ini tidak mengirim tautan verifikasi. Seseorang yang mengetahui
+alamat email akun dapat mengganti password melalui form tersebut. Jika website
+dipakai di luar kebutuhan demo, sebaiknya ganti alur ini dengan verifikasi email
+atau kode OTP.
+
+## Deployment otomatis
+
+Push ke branch `main` akan menjalankan workflow
+`.github/workflows/deploy-vercel.yml`. Workflow tersebut memasang dependency,
+mengambil konfigurasi production, melakukan build, lalu mengirim hasilnya ke
+Vercel.
+
+Workflow membutuhkan repository secret bernama `VERCEL_TOKEN`. Token dibuat dari
+akun Vercel yang mempunyai akses ke workspace `iszz100s-projects`. Simpan token di
+GitHub melalui **Settings → Secrets and variables → Actions**.
+
+Sebelum push, jalankan pemeriksaan lokal:
 
 ```bash
+PLAYWRIGHT_CHROME_CHANNEL=chrome npm run check
+```
+
+Push yang berhasil masuk GitHub belum selalu berarti deployment berhasil. Periksa
+tab **Actions** dan pastikan job selesai tanpa error.
+
+## Deployment manual
+
+Jika workflow sedang bermasalah, deployment dapat dilakukan dari folder project:
+
+```bash
+npm ci
+npm run check
+npx vercel deploy --prod --yes --scope iszz100s-projects
+```
+
+Pada komputer baru, hubungkan folder ke project yang sudah ada:
+
+```bash
+npx vercel login
 npx vercel link --yes --project jasida --scope iszz100s-projects
 ```
 
-File `.vercel/project.json` menyimpan hubungan folder dengan project Vercel
-dan tidak perlu dimasukkan ke Git.
+Vercel akan membuat `.vercel/project.json` untuk menyimpan hubungan folder dengan
+project. Folder `.vercel` bersifat lokal dan tidak masuk Git.
 
-## Foto WebP di bawah 100 KB
+## Penyimpanan foto laporan
 
-Foto kamera, pilihan JPEG/PNG/WebP, dukungan, dan bukti perbaikan dikonversi
-di browser sebelum upload. Ukuran awal maksimal 25 MB. Aplikasi mengurangi
-dimensi dan kualitas bertahap, memeriksa MIME dan signature WebP, dan hanya
-mengirim hasil maksimal 99.999 byte (di bawah 100 KB desimal).
-Foto untuk laporan baru sudah dikonversi sebelum analisis AI dan pembuatan
-baris laporan. Foto galeri menggunakan GPS saat dipilih, bukan lokasi EXIF.
-Kompresi lossy dapat mengurangi detail foto; preview menampilkan hasil yang
-akan dianalisis dan dikirim.
-
-Pembatasan server di bucket `report-images` harus diterapkan juga:
+Sebelum dikirim, foto diubah menjadi WebP dengan ukuran maksimal 99.999 byte.
+Bucket Supabase `report-images` perlu memakai batas yang sama:
 
 - Allowed MIME types: `image/webp`
-- File size limit: `99999` byte
+- File size limit: `99999`
 
-Jalankan `npm run storage:configure` di terminal lokal. Script meminta
-Supabase secret key atau legacy service_role key dengan input tersembunyi,
-membaca bucket yang ada, mengubah hanya pembatasan upload, lalu memverifikasi
-hasilnya. Key admin tidak disimpan ke file, Vercel, atau bundle frontend.
-Jangan masukkan key admin ke variabel `VITE_`. Foto lama tidak dikonversi atau
-dihapus. Pembatasan ini tidak mengubah policy akses bucket yang ada.
-
-Untuk menguji konversi tanpa menulis data ke Supabase:
+Konfigurasi bucket dapat diperiksa dan diperbarui dengan:
 
 ```bash
-# Jalankan npm run dev di terminal lain terlebih dahulu.
-npx agent-browser open http://127.0.0.1:5173
-npx agent-browser eval --stdin < tests/image-upload.browser.js
-npx agent-browser close
+npm run storage:configure
 ```
 
-Pengujian mencakup JPEG/PNG besar, WebP kecil, rasio ekstrem, file rusak,
-MIME salah, batas 100 KB, browser tanpa encoder WebP, serta kedua jalur upload
-dengan transport pengujian yang tidak mengirim data ke database.
+Script akan meminta service-role key melalui input terminal dan tidak menyimpannya
+ke file. Script hanya memperbarui batas upload bucket; foto lama dan access policy
+tidak ikut diubah.
 
-## Reset sandi tanpa email
+## Jika deployment bermasalah
 
-Sesuai permintaan pemilik, form lupa sandi menerima email terdaftar, sandi baru,
-dan konfirmasi. Endpoint Vercel `/api/reset-password` menggunakan Supabase Auth
-Admin untuk mencocokkan email lalu mengganti sandi, tanpa mengirim email.
-**Tidak ada bukti kepemilikan akun: siapa pun yang mengetahui email akun,
-termasuk admin, dapat mengganti sandinya jika endpoint ini diaktifkan.**
+Periksa beberapa hal berikut:
 
-Konfigurasi server Vercel yang diperlukan:
+1. Jalankan `npm run check` dan selesaikan error yang muncul.
+2. Pastikan seluruh environment variable tersedia di Vercel.
+3. Periksa masa berlaku dan akses `VERCEL_TOKEN`.
+4. Lihat log build pada halaman deployment Vercel.
+5. Pastikan domain `www.jasida.web.id` masih mengarah ke deployment production.
 
-- `SUPABASE_URL`: URL project (atau memakai `VITE_SUPABASE_URL` yang sudah ada).
-- `SUPABASE_SERVICE_ROLE_KEY`: secret/service-role project, hanya di server.
-  Jangan menggunakan awalan `VITE_`, memasukkannya ke Git, atau frontend.
-- `ALLOW_EMAIL_ONLY_PASSWORD_RESET=true`: persetujuan eksplisit untuk mengaktifkan
-  perilaku tanpa verifikasi ini. Default tidak aktif, endpoint mengembalikan 503.
-
-Deploy ulang setelah konfigurasi. Vite dev/preview hanya menjalankan frontend;
-untuk endpoint server lokal gunakan `vercel dev`. Tes browser mensimulasikan API,
-dan `npm run test:server` menguji handler dengan Auth Admin tiruan, tanpa
-mengganti sandi akun nyata. Tautan recovery lama tetap dapat digunakan.
+Setelah environment variable diubah, lakukan deployment ulang agar nilai baru
+digunakan oleh aplikasi.
