@@ -1,6 +1,7 @@
 import PasswordResetForm from '../components/PasswordResetForm.jsx';
 import { useState } from 'react';
 import { Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext.jsx';
 import workerIllustration from '../assets/worker-illustration.png';
 import brandLogo from '../assets/brand-logo.png';
@@ -16,6 +17,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState('');
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -140,14 +142,25 @@ export default function LoginPage() {
             </Field>
 
             <Field label="Password">
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                style={inputStyle}
-              />
+              <span style={passwordFieldStyle}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  style={{ ...inputStyle, width: '100%', paddingRight: 50, boxSizing: 'border-box' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                  aria-pressed={showPassword}
+                  style={passwordVisibilityButton}
+                >
+                  {showPassword ? <EyeOff size={19} aria-hidden="true" /> : <Eye size={19} aria-hidden="true" />}
+                </button>
+              </span>
             </Field>
 
             {mode === 'login' && (
@@ -172,7 +185,7 @@ export default function LoginPage() {
             {mode === 'login' ? 'Belum punya akun?' : 'Sudah punya akun?'}{' '}
             <button
               type="button"
-              onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(null); }}
+              onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setShowPassword(false); setError(null); }}
               style={linkBtn}
             >
               {mode === 'login' ? 'Daftar di sini' : 'Masuk di sini'}
@@ -365,6 +378,29 @@ const inputStyle = {
   fontSize: 14,
   fontFamily: 'inherit',
   outline: 'none'
+};
+
+const passwordFieldStyle = {
+  position: 'relative',
+  display: 'block',
+  width: '100%'
+};
+
+const passwordVisibilityButton = {
+  position: 'absolute',
+  top: '50%',
+  right: 8,
+  transform: 'translateY(-50%)',
+  display: 'grid',
+  placeItems: 'center',
+  width: 34,
+  height: 34,
+  padding: 0,
+  border: 'none',
+  borderRadius: 7,
+  background: 'rgba(255, 255, 255, 0.94)',
+  color: '#A61C24',
+  cursor: 'pointer'
 };
 
 const forgotLink = {

@@ -61,8 +61,8 @@ export default function PasswordResetForm({ reset, inputStyle, buttonStyle, link
 
   const field = { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 };
   return <div style={{ color: '#fff', marginTop: 20 }}>
-    {editing && loading && <p role="status">Memeriksa tautan…</p>}
-    {invalid && <p role="alert">Tautan tidak valid atau sudah kedaluwarsa. Gunakan form reset sandi.</p>}
+    {editing && loading && !saved && <p role="status">Memeriksa tautan…</p>}
+    {invalid && !saved && <p role="alert">Tautan tidak valid atau sudah kedaluwarsa. Gunakan form reset sandi.</p>}
     {!editing && <p style={{ fontSize: 13 }}>Masukkan email yang terdaftar dan sandi baru.</p>}
     {!saved && !invalid && !(editing && loading) && <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {!editing && <label style={field}>Email

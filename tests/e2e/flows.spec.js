@@ -1,5 +1,29 @@
 import { test, expect, login, capture, recoveryUrl } from './fixtures.js';
 
+test('login and registration passwords support visibility and copy-paste', async ({ page, context, backend }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/login');
+
+  const loginPassword = page.getByLabel('Password', { exact: true });
+  await loginPassword.fill('password-untuk-disalin');
+  await page.getByRole('button', { name: 'Tampilkan password' }).click();
+  await expect(loginPassword).toHaveAttribute('type', 'text');
+  await loginPassword.selectText();
+  await loginPassword.press('ControlOrMeta+C');
+
+  await page.getByRole('button', { name: 'Daftar di sini' }).click();
+  const registrationPassword = page.getByLabel('Password', { exact: true });
+  await expect(registrationPassword).toHaveAttribute('type', 'password');
+  await registrationPassword.fill('');
+  await registrationPassword.press('ControlOrMeta+V');
+  await expect(registrationPassword).toHaveValue('password-untuk-disalin');
+  await page.getByRole('button', { name: 'Tampilkan password' }).click();
+  await expect(registrationPassword).toHaveAttribute('type', 'text');
+  await page.getByRole('button', { name: 'Sembunyikan password' }).click();
+  await expect(registrationPassword).toHaveAttribute('type', 'password');
+  expect(backend.writes).toEqual([]);
+});
+
 test('email-only reset supports visibility and copy-paste, handles unknown email and returns to login', async ({ page, context, backend }, testInfo) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.goto('/login');
