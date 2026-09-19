@@ -6,16 +6,31 @@ const session = { access_token: `eyJhbGciOiJIUzI1NiJ9.${payload}.local-signature
 
 export const test = base.extend({
   backend: async ({ page }, runFixture) => {
-    const state = { role: 'user', username: 'Juri', writes: [], reports: [], failUpload: false, failProfile: false, profileDelay: 0, pageErrors: [], unhandled: [] };
+    const state = { role: 'user', username: 'Juri', writes: [], reports: [], failUpload: false, failProfile: false, profileDelay: 0, pageErrors: [], unhandled: [], realDetector: false, recoveryFailure: false, updateFailure: false };
     page.on('pageerror', (error) => state.pageErrors.push(error.message));
     await page.route('**/*', async (route) => {
       const request = route.request();
       const url = new URL(request.url());
+      if (url.pathname === '/api/reset-password') {
+        state.writes.push({ type: 'direct-password', data: request.postDataJSON() });
+        return route.fulfill({ status: state.recoveryFailure ? 404 : 200, contentType: 'application/json', body: JSON.stringify(state.recoveryFailure ? { error: 'Email tidak terdaftar.' } : { success: true }) });
+      }
+      if (url.pathname === '/__test_detection') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ real: state.realDetector }) });
       if (url.hostname === '127.0.0.1' && ['5175', '4175'].includes(url.port)) return route.continue();
       const json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
       if (url.origin === 'http://127.0.0.1:54321') {
         if (url.pathname === '/auth/v1/token') return json(session);
-        if (url.pathname === '/auth/v1/user') return json(user);
+        if (url.pathname === '/auth/v1/recover') {
+          state.writes.push({ type: 'recover', data: request.postDataJSON(), redirect: url.searchParams.get('redirect_to') });
+          return state.recoveryFailure ? json({ msg: 'Email rate limit exceeded' }, 429) : json({});
+        }
+        if (url.pathname === '/auth/v1/user') {
+          if (request.method() === 'PUT') {
+            state.writes.push({ type: 'password', data: request.postDataJSON() });
+            if (state.updateFailure) return json({ msg: 'Password update failed' }, 422);
+          }
+          return json(user);
+        }
         if (url.pathname === '/auth/v1/signup') return json({ user, session: null });
         if (url.pathname === '/auth/v1/logout') return json({});
         if (url.pathname.startsWith('/storage/v1/object/')) {
@@ -69,8 +84,12 @@ export async function login(page) {
 }
 
 export async function capture(page) {
-  const button = page.getByRole('button', { name: '📸 Ambil Foto', exact: true });
+  const button = page.getByRole('button', { name: 'Ambil Foto', exact: true });
   await expect(button).toBeEnabled();
   await page.waitForFunction(() => document.querySelector('video')?.videoWidth > 0);
   await button.click();
+}
+
+export function recoveryUrl(path = '/login?mode=reset') {
+  return `${path}#access_token=${session.access_token}&refresh_token=${session.refresh_token}&expires_in=3600&token_type=bearer&type=recovery`;
 }

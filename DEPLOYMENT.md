@@ -152,3 +152,24 @@ npx agent-browser close
 Pengujian mencakup JPEG/PNG besar, WebP kecil, rasio ekstrem, file rusak,
 MIME salah, batas 100 KB, browser tanpa encoder WebP, serta kedua jalur upload
 dengan transport pengujian yang tidak mengirim data ke database.
+
+## Reset sandi tanpa email
+
+Sesuai permintaan pemilik, form lupa sandi menerima email terdaftar, sandi baru,
+dan konfirmasi. Endpoint Vercel `/api/reset-password` menggunakan Supabase Auth
+Admin untuk mencocokkan email lalu mengganti sandi, tanpa mengirim email.
+**Tidak ada bukti kepemilikan akun: siapa pun yang mengetahui email akun,
+termasuk admin, dapat mengganti sandinya jika endpoint ini diaktifkan.**
+
+Konfigurasi server Vercel yang diperlukan:
+
+- `SUPABASE_URL`: URL project (atau memakai `VITE_SUPABASE_URL` yang sudah ada).
+- `SUPABASE_SERVICE_ROLE_KEY`: secret/service-role project, hanya di server.
+  Jangan menggunakan awalan `VITE_`, memasukkannya ke Git, atau frontend.
+- `ALLOW_EMAIL_ONLY_PASSWORD_RESET=true`: persetujuan eksplisit untuk mengaktifkan
+  perilaku tanpa verifikasi ini. Default tidak aktif, endpoint mengembalikan 503.
+
+Deploy ulang setelah konfigurasi. Vite dev/preview hanya menjalankan frontend;
+untuk endpoint server lokal gunakan `vercel dev`. Tes browser mensimulasikan API,
+dan `npm run test:server` menguji handler dengan Auth Admin tiruan, tanpa
+mengganti sandi akun nyata. Tautan recovery lama tetap dapat digunakan.

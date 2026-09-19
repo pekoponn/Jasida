@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
@@ -16,6 +17,20 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     plugins: [
+      // Only E2E builds substitute the report-page detector. Direct model tests
+      // still import the real YOLO module; production never includes this hook.
+      mode === 'e2e' && {
+        name: 'report-detector-test-fixture',
+        enforce: 'pre',
+        resolveId(source, importer) {
+          if (importer?.endsWith('/src/pages/ReportPage.jsx') && source === '../ai/yolo.js') {
+            if (process.env.VITE_SUPABASE_URL !== 'http://127.0.0.1:54321') {
+              throw new Error('E2E detector requires the isolated test backend.');
+            }
+            return fileURLToPath(new URL('./tests/fixtures/report-detector.js', import.meta.url));
+          }
+        }
+      },
       react(),
       viteStaticCopy({
         targets: [

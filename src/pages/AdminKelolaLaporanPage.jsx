@@ -687,17 +687,6 @@ const searchInputStyle = {
   fontFamily: 'inherit'
 };
 
-const selectFilterStyle = {
-  padding: '9px 12px',
-  borderRadius: 8,
-  border: '1px solid #dee2e6',
-  fontSize: 13,
-  fontFamily: 'inherit',
-  background: '#fff',
-  color: '#333',
-  cursor: 'pointer'
-};
-
 const zoomOverlay = {
   position: 'fixed',
   inset: 0,

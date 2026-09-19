@@ -107,8 +107,10 @@ PLAYWRIGHT_CHROME_CHANNEL=chrome npm test
 
 `npm test` menjalankan development dan preview hasil build dengan public key
 dummy serta backend, GPS, kamera dan layanan eksternal yang disimulasikan.
-Tidak ada koneksi ke database asli. Inference memakai file YOLO asli secara
-lokal; skenario mencakup kedua mode lokasi, gagal kamera/GPS, retry upload,
+Tidak ada koneksi ke database asli. Tes model memakai file YOLO asli secara lokal. Tes pengiriman memakai hasil
+deteksi positif yang disimulasikan khusus build `e2e`; kamera sintetis juga
+diuji dengan YOLO asli untuk memastikan foto tanpa kerusakan ditolak.
+Skenario mencakup kedua mode lokasi, gagal kamera/GPS, retry upload,
 login/admin, perubahan ukuran viewport, dan tiga skrip regresi browser.
 Build pengujian berada di `dist-test`, terpisah dari `dist`.
 Detail cakupan dan batasan: [LOCAL-VERIFICATION.md](LOCAL-VERIFICATION.md).

@@ -23,7 +23,7 @@ export default defineConfig({
     { name: 'preview', testMatch: /flows\.spec\.js/, use: { baseURL: 'http://127.0.0.1:4175' } }
   ],
   webServer: [
-    { command: 'npm run dev -- --host 127.0.0.1 --port 5175 --strictPort', url: 'http://127.0.0.1:5175', env, reuseExistingServer: false },
-    { command: 'npm run build -- --outDir dist-test && npm run preview -- --host 127.0.0.1 --port 4175 --strictPort --outDir dist-test', url: 'http://127.0.0.1:4175', env, reuseExistingServer: false }
+    { command: 'npm run dev -- --mode e2e --host 127.0.0.1 --port 5175 --strictPort', url: 'http://127.0.0.1:5175', env, reuseExistingServer: false },
+    { command: 'npm run build -- --mode e2e --outDir dist-test && npm run preview -- --host 127.0.0.1 --port 4175 --strictPort --outDir dist-test', url: 'http://127.0.0.1:4175', env, reuseExistingServer: false }
   ]
 });

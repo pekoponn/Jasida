@@ -11,6 +11,7 @@
   try {
     supabase.from = (table) => {
       if (table === 'reports_with_coords') return { select: () => ({ order: () => ({
+        neq(column, value) { assert(column === 'status' && value === 'pending_duplicate_review', 'Unexpected status filter'); return this; },
         data: [{ id: 'test-report', user_id: 'test-user', lat: -7.45, lng: 112.7, status: 'open' }], error: null
       }) }) };
       if (table === 'profiles') return { select: () => ({ in: async () => ({

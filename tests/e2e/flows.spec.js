@@ -1,4 +1,83 @@
-import { test, expect, login, capture } from './fixtures.js';
+import { test, expect, login, capture, recoveryUrl } from './fixtures.js';
+
+test('email-only reset validates confirmation, handles unknown email and returns to login', async ({ page, backend }, testInfo) => {
+  await page.goto('/login');
+  await page.getByRole('button', { name: 'Lupa Sandi?' }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: testInfo.outputPath('email-reset-mobile.png') });
+  await page.getByLabel('Email', { exact: true }).fill('judge@example.test');
+  await page.getByLabel('Sandi baru', { exact: true }).fill('updated-password');
+  await page.getByLabel('Konfirmasi sandi baru').fill('different-password');
+  await page.getByRole('button', { name: 'Simpan Sandi Baru' }).click();
+  await expect(page.getByRole('alert')).toContainText('tidak cocok');
+  expect(backend.writes).toEqual([]);
+  await page.getByLabel('Konfirmasi sandi baru').fill('updated-password');
+  backend.recoveryFailure = true;
+  await page.getByRole('button', { name: 'Simpan Sandi Baru' }).click();
+  await expect(page.getByRole('alert')).toContainText('Email tidak terdaftar');
+  backend.recoveryFailure = false;
+  await page.getByRole('button', { name: 'Simpan Sandi Baru' }).click();
+  await expect(page.getByRole('status')).toContainText('Sandi berhasil diperbarui');
+  expect(backend.writes.at(-1)).toEqual({ type: 'direct-password', data: { email: 'judge@example.test', password: 'updated-password', confirmation: 'updated-password' } });
+  expect(backend.writes.filter(w => w.type === 'recover')).toHaveLength(0);
+  await page.getByRole('button', { name: 'Kembali ke masuk' }).click();
+  await expect(page.getByRole('button', { name: 'Masuk Sekarang' })).toBeVisible();
+});
+
+test('expired legacy recovery link offers email-only reset', async ({ page, backend }) => {
+  await page.goto('/login?mode=reset#error=access_denied&error_code=otp_expired&error_description=Expired');
+  await expect(page.getByRole('alert')).toContainText('kedaluwarsa');
+  await page.getByRole('button', { name: 'Reset dengan email terdaftar' }).click();
+  await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Simpan Sandi Baru' })).toBeVisible();
+  expect(backend.writes).toEqual([]);
+});
+
+for (const role of ['user', 'admin']) {
+  test(`${role} recovery link stays on password form and saves after validation`, async ({ page, backend }, testInfo) => {
+    backend.role = role;
+    await page.setViewportSize({ width: 390, height: 844 });
+    // Also cover recovery links sent to the Site URL instead of the requested redirect.
+    await page.goto(recoveryUrl(role === 'admin' ? '/' : '/login?mode=reset'));
+    await expect(page.getByLabel('Sandi baru', { exact: true })).toBeVisible();
+    await page.reload();
+    await page.getByLabel('Sandi baru', { exact: true }).fill('updated-password');
+    await page.getByLabel('Konfirmasi sandi baru').fill('different-password');
+    await page.getByRole('button', { name: 'Simpan Sandi Baru' }).click();
+    await expect(page.getByRole('alert')).toContainText('tidak cocok');
+    expect(backend.writes.filter(w => w.type === 'password')).toHaveLength(0);
+    await page.getByLabel('Konfirmasi sandi baru').fill('updated-password');
+    backend.updateFailure = true;
+    await page.getByRole('button', { name: 'Simpan Sandi Baru' }).click();
+    await expect(page.getByRole('alert')).toContainText('Password update failed');
+    backend.updateFailure = false;
+    await page.getByRole('button', { name: 'Simpan Sandi Baru' }).click();
+    await expect(page.getByRole('status')).toHaveText('Sandi berhasil diperbarui.');
+    await page.screenshot({ path: testInfo.outputPath('password-recovery-mobile.png') });
+    await page.getByRole('button', { name: 'Lanjutkan' }).click();
+    await expect(page).toHaveURL(role === 'admin' ? /\/admin$/ : /\/lapor$/);
+  });
+}
+
+test('accepted report retains its status in history detail', async ({ page, backend }) => {
+  backend.reports = [{ id: '99f9bd56-0000-4000-8000-000000000002', user_id: '00000000-0000-4000-8000-000000000001', status: 'accepted', damage_type: 'pothole', severity: 'sedang', hazard_score: 59, created_at: '2026-09-19T06:00:00Z', accepted_at: '2026-09-19T07:00:00Z', lat: -7.4478, lng: 112.7183 }];
+  await login(page);
+  await page.goto('/riwayat');
+  await expect(page.getByText('Diterima', { exact: true })).toBeVisible();
+  await page.getByText('Lihat Detail', { exact: true }).click();
+  await expect(page.getByText('Diterima', { exact: true })).toHaveCount(2);
+  await expect(page.getByText('Diverifikasi', { exact: true })).toBeVisible();
+});
+
+test('real YOLO rejects the synthetic camera frame without writing a report', async ({ page, backend }) => {
+  backend.realDetector = true;
+  await login(page);
+  await capture(page);
+  await expect(page.getByRole('heading', { name: 'Kerusakan Jalan Tidak Terdeteksi' })).toBeVisible({ timeout: 60000 });
+  expect(backend.writes).toEqual([]);
+  await page.getByRole('button', { name: 'Ambil Foto Ulang' }).click();
+  await expect(page.getByRole('button', { name: 'Ambil Foto', exact: true })).toBeEnabled();
+});
 
 test('public routes, login guards, navigation and responsive layout', async ({ page, backend }) => {
   for (const route of ['/', '/dashboard', '/peta', '/lapor', '/riwayat', '/login']) {
@@ -21,7 +100,7 @@ test('public routes, login guards, navigation and responsive layout', async ({ p
   expect(backend.writes).toEqual([]);
 });
 
-test('real mode captures camera, runs real YOLO, sends WebP in Sidoarjo', async ({ page, backend }) => {
+test('real location mode captures camera and sends WebP with a positive detector fixture', async ({ page, backend }) => {
   await login(page);
   await expect(page.getByRole('heading', { name: 'Buat Laporan Kerusakan Jalan' })).toBeVisible();
   await expect(page.locator('input[type=file]')).toHaveCount(0);
@@ -145,7 +224,7 @@ test('mobile competition mode fits viewport and camera permission can be retried
   await page.getByRole('button', { name: 'Mode Uji Coba (Bebas Lokasi)', exact: true }).click();
   await page.evaluate(() => { window.cameraDeniedForTest = false; });
   await page.getByRole('button', { name: 'Coba kamera lagi' }).click();
-  await expect(page.getByRole('button', { name: '📸 Ambil Foto', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Ambil Foto', exact: true })).toBeEnabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('competition-mobile.png'), fullPage: true });
   await capture(page);

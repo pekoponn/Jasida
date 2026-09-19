@@ -29,11 +29,13 @@ export default function App() {
 }
 
 function AppContent() {
-  const { profile } = useAuth();
+  const { profile, passwordRecovery } = useAuth();
   const isAdmin = profile?.role === 'admin';
   const location = useLocation();
   const isMobileDevice = useIsMobileDevice();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  if (passwordRecovery && location.pathname !== '/login') return <Navigate to="/login?mode=reset" replace />;
 
   if (location.pathname === '/login') {
     return (

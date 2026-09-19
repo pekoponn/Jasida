@@ -1,5 +1,6 @@
+import PasswordResetForm from '../components/PasswordResetForm.jsx';
 import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext.jsx';
 import workerIllustration from '../assets/worker-illustration.png';
 import brandLogo from '../assets/brand-logo.png';
@@ -7,8 +8,10 @@ import Navbar from '../components/Navbar.jsx';
 import { useIsMobileDevice } from '../lib/useIsMobileDevice.js';
 
 export default function LoginPage() {
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, user, passwordRecovery } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const resetRequested = new URLSearchParams(location.search).get('mode') === 'reset';
   const isMobileDevice = useIsMobileDevice();
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [email, setEmail] = useState('');
@@ -18,7 +21,10 @@ export default function LoginPage() {
   const [notice, setNotice] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  if (user) {
+  const recoveryMode = passwordRecovery || resetRequested;
+  const showRecovery = recoveryMode || mode === 'forgot';
+
+  if (user && !showRecovery) {
     return <Navigate to="/redirect" replace />;
   }
 
@@ -106,9 +112,10 @@ export default function LoginPage() {
             style={mobileIllustrationImg}
           />
           <h1 className="display" style={{ fontSize: 32, marginBottom: 12, color: '#ffffff', userSelect: 'none', cursor: 'default' }}>
-            {mode === 'login' ? 'Masuk' : 'Daftar'}
+            {showRecovery ? (recoveryMode ? 'Atur Sandi Baru' : 'Lupa Sandi') : mode === 'login' ? 'Masuk' : 'Daftar'}
           </h1>
 
+          {showRecovery ? <PasswordResetForm reset={recoveryMode} inputStyle={inputStyle} buttonStyle={submitBtn} linkStyle={linkBtn} onBack={() => { setMode('login'); navigate('/login', { replace: true }); }} /> : <>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 20 }}>
             {mode === 'register' && (
               <Field label="Username">
@@ -146,7 +153,7 @@ export default function LoginPage() {
             {mode === 'login' && (
               <button
                 type="button"
-                onClick={() => alert('Fitur reset password belum tersedia.')}
+                onClick={() => { setMode('forgot'); setError(null); setNotice(null); }}
                 style={forgotLink}
               >
                 Lupa Sandi?
@@ -171,6 +178,7 @@ export default function LoginPage() {
               {mode === 'login' ? 'Daftar di sini' : 'Masuk di sini'}
             </button>
           </p>
+          </>}
         </div>
         </div>
       </div>

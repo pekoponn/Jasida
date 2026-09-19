@@ -8,6 +8,7 @@ const AVATAR_COLORS = ['#E8A93B', '#E0561F', '#191B1F', '#24506F'];
 
 const STATUS_META = {
   open: { label: 'Menunggu Verifikasi', bg: '#FFF3CD', color: '#8A6D00' },
+  accepted: { label: 'Diterima', bg: '#E7F1FF', color: '#1c5dcf' },
   in_progress: { label: 'Diproses', bg: '#E7F1FF', color: '#1c5dcf' },
   resolved: { label: 'Selesai', bg: '#E6F8EC', color: '#1c8a4b' },
   rejected: { label: 'Ditolak', bg: '#FDECEE', color: '#A61C24' }
