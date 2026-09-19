@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient.js';
 import { useAuth } from '../lib/AuthContext.jsx';
 
@@ -9,6 +10,8 @@ export default function PasswordResetForm({ reset, inputStyle, buttonStyle, link
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -67,10 +70,20 @@ export default function PasswordResetForm({ reset, inputStyle, buttonStyle, link
       </label>}
       <>
         <label style={field}>Sandi baru
-          <input type="password" autoComplete="new-password" minLength={6} maxLength={128} required value={password} onChange={e => setPassword(e.target.value)} style={inputStyle} />
+          <span style={passwordField}>
+            <input type={showPassword ? 'text' : 'password'} autoComplete="new-password" minLength={6} maxLength={128} required value={password} onChange={e => setPassword(e.target.value)} style={{ ...inputStyle, width: '100%', paddingRight: 48, boxSizing: 'border-box' }} />
+            <button type="button" aria-label={showPassword ? 'Sembunyikan sandi baru' : 'Tampilkan sandi baru'} aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)} style={visibilityButton}>
+              {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+            </button>
+          </span>
         </label>
         <label style={field}>Konfirmasi sandi baru
-          <input type="password" autoComplete="new-password" minLength={6} maxLength={128} required value={confirmation} onChange={e => setConfirmation(e.target.value)} style={inputStyle} />
+          <span style={passwordField}>
+            <input type={showConfirmation ? 'text' : 'password'} autoComplete="new-password" minLength={6} maxLength={128} required value={confirmation} onChange={e => setConfirmation(e.target.value)} style={{ ...inputStyle, width: '100%', paddingRight: 48, boxSizing: 'border-box' }} />
+            <button type="button" aria-label={showConfirmation ? 'Sembunyikan konfirmasi sandi' : 'Tampilkan konfirmasi sandi'} aria-pressed={showConfirmation} onClick={() => setShowConfirmation(value => !value)} style={visibilityButton}>
+              {showConfirmation ? <EyeOff size={19} /> : <Eye size={19} />}
+            </button>
+          </span>
         </label>
       </>
       <button type="submit" disabled={busy} style={buttonStyle}>{busy ? 'Memproses…' : 'Simpan Sandi Baru'}</button>
@@ -85,3 +98,21 @@ export default function PasswordResetForm({ reset, inputStyle, buttonStyle, link
       }}>{editing ? 'Reset dengan email terdaftar' : 'Kembali ke masuk'}</button>}
   </div>;
 }
+
+const passwordField = { position: 'relative', display: 'block' };
+const visibilityButton = {
+  position: 'absolute',
+  top: '50%',
+  right: 10,
+  transform: 'translateY(-50%)',
+  display: 'grid',
+  placeItems: 'center',
+  width: 32,
+  height: 32,
+  padding: 0,
+  border: 0,
+  borderRadius: 6,
+  background: 'transparent',
+  color: '#fff',
+  cursor: 'pointer'
+};

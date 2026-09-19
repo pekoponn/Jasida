@@ -1,12 +1,23 @@
 import { test, expect, login, capture, recoveryUrl } from './fixtures.js';
 
-test('email-only reset validates confirmation, handles unknown email and returns to login', async ({ page, backend }, testInfo) => {
+test('email-only reset supports visibility and copy-paste, handles unknown email and returns to login', async ({ page, context, backend }, testInfo) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.goto('/login');
   await page.getByRole('button', { name: 'Lupa Sandi?' }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: testInfo.outputPath('email-reset-mobile.png') });
   await page.getByLabel('Email', { exact: true }).fill('judge@example.test');
   await page.getByLabel('Sandi baru', { exact: true }).fill('updated-password');
+  await page.getByRole('button', { name: 'Tampilkan sandi baru' }).click();
+  await expect(page.getByLabel('Sandi baru', { exact: true })).toHaveAttribute('type', 'text');
+  await page.getByLabel('Sandi baru', { exact: true }).selectText();
+  await page.getByLabel('Sandi baru', { exact: true }).press('ControlOrMeta+C');
+  await page.getByLabel('Konfirmasi sandi baru').press('ControlOrMeta+V');
+  await expect(page.getByLabel('Konfirmasi sandi baru')).toHaveValue('updated-password');
+  await page.getByRole('button', { name: 'Tampilkan konfirmasi sandi' }).click();
+  await expect(page.getByLabel('Konfirmasi sandi baru')).toHaveAttribute('type', 'text');
+  await page.getByRole('button', { name: 'Sembunyikan sandi baru' }).click();
+  await expect(page.getByLabel('Sandi baru', { exact: true })).toHaveAttribute('type', 'password');
   await page.getByLabel('Konfirmasi sandi baru').fill('different-password');
   await page.getByRole('button', { name: 'Simpan Sandi Baru' }).click();
   await expect(page.getByRole('alert')).toContainText('tidak cocok');
