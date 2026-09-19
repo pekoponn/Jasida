@@ -54,7 +54,7 @@ export default function LandingPage() {
       fillOpacity: 0.6,
       color: '#A61C24',
       weight: 1,
-      dashArray: '3'
+      dashArray: '3',
     };
   }
 
@@ -76,20 +76,29 @@ export default function LandingPage() {
         <div className="rw-hero-container">
           <div className="rw-hero-text">
             <h1 className="rw-hero-title" style={heroTitle}>
-              Jalan <span style={{ color: '#A61C24' }}>Rusak</span> Mengancam?<br />
+              Jalan <span style={{ color: '#A61C24' }}>Rusak</span> Mengancam?
+              <br />
               Lapor Cepat, Tindak Cermat.
             </h1>
             <p className="rw-hero-subtitle" style={heroSubtitle}>
-              Platform pelaporan infrastruktur berbasis Artificial Intelligence di Sidoarjo.
-              Bantu pemerintah mendeteksi titik bahaya secara real-time demi keselamatan perjalanan warga.
+              Platform pelaporan infrastruktur berbasis Artificial Intelligence di Sidoarjo. Bantu
+              pemerintah mendeteksi titik bahaya secara real-time demi keselamatan perjalanan warga.
             </p>
             <div className="rw-hero-buttons" style={{ marginTop: 28 }}>
-              <Link to="/lapor" style={primaryBtn}>Mulai Lapor</Link>
-              <a href="#peta" style={outlineBtn}>Pantau Peta</a>
+              <Link to="/lapor" style={primaryBtn}>
+                Mulai Lapor
+              </Link>
+              <a href="#peta" style={outlineBtn}>
+                Pantau Peta
+              </a>
             </div>
           </div>
           <div className="rw-hero-image">
-            <img src={heroIllustration} alt="Ilustrasi Jasida" style={{ width: '100%', height: 'auto' }} />
+            <img
+              src={heroIllustration}
+              alt="Ilustrasi Jasida"
+              style={{ width: '100%', height: 'auto' }}
+            />
           </div>
         </div>
       </section>
@@ -124,35 +133,58 @@ export default function LandingPage() {
           Peta Persebaran <span style={{ color: '#A61C24' }}>Titik Darurat</span> Sidoarjo
         </h2>
         <p className="rw-section-subtitle" style={sectionSubtitle}>
-          Setiap titik merah di peta adalah laporan warga yang siap ditindaklanjuti.<br />
+          Setiap titik merah di peta adalah laporan warga yang siap ditindaklanjuti.
+          <br />
           Cek wilayahmu dan pastikan jalanan sekitarmu aman.
         </p>
 
-                {!loading && (
+        {!loading && (
           <div className="rw-map-box" style={mapBox}>
             <style>{leafletZIndexFixCss}</style>
-            <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
+            <MapContainer
+              center={DEFAULT_CENTER}
+              zoom={DEFAULT_ZOOM}
+              style={{ height: '100%', width: '100%' }}
+              scrollWheelZoom={false}
+            >
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution="© OpenStreetMap contributors"
               />
               <GeoJSON data={kecamatanGeoJSON} style={styleFeature} onEachFeature={onEachFeature} />
-              {reports.filter((r) => typeof r.lat === 'number' && typeof r.lng === 'number').map((r) => (
-                <CircleMarker
-                  key={r.id}
-                  center={[r.lat, r.lng]}
-                  radius={8}
-                  pathOptions={{ color: '#fff', weight: 2, fillColor: '#A61C24', fillOpacity: 0.9 }}
-                >
-                  <Popup minWidth={180}>
-                    {r.imageUrl && (
-                      <img src={r.imageUrl} alt="" style={{ width: '100%', maxHeight: 120, objectFit: 'cover', borderRadius: 6, marginBottom: 6 }} />
-                    )}
-                    <div style={{ fontWeight: 700 }}>{damageTypeDisplayLabel(r.damage_type)}</div>
-                    <div style={{ fontSize: 12 }}>Skor {r.hazard_score}</div>
-                  </Popup>
-                </CircleMarker>
-              ))}
+              {reports
+                .filter((r) => typeof r.lat === 'number' && typeof r.lng === 'number')
+                .map((r) => (
+                  <CircleMarker
+                    key={r.id}
+                    center={[r.lat, r.lng]}
+                    radius={8}
+                    pathOptions={{
+                      color: '#fff',
+                      weight: 2,
+                      fillColor: '#A61C24',
+                      fillOpacity: 0.9,
+                    }}
+                  >
+                    <Popup minWidth={180}>
+                      {r.imageUrl && (
+                        <img
+                          src={r.imageUrl}
+                          alt=""
+                          style={{
+                            width: '100%',
+                            maxHeight: 120,
+                            objectFit: 'cover',
+                            borderRadius: 6,
+                            marginBottom: 6,
+                          }}
+                        />
+                      )}
+                      <div style={{ fontWeight: 700 }}>{damageTypeDisplayLabel(r.damage_type)}</div>
+                      <div style={{ fontSize: 12 }}>Skor {r.hazard_score}</div>
+                    </Popup>
+                  </CircleMarker>
+                ))}
             </MapContainer>
           </div>
         )}
@@ -172,9 +204,16 @@ function StepCard({ number, title, desc }) {
     <div style={stepCard}>
       <div style={stepNumberWrap}>
         <div style={stepNumberCircle}>
-          <svg width="38" height="38" viewBox="0 0 38 38" style={{ position: 'absolute', top: 0, left: 0 }}>
+          <svg
+            width="38"
+            height="38"
+            viewBox="0 0 38 38"
+            style={{ position: 'absolute', top: 0, left: 0 }}
+          >
             <circle
-              cx="19" cy="19" r="17"
+              cx="19"
+              cy="19"
+              r="17"
               fill="none"
               stroke="#A61C24"
               strokeWidth="1.5"
@@ -192,8 +231,25 @@ function StepCard({ number, title, desc }) {
 
 function LegendDot({ color, label }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 500, color: '#333' }}>
-      <span style={{ width: 20, height: 20, borderRadius: '50%', background: color, display: 'inline-block' }} />
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        fontSize: 14,
+        fontWeight: 500,
+        color: '#333',
+      }}
+    >
+      <span
+        style={{
+          width: 20,
+          height: 20,
+          borderRadius: '50%',
+          background: color,
+          display: 'inline-block',
+        }}
+      />
       {label}
     </div>
   );
@@ -205,12 +261,15 @@ const page = {
   color: '#111',
   userSelect: 'none',
   WebkitUserSelect: 'none',
-  cursor: 'default'
+  cursor: 'default',
 };
 
 const heroSection = {
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  padding: '60px 5%', background: '#fff'
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '60px 5%',
+  background: '#fff',
 };
 
 const heroTitle = {
@@ -218,21 +277,32 @@ const heroTitle = {
   fontSize: 48,
   lineHeight: '55px',
   margin: 0,
-  fontWeight: 600
+  fontWeight: 600,
 };
 
 const heroSubtitle = { fontSize: 17, color: '#555', marginTop: 20, lineHeight: 1.6 };
 
 const primaryBtn = {
-  padding: '14px 32px', borderRadius: 28, background: '#A61C24',
-  color: '#fff', fontWeight: 600, fontSize: 15, textDecoration: 'none',
-  cursor: 'pointer'
+  padding: '14px 32px',
+  borderRadius: 28,
+  background: '#A61C24',
+  color: '#fff',
+  fontWeight: 600,
+  fontSize: 15,
+  textDecoration: 'none',
+  cursor: 'pointer',
 };
 
 const outlineBtn = {
-  padding: '14px 32px', borderRadius: 28, border: '1.5px solid #A61C24',
-  color: '#A61C24', background: '#fff', fontWeight: 600, fontSize: 15, textDecoration: 'none',
-  cursor: 'pointer'
+  padding: '14px 32px',
+  borderRadius: 28,
+  border: '1.5px solid #A61C24',
+  color: '#A61C24',
+  background: '#fff',
+  fontWeight: 600,
+  fontSize: 15,
+  textDecoration: 'none',
+  cursor: 'pointer',
 };
 
 const howSection = { padding: '80px 5%', background: '#FFF5F5' };
@@ -241,35 +311,63 @@ const sectionTitle = {
   fontSize: 32,
   fontWeight: 700,
   textAlign: 'center',
-  margin: 0
+  margin: 0,
 };
-const sectionSubtitle = { fontSize: 15, color: '#666', textAlign: 'center', maxWidth: 600, margin: '14px auto 0', lineHeight: 1.5 };
+const sectionSubtitle = {
+  fontSize: 15,
+  color: '#666',
+  textAlign: 'center',
+  maxWidth: 600,
+  margin: '14px auto 0',
+  lineHeight: 1.5,
+};
 
 const stepsGrid = {
-  display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-  gap: 28, maxWidth: 1100, margin: '48px auto 0'
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+  gap: 28,
+  maxWidth: 1100,
+  margin: '48px auto 0',
 };
 
 const stepCard = {
-  background: '#fff', padding: 28, display: 'flex', flexDirection: 'column', gap: 14,
-  boxShadow: '0 4px 12px rgba(0,0,0,0.03)', borderRadius: 8
+  background: '#fff',
+  padding: 28,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 14,
+  boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+  borderRadius: 8,
 };
 
 const stepNumberWrap = { display: 'flex', alignItems: 'center', gap: 12 };
 const stepNumberCircle = {
-  position: 'relative', width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center'
+  position: 'relative',
+  width: 38,
+  height: 38,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
 };
 
 const stepNumberText = {
-  position: 'relative', zIndex: 1, color: '#A61C24', fontWeight: 700, fontSize: 15
+  position: 'relative',
+  zIndex: 1,
+  color: '#A61C24',
+  fontWeight: 700,
+  fontSize: 15,
 };
 
 const mapSection = { padding: '80px 5% 100px', background: '#fff' };
 const mapBox = {
-  maxWidth: 1100, margin: '40px auto 24px', height: 460,
-  borderRadius: 16, overflow: 'hidden', border: '2px dashed #A61C24',
+  maxWidth: 1100,
+  margin: '40px auto 24px',
+  height: 460,
+  borderRadius: 16,
+  overflow: 'hidden',
+  border: '2px dashed #A61C24',
   position: 'relative',
-  isolation: 'isolate'
+  isolation: 'isolate',
 };
 
 const leafletZIndexFixCss = `
@@ -279,4 +377,10 @@ const leafletZIndexFixCss = `
     z-index: 400;
   }
 `;
-const legendRow = { display: 'flex', justifyContent: 'center', gap: 40, flexWrap: 'wrap', marginTop: 24 };
+const legendRow = {
+  display: 'flex',
+  justifyContent: 'center',
+  gap: 40,
+  flexWrap: 'wrap',
+  marginTop: 24,
+};

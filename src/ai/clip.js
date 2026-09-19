@@ -1,7 +1,6 @@
 import { ort } from './runtime.js';
 import { loadImage, resizeSquare, canvasToClipTensor } from './preprocess';
 
-
 const MODEL_URL = '/models/clip-image-encoder.onnx';
 const INPUT_SIZE = 224;
 export const EMBEDDING_DIM = 512;
@@ -55,8 +54,9 @@ export function cosineSimilarity(a, b) {
 export async function embedImageMock(file) {
   await new Promise((r) => setTimeout(r, 400));
   const seed = Array.from(file.name).reduce((s, c) => s + c.charCodeAt(0), file.size);
-  const vec = Array.from({ length: EMBEDDING_DIM }, (_, i) =>
-    Math.sin(seed * (i + 1)) // deterministic pseudo-random
+  const vec = Array.from(
+    { length: EMBEDDING_DIM },
+    (_, i) => Math.sin(seed * (i + 1)) // deterministic pseudo-random
   );
   return l2Normalize(vec);
 }

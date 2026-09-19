@@ -54,11 +54,10 @@ Deployment pertama menggunakan Vercel CLI dari folder lokal. Workflow
 push ke `main`, setelah `VERCEL_TOKEN` dipasang di GitHub Actions Secrets
 dan workflow dipush. Akses kolaborator GitHub dan akses Vercel terpisah.
 
-Versi kerja bersama menggunakan branch `main`, yang menggabungkan update
-admin dan perbaikan deploy/WebP. Ambil pembaruan sebelum mulai bekerja;
-lihat `AUDIT-AND-HANDOFF.md` untuk langkahnya. Vercel memeriksa akses penulis
-commit pada repo private, sehingga akses GitHub saja belum menjamin akun
-tersebut bisa melakukan deployment ke workspace Vercel ini.
+Versi kerja bersama menggunakan branch `main`. Ambil pembaruan sebelum mulai
+bekerja dengan `git pull --ff-only origin main`. Vercel memeriksa akses penulis
+commit pada repo private, sehingga akses GitHub saja belum menjamin akun tersebut
+bisa melakukan deployment ke workspace Vercel ini.
 
 Repo pribadi `pekoponn/Jasida` tidak dapat dihubungkan lewat integrasi Git
 native oleh kolaborator `iszz100`. Workflow menggunakan CLI di GitHub Actions

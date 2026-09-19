@@ -1,7 +1,7 @@
 const SEVERITY_META = {
   aman: { label: 'Rendah', color: 'var(--sev-low)' },
   sedang: { label: 'Sedang', color: 'var(--sev-medium)' },
-  darurat: { label: 'Darurat', color: 'var(--sev-emergency)' }
+  darurat: { label: 'Darurat', color: 'var(--sev-emergency)' },
 };
 
 export default function SeverityBadge({ severity }) {
@@ -17,7 +17,7 @@ export default function SeverityBadge({ severity }) {
         background: `color-mix(in srgb, ${meta.color} 15%, white)`,
         color: meta.color,
         fontSize: 14,
-        fontWeight: 700
+        fontWeight: 700,
       }}
     >
       <span

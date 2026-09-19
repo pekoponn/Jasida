@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
 } from 'recharts';
 import { FileText, CheckCircle2, Clock3, AlertTriangle } from 'lucide-react';
 import { fetchAllReportsForAdmin, updateReportStatus, resolveReport } from '../lib/reports.js';
@@ -48,9 +56,17 @@ async function reverseGeocode(lat, lng) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const addr = data.address ?? {};
-      const jalan = addr.road || addr.pedestrian || addr.neighbourhood || addr.suburb || data.display_name?.split(',')[0] || null;
+      const jalan =
+        addr.road ||
+        addr.pedestrian ||
+        addr.neighbourhood ||
+        addr.suburb ||
+        data.display_name?.split(',')[0] ||
+        null;
       const kelurahan = addr.village || addr.suburb || addr.city_district || '';
-      const result = jalan ? `${jalan}${kelurahan ? ', ' + kelurahan : ''}` : (data.display_name ?? '-');
+      const result = jalan
+        ? `${jalan}${kelurahan ? ', ' + kelurahan : ''}`
+        : (data.display_name ?? '-');
       geocodeCache.set(key, result);
       persistGeocodeCache();
       return result;
@@ -67,7 +83,7 @@ export const STATUS_LABEL = {
   accepted: 'Menunggu Dikerjakan',
   in_progress: 'Diproses',
   resolved: 'Selesai',
-  pending_duplicate_review: 'Menunggu Validasi Admin'
+  pending_duplicate_review: 'Menunggu Validasi Admin',
 };
 
 export const SEVERITY_STYLE = {
@@ -77,10 +93,10 @@ export const SEVERITY_STYLE = {
   medium: { color: '#f08c00', label: 'Sedang' },
   high: { color: '#e8590c', label: 'Tinggi' },
   darurat: { color: '#e03131', label: 'Darurat' },
-  emergency: { color: '#e03131', label: 'Darurat' }
+  emergency: { color: '#e03131', label: 'Darurat' },
 };
 
-const DONUT_COLORS = ['#2f9e44', '#f5c518', '#e03131']; 
+const DONUT_COLORS = ['#2f9e44', '#f5c518', '#e03131'];
 
 export default function AdminDashboardPage() {
   const location = useLocation();
@@ -126,7 +142,9 @@ export default function AdminDashboardPage() {
     setUpdatingId(report.id);
     try {
       await resolveReport(report.id, file);
-      setReports((prev) => prev.map((r) => (r.id === report.id ? { ...r, status: 'resolved' } : r)));
+      setReports((prev) =>
+        prev.map((r) => (r.id === report.id ? { ...r, status: 'resolved' } : r))
+      );
     } catch (err) {
       console.error(err);
       alert('Gagal menandai selesai: ' + err.message);
@@ -147,7 +165,9 @@ export default function AdminDashboardPage() {
   function weekOverWeek(filterFn) {
     const now = Date.now();
     const oneWeek = 7 * 24 * 60 * 60 * 1000;
-    const thisWeek = reports.filter((r) => filterFn(r) && now - new Date(r.created_at).getTime() <= oneWeek).length;
+    const thisWeek = reports.filter(
+      (r) => filterFn(r) && now - new Date(r.created_at).getTime() <= oneWeek
+    ).length;
     const lastWeek = reports.filter((r) => {
       const age = now - new Date(r.created_at).getTime();
       return filterFn(r) && age > oneWeek && age <= 2 * oneWeek;
@@ -156,17 +176,23 @@ export default function AdminDashboardPage() {
     return Math.round(((thisWeek - lastWeek) / lastWeek) * 100);
   }
 
-  const trendPct = useMemo(() => ({
-    total: weekOverWeek(() => true),
-    resolved: weekOverWeek((r) => r.status === 'resolved'),
-    open: weekOverWeek((r) => r.status === 'open'),
-    darurat: weekOverWeek((r) => r.severity === 'darurat' || r.severity === 'emergency'),
-  }), [reports]);
+  const trendPct = useMemo(
+    () => ({
+      total: weekOverWeek(() => true),
+      resolved: weekOverWeek((r) => r.status === 'resolved'),
+      open: weekOverWeek((r) => r.status === 'open'),
+      darurat: weekOverWeek((r) => r.severity === 'darurat' || r.severity === 'emergency'),
+    }),
+    [reports]
+  );
 
   const trendData = useMemo(() => {
     const byDay = {};
     reports.forEach((r) => {
-      const day = new Date(r.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+      const day = new Date(r.created_at).toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+      });
       if (!byDay[day]) byDay[day] = { day, masuk: 0, selesai: 0 };
       byDay[day].masuk++;
       if (r.status === 'resolved') byDay[day].selesai++;
@@ -190,7 +216,9 @@ export default function AdminDashboardPage() {
 
   return (
     <section>
-      <h1 className="display" style={{ fontSize: 24, marginBottom: 4 }}>Dashboard Admin</h1>
+      <h1 className="display" style={{ fontSize: 24, marginBottom: 4 }}>
+        Dashboard Admin
+      </h1>
       <p style={{ color: 'var(--color-ink-soft)', marginTop: 0, fontSize: 14 }}>
         Pantau dan proses laporan kerusakan jalan dari warga.
       </p>
@@ -245,13 +273,29 @@ export default function AdminDashboardPage() {
                       <XAxis dataKey="day" fontSize={11} />
                       <YAxis allowDecimals={false} fontSize={11} />
                       <Tooltip />
-                      <Line type="monotone" dataKey="masuk" name="Masuk" stroke="#e03131" strokeWidth={2} dot={{ r: 3 }} />
-                      <Line type="monotone" dataKey="selesai" name="Selesai" stroke="#2f9e44" strokeWidth={2} dot={{ r: 3 }} />
+                      <Line
+                        type="monotone"
+                        dataKey="masuk"
+                        name="Masuk"
+                        stroke="#e03131"
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="selesai"
+                        name="Selesai"
+                        stroke="#2f9e44"
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                      />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>Belum ada data laporan.</p>
+                <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>
+                  Belum ada data laporan.
+                </p>
               )}
             </div>
 
@@ -262,7 +306,13 @@ export default function AdminDashboardPage() {
                   <div style={{ width: 140, height: 140, flexShrink: 0 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={severityBuckets} dataKey="count" innerRadius={38} outerRadius={65} paddingAngle={2}>
+                        <Pie
+                          data={severityBuckets}
+                          dataKey="count"
+                          innerRadius={38}
+                          outerRadius={65}
+                          paddingAngle={2}
+                        >
                           {severityBuckets.map((b, i) => (
                             <Cell key={b.key} fill={DONUT_COLORS[i]} />
                           ))}
@@ -274,17 +324,31 @@ export default function AdminDashboardPage() {
                     {severityBuckets.map((b, i) => {
                       const pct = reports.length ? Math.round((b.count / reports.length) * 100) : 0;
                       return (
-                        <div key={b.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-                          <span style={{ width: 10, height: 10, borderRadius: '50%', background: DONUT_COLORS[i] }} />
+                        <div
+                          key={b.key}
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}
+                        >
+                          <span
+                            style={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: '50%',
+                              background: DONUT_COLORS[i],
+                            }}
+                          />
                           <span style={{ minWidth: 110 }}>{b.label}</span>
-                          <strong>{b.count} ({pct}%)</strong>
+                          <strong>
+                            {b.count} ({pct}%)
+                          </strong>
                         </div>
                       );
                     })}
                   </div>
                 </div>
               ) : (
-                <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>Belum ada data.</p>
+                <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>
+                  Belum ada data.
+                </p>
               )}
             </div>
           </div>
@@ -297,7 +361,16 @@ export default function AdminDashboardPage() {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
-                  <tr style={{ background: '#A61C24', color: '#fff', textAlign: 'left', position: 'sticky', top: 0, zIndex: 10 }}>
+                  <tr
+                    style={{
+                      background: '#A61C24',
+                      color: '#fff',
+                      textAlign: 'left',
+                      position: 'sticky',
+                      top: 0,
+                      zIndex: 10,
+                    }}
+                  >
                     <th style={th}>Kode</th>
                     <th style={th}>Nama Pelapor</th>
                     <th style={th}>Lokasi</th>
@@ -311,7 +384,11 @@ export default function AdminDashboardPage() {
                 </thead>
                 <tbody>
                   {reports.length === 0 && (
-                    <tr><td style={td} colSpan={9}>Tidak ada laporan.</td></tr>
+                    <tr>
+                      <td style={td} colSpan={9}>
+                        Tidak ada laporan.
+                      </td>
+                    </tr>
                   )}
                   {reports.map((r) => (
                     <ReportRowTable
@@ -338,11 +415,24 @@ function SummaryCard({ icon, iconBg, label, value, trend, invert }) {
   const badColor = invert ? '#2f9e44' : '#e03131';
   return (
     <div style={summaryCard}>
-      <div style={{ width: 44, height: 44, borderRadius: 12, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 12,
+          background: iconBg,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 10,
+        }}
+      >
         {icon}
       </div>
       <div style={{ fontSize: 13, color: 'var(--color-ink-soft)' }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 800, marginTop: 2 }}>{value.toLocaleString('id-ID')}</div>
+      <div style={{ fontSize: 26, fontWeight: 800, marginTop: 2 }}>
+        {value.toLocaleString('id-ID')}
+      </div>
       {trend !== null && trend !== undefined && (
         <div style={{ fontSize: 12, marginTop: 6, color: isUp ? goodColor : badColor }}>
           {isUp ? '↑' : '↓'} {Math.abs(trend)}% dari minggu lalu
@@ -367,7 +457,9 @@ function ReportRowTable({ report, updating, onStatusChange, onResolve }) {
     reverseGeocode(lat, long).then((result) => {
       if (!cancelled) setLokasi(result);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [lat, long]);
 
   return (
@@ -382,11 +474,21 @@ function ReportRowTable({ report, updating, onStatusChange, onResolve }) {
         <ZoomableImage
           src={report.imageUrl}
           alt={damageTypeDisplayLabel(report.damage_type)}
-          style={{ width: 56, height: 56, minWidth: 56, objectFit: 'cover', objectPosition: 'center', borderRadius: 6, display: 'block' }}
+          style={{
+            width: 56,
+            height: 56,
+            minWidth: 56,
+            objectFit: 'cover',
+            objectPosition: 'center',
+            borderRadius: 6,
+            display: 'block',
+          }}
         />
       </td>
       <td style={td}>
-        <span style={{ ...badge, background: style.color }}>{style.label} · {report.hazard_score}</span>
+        <span style={{ ...badge, background: style.color }}>
+          {style.label} · {report.hazard_score}
+        </span>
       </td>
       <td style={td}>{STATUS_LABEL[report.status] ?? report.status}</td>
     </tr>
@@ -394,22 +496,26 @@ function ReportRowTable({ report, updating, onStatusChange, onResolve }) {
 }
 
 const badge = {
-  display: 'inline-block', padding: '3px 10px', borderRadius: 999,
-  color: '#fff', fontSize: 12, fontWeight: 700
+  display: 'inline-block',
+  padding: '3px 10px',
+  borderRadius: 999,
+  color: '#fff',
+  fontSize: 12,
+  fontWeight: 700,
 };
 
 const summaryGrid = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
   gap: 16,
-  marginTop: 20
+  marginTop: 20,
 };
 
 const summaryCard = {
   padding: '18px 20px',
   background: 'var(--color-surface)',
   borderRadius: 'var(--radius-lg)',
-  boxShadow: 'var(--shadow-card)'
+  boxShadow: 'var(--shadow-card)',
 };
 
 const panelCard = {
@@ -417,7 +523,7 @@ const panelCard = {
   padding: 16,
   background: 'var(--color-surface)',
   borderRadius: 'var(--radius-lg)',
-  boxShadow: 'var(--shadow-card)'
+  boxShadow: 'var(--shadow-card)',
 };
 
 const panelTitle = { fontSize: 15, fontWeight: 700, margin: 0 };

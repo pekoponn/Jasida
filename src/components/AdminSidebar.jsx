@@ -16,7 +16,9 @@ export default function AdminSidebar({ mobileOpen = false, onClose }) {
   useEffect(() => {
     if (mobileOpen) {
       document.body.style.overflow = 'hidden';
-      return () => { document.body.style.overflow = ''; };
+      return () => {
+        document.body.style.overflow = '';
+      };
     }
   }, [mobileOpen]);
 
@@ -30,14 +32,25 @@ export default function AdminSidebar({ mobileOpen = false, onClose }) {
         <div style={logoRow}>
           <img src={jasidaLogo} alt="Jasida" style={{ height: 36 }} />
           <span style={brandText}>Jasida</span>
-          <button onClick={onClose} className="admin-sidebar-close" style={closeBtn} aria-label="Tutup menu">
+          <button
+            onClick={onClose}
+            className="admin-sidebar-close"
+            style={closeBtn}
+            aria-label="Tutup menu"
+          >
             <X size={20} color="#fff" />
           </button>
         </div>
 
         <nav style={{ marginTop: 28, display: 'flex', flexDirection: 'column', gap: 4 }}>
           {MENU.map(({ to, label, icon: Icon, end }) => (
-            <NavLink key={to} to={to} end={end} onClick={onClose} style={({ isActive }) => itemStyle(isActive)}>
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              onClick={onClose}
+              style={({ isActive }) => itemStyle(isActive)}
+            >
               <Icon size={18} />
               <span>{label}</span>
             </NavLink>

@@ -6,18 +6,18 @@ const MATERIAL_TABLE = {
   pothole: [
     { name: 'Aspal hotmix', unit: 'kg', basePricePerUnit: 1300, baseQuantity: 60 },
     { name: 'Agregat batu pecah', unit: 'kg', basePricePerUnit: 1200, baseQuantity: 40 },
-    { name: 'Tack coat (aspal cair)', unit: 'liter', basePricePerUnit: 6000, baseQuantity: 5 }
+    { name: 'Tack coat (aspal cair)', unit: 'liter', basePricePerUnit: 6000, baseQuantity: 5 },
   ],
   crack: [
     { name: 'Sealant aspal', unit: 'kg', basePricePerUnit: 35000, baseQuantity: 4 },
     { name: 'Pasir halus', unit: 'kg', basePricePerUnit: 300, baseQuantity: 10 },
-    { name: 'Semen', unit: 'kg', basePricePerUnit: 1700, baseQuantity: 8 }
+    { name: 'Semen', unit: 'kg', basePricePerUnit: 1700, baseQuantity: 8 },
   ],
   other_corruption: [
     { name: 'Material tambal sulam umum', unit: 'kg', basePricePerUnit: 1300, baseQuantity: 30 },
     { name: 'Pasir', unit: 'kg', basePricePerUnit: 300, baseQuantity: 10 },
-    { name: 'Semen', unit: 'kg', basePricePerUnit: 1700, baseQuantity: 8 }
-  ]
+    { name: 'Semen', unit: 'kg', basePricePerUnit: 1700, baseQuantity: 8 },
+  ],
 };
 
 function fitLinearRegression(points) {
@@ -72,7 +72,7 @@ export async function estimateMaterialsAndCost({ damageType, hazardScore, areaPc
       totalCost: sumItems(items),
       isLearned: true,
       sampleSize: usable.length,
-      confidenceNote: `Total biaya disesuaikan berdasarkan ${usable.length} data pengerjaan nyata sebelumnya untuk jenis kerusakan ini. Rincian per-material tetap perkiraan awal — cek dan sesuaikan.`
+      confidenceNote: `Total biaya disesuaikan berdasarkan ${usable.length} data pengerjaan nyata sebelumnya untuk jenis kerusakan ini. Rincian per-material tetap perkiraan awal — cek dan sesuaikan.`,
     };
   }
 
@@ -81,13 +81,14 @@ export async function estimateMaterialsAndCost({ damageType, hazardScore, areaPc
     totalCost: heuristicTotal,
     isLearned: false,
     sampleSize: usable.length,
-    confidenceNote: `Estimasi awal (heuristik) — akan makin akurat setelah ada ${MIN_SAMPLES - usable.length} lagi data pengerjaan nyata.`
+    confidenceNote: `Estimasi awal (heuristik) — akan makin akurat setelah ada ${MIN_SAMPLES - usable.length} lagi data pengerjaan nyata.`,
   };
 }
 
 export function formatMaterialItems(items) {
   const lines = items.map(
-    (i) => `${i.name}: ${i.quantity} ${i.unit} x Rp${i.unitPrice.toLocaleString('id-ID')} = Rp${i.lineTotal.toLocaleString('id-ID')}`
+    (i) =>
+      `${i.name}: ${i.quantity} ${i.unit} x Rp${i.unitPrice.toLocaleString('id-ID')} = Rp${i.lineTotal.toLocaleString('id-ID')}`
   );
   const total = items.reduce((s, i) => s + i.lineTotal, 0);
   lines.push(`Total: Rp${total.toLocaleString('id-ID')}`);

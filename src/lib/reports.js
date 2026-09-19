@@ -5,19 +5,30 @@ import { distanceMeters, validateReportLocation } from './reportLocation.js';
 
 export async function findSimilarReports({ lat, lng, damageType, embedding, radiusMeters = 50 }) {
   if (!embedding) {
-    if (validateReportLocation({ lat, lng }, true)) throw new Error('Lokasi pemeriksaan tidak valid.');
+    if (validateReportLocation({ lat, lng }, true))
+      throw new Error('Lokasi pemeriksaan tidak valid.');
     if (!damageType) return [];
     const latDelta = radiusMeters / 111000;
-    const lngDelta = Math.min(180, latDelta / Math.max(0.00001, Math.cos(lat * Math.PI / 180)));
-    const { data, error } = await supabase.from('reports_with_coords')
-      .select('*').in('status', ['open', 'accepted', 'in_progress'])
+    const lngDelta = Math.min(180, latDelta / Math.max(0.00001, Math.cos((lat * Math.PI) / 180)));
+    const { data, error } = await supabase
+      .from('reports_with_coords')
+      .select('*')
+      .in('status', ['open', 'accepted', 'in_progress'])
       .eq('damage_type', damageType)
-      .gte('lat', lat - latDelta).lte('lat', lat + latDelta)
-      .order('created_at', { ascending: false }).limit(100);
+      .gte('lat', lat - latDelta)
+      .lte('lat', lat + latDelta)
+      .order('created_at', { ascending: false })
+      .limit(100);
     if (error) throw error;
-    return (data ?? []).filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lng))
+    return (data ?? [])
+      .filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lng))
       .filter((r) => Math.min(Math.abs(r.lng - lng), 360 - Math.abs(r.lng - lng)) <= lngDelta)
-      .map((r) => ({ ...r, distance_m: distanceMeters({ lat, lng }, r), similarity: null, match_basis: 'location' }))
+      .map((r) => ({
+        ...r,
+        distance_m: distanceMeters({ lat, lng }, r),
+        similarity: null,
+        match_basis: 'location',
+      }))
       .filter((r) => r.distance_m <= radiusMeters);
   }
   const { data, error } = await supabase.rpc('find_similar_reports', {
@@ -25,7 +36,7 @@ export async function findSimilarReports({ lat, lng, damageType, embedding, radi
     new_lng: lng,
     new_damage_type: damageType,
     new_embedding: embedding,
-    radius_meters: radiusMeters
+    radius_meters: radiusMeters,
   });
   if (error) throw error;
   return data ?? [];
@@ -34,7 +45,9 @@ export async function findSimilarReports({ lat, lng, damageType, embedding, radi
 export async function uploadReportImage(file, reportId) {
   const photo = await prepareUploadPhoto(file);
   const path = `${reportId}/${crypto.randomUUID()}-${photo.name}`;
-  const { error } = await supabase.storage.from('report-images').upload(path, photo, { contentType: 'image/webp' });
+  const { error } = await supabase.storage
+    .from('report-images')
+    .upload(path, photo, { contentType: 'image/webp' });
   if (error) throw error;
 
   const { error: updateError } = await supabase
@@ -57,7 +70,7 @@ export async function createReport({
   capturedAt,
   note,
   bboxAreaPct,
-  address
+  address,
 }) {
   const { data, error } = await supabase
     .from('reports')
@@ -71,7 +84,7 @@ export async function createReport({
       captured_at: capturedAt,
       note: note || null,
       bbox_area_pct: bboxAreaPct ?? null,
-      address: address || null // ⬅️ BARU
+      address: address || null, // ⬅️ BARU
     })
     .select()
     .single();
@@ -91,7 +104,18 @@ export async function getCostHistory(damageType) {
   return data ?? [];
 }
 
-export async function completeReportWithActuals(reportId, { file, actualMaterials, actualMaterialsJson, actualCost, fallbackEstimatedCost, fallbackEstimatedMaterials, fallbackEstimatedMaterialsJson }) {
+export async function completeReportWithActuals(
+  reportId,
+  {
+    file,
+    actualMaterials,
+    actualMaterialsJson,
+    actualCost,
+    fallbackEstimatedCost,
+    fallbackEstimatedMaterials,
+    fallbackEstimatedMaterialsJson,
+  }
+) {
   if (!file) throw new Error('Foto bukti perbaikan wajib diunggah.');
   await addReportPhoto(reportId, file, 'resolution');
 
@@ -100,7 +124,7 @@ export async function completeReportWithActuals(reportId, { file, actualMaterial
     resolved_at: new Date().toISOString(),
     actual_materials: actualMaterials,
     actual_materials_json: actualMaterialsJson,
-    actual_cost: actualCost
+    actual_cost: actualCost,
   };
 
   if (fallbackEstimatedCost != null) {
@@ -131,14 +155,21 @@ export async function addReporter(reportId) {
 
 export async function addReportPhoto(reportId, file, photoType = 'support') {
   const photo = await prepareUploadPhoto(file);
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const path = `${reportId}/${crypto.randomUUID()}-${photo.name}`;
-  const { error: uploadError } = await supabase.storage.from('report-images').upload(path, photo, { contentType: 'image/webp' });
+  const { error: uploadError } = await supabase.storage
+    .from('report-images')
+    .upload(path, photo, { contentType: 'image/webp' });
   if (uploadError) throw uploadError;
 
-  const { error: insertError } = await supabase
-    .from('report_photos')
-    .insert({ report_id: reportId, image_path: path, user_id: user?.id ?? null, photo_type: photoType });
+  const { error: insertError } = await supabase.from('report_photos').insert({
+    report_id: reportId,
+    image_path: path,
+    user_id: user?.id ?? null,
+    photo_type: photoType,
+  });
   if (insertError) throw insertError;
 
   return path;
@@ -166,7 +197,9 @@ export function reportImageUrl(path) {
 }
 
 export async function getMySupports(reportIds) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user || !reportIds.length) return [];
   const { data, error } = await supabase
     .from('report_supports')
@@ -200,7 +233,10 @@ export async function listReportsFeed() {
   const { data: details, error: detailsError } = await supabase
     .from('reports')
     .select('id, rejection_reason')
-    .in('id', reports.map((r) => r.id));
+    .in(
+      'id',
+      reports.map((r) => r.id)
+    );
   if (detailsError) throw detailsError;
   const detailsById = Object.fromEntries((details ?? []).map((r) => [r.id, r]));
 
@@ -221,12 +257,14 @@ export async function listReportsFeed() {
     profile: profilesById[r.user_id] ?? null,
     imageUrl: r.image_path
       ? supabase.storage.from('report-images').getPublicUrl(r.image_path).data.publicUrl
-      : null
+      : null,
   }));
 }
 
 export async function listMyReports() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return [];
 
   const { data, error } = await supabase
@@ -240,7 +278,10 @@ export async function listMyReports() {
   const { data: details, error: detailsError } = await supabase
     .from('reports')
     .select('id, started_at, resolved_at, accepted_at, rejected_at')
-    .in('id', data.map((r) => r.id));
+    .in(
+      'id',
+      data.map((r) => r.id)
+    );
   if (detailsError) throw detailsError;
   const detailsById = Object.fromEntries(details.map((r) => [r.id, r]));
 
@@ -249,7 +290,7 @@ export async function listMyReports() {
     ...detailsById[r.id],
     imageUrl: r.image_path
       ? supabase.storage.from('report-images').getPublicUrl(r.image_path).data.publicUrl
-      : null
+      : null,
   }));
 }
 
@@ -292,7 +333,9 @@ export async function listComments(reportId) {
 }
 
 export async function addComment(reportId, content) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) throw new Error('Harus masuk dulu untuk berkomentar.');
 
   const { data, error } = await supabase
@@ -332,8 +375,13 @@ export async function fetchAllReportsForAdmin({ statusFilter } = {}) {
   if (!reports.length) return [];
   const { data: details, error: detailsError } = await supabase
     .from('reports')
-    .select('id, bbox_area_pct, address, rejection_reason, accepted_at, estimated_completion_date, estimated_materials, estimated_materials_json, estimated_cost, actual_materials, actual_materials_json, actual_cost')
-    .in('id', reports.map((r) => r.id));
+    .select(
+      'id, bbox_area_pct, address, rejection_reason, accepted_at, estimated_completion_date, estimated_materials, estimated_materials_json, estimated_cost, actual_materials, actual_materials_json, actual_cost'
+    )
+    .in(
+      'id',
+      reports.map((r) => r.id)
+    );
   if (detailsError) throw detailsError;
   const detailsById = Object.fromEntries((details ?? []).map((r) => [r.id, r]));
 
@@ -354,7 +402,7 @@ export async function fetchAllReportsForAdmin({ statusFilter } = {}) {
     profile: profilesById[r.user_id] ?? null,
     imageUrl: r.image_path
       ? supabase.storage.from('report-images').getPublicUrl(r.image_path).data.publicUrl
-      : null
+      : null,
   }));
 }
 
@@ -389,7 +437,7 @@ export async function startProgress(reportId, { estimatedDate, materials, materi
       estimated_completion_date: estimatedDate,
       estimated_materials: materials,
       estimated_materials_json: materialsJson,
-      estimated_cost: cost
+      estimated_cost: cost,
     })
     .eq('id', reportId)
     .select()
@@ -423,7 +471,7 @@ export async function createDisputedReport({
   address,
   candidateId,
   similarity,
-  distanceM
+  distanceM,
 }) {
   const { data, error } = await supabase.rpc('create_disputed_report', {
     p_damage_type: damageType,
@@ -439,7 +487,7 @@ export async function createDisputedReport({
     p_address: address || null,
     p_candidate_id: candidateId,
     p_similarity: similarity ?? null,
-    p_distance_m: distanceM ?? null
+    p_distance_m: distanceM ?? null,
   });
   if (error) throw error;
   return data;
@@ -486,17 +534,19 @@ export async function fetchPendingDuplicateReviews() {
       ? {
           ...candidatesById[r.duplicate_candidate_id],
           imageUrl: candidatesById[r.duplicate_candidate_id].image_path
-            ? supabase.storage.from('report-images').getPublicUrl(candidatesById[r.duplicate_candidate_id].image_path).data.publicUrl
-            : null
+            ? supabase.storage
+                .from('report-images')
+                .getPublicUrl(candidatesById[r.duplicate_candidate_id].image_path).data.publicUrl
+            : null,
         }
-      : null
+      : null,
   }));
 }
 
 export async function resolveDuplicateReview(reportId, aiCorrect) {
   const { error } = await supabase.rpc('admin_resolve_duplicate_review', {
     p_report_id: reportId,
-    p_ai_correct: aiCorrect
+    p_ai_correct: aiCorrect,
   });
   if (error) throw error;
 }

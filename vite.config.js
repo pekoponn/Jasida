@@ -8,10 +8,13 @@ import { viteStaticCopy } from 'vite-plugin-static-copy';
 export default defineConfig(({ command, mode }) => {
   if (command === 'build') {
     const env = { ...loadEnv(mode, process.cwd(), 'VITE_'), ...process.env };
-    const missing = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY']
-      .filter((name) => !env[name]?.trim());
+    const missing = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'].filter(
+      (name) => !env[name]?.trim()
+    );
     if (missing.length) {
-      throw new Error(`Konfigurasi Supabase belum lengkap: ${missing.join(', ')}. Isi .env atau Environment Variables di Vercel sebelum build.`);
+      throw new Error(
+        `Konfigurasi Supabase belum lengkap: ${missing.join(', ')}. Isi .env atau Environment Variables di Vercel sebelum build.`
+      );
     }
   }
 
@@ -29,20 +32,23 @@ export default defineConfig(({ command, mode }) => {
             }
             return fileURLToPath(new URL('./tests/fixtures/report-detector.js', import.meta.url));
           }
-        }
+        },
       },
       react(),
       viteStaticCopy({
         targets: [
           {
-            src: ['node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm', 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs'],
-            dest: 'ort'
-          }
-        ]
-      })
+            src: [
+              'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm',
+              'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs',
+            ],
+            dest: 'ort',
+          },
+        ],
+      }),
     ],
     server: {
-      port: 5173
+      port: 5173,
     },
     build: {
       rollupOptions: {
@@ -52,9 +58,9 @@ export default defineConfig(({ command, mode }) => {
             if (id.includes('node_modules/d3-')) return 'chart-math';
             if (id.includes('node_modules/recharts')) return 'charts';
             if (id.includes('node_modules/leaflet')) return 'maps';
-          }
-        }
-      }
-    }
+          },
+        },
+      },
+    },
   };
 });

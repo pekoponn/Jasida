@@ -9,7 +9,9 @@ export default function CustomSelect({ value, onChange, options, placeholder = '
   // ATAU array objek { value, label } (dipakai untuk filter yang value & labelnya beda,
   // misal value "open" tapi label "Masuk (5)").
   const isObjectOptions = options.length > 0 && typeof options[0] === 'object';
-  const normalizedOptions = isObjectOptions ? options : options.map((opt) => ({ value: opt, label: opt }));
+  const normalizedOptions = isObjectOptions
+    ? options
+    : options.map((opt) => ({ value: opt, label: opt }));
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -35,9 +37,17 @@ export default function CustomSelect({ value, onChange, options, placeholder = '
           {selectedLabel || placeholder}
         </span>
         <svg
-          width="14" height="14" viewBox="0 0 24 24" fill="none"
-          stroke="#a61e4d" strokeWidth="2"
-          style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease', flexShrink: 0 }}
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#a61e4d"
+          strokeWidth="2"
+          style={{
+            transform: open ? 'rotate(180deg)' : 'none',
+            transition: 'transform 0.15s ease',
+            flexShrink: 0,
+          }}
         >
           <path d="M6 9l6 6 6-6" />
         </svg>
@@ -55,7 +65,7 @@ export default function CustomSelect({ value, onChange, options, placeholder = '
                 ...optionStyle,
                 backgroundColor: hoverIndex === -1 ? '#FDECEE' : '#fff',
                 color: value === '' ? '#a61e4d' : '#495057',
-                fontWeight: value === '' ? 700 : 500
+                fontWeight: value === '' ? 700 : 500,
               }}
             >
               {placeholder}
@@ -70,7 +80,7 @@ export default function CustomSelect({ value, onChange, options, placeholder = '
                 ...optionStyle,
                 backgroundColor: hoverIndex === i ? '#FDECEE' : '#fff',
                 color: value === opt.value ? '#a61e4d' : '#495057',
-                fontWeight: value === opt.value ? 700 : 500
+                fontWeight: value === opt.value ? 700 : 500,
               }}
             >
               {opt.label}
@@ -95,7 +105,7 @@ const triggerStyle = {
   alignItems: 'center',
   justifyContent: 'space-between',
   gap: 10,
-  fontFamily: 'inherit'
+  fontFamily: 'inherit',
 };
 
 const panelStyle = {
@@ -110,7 +120,7 @@ const panelStyle = {
   borderRadius: 12,
   boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
   zIndex: 1000,
-  padding: 6
+  padding: 6,
 };
 
 const optionStyle = {
@@ -118,5 +128,5 @@ const optionStyle = {
   borderRadius: 8,
   fontSize: 13,
   cursor: 'pointer',
-  whiteSpace: 'nowrap'
+  whiteSpace: 'nowrap',
 };

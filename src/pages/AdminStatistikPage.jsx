@@ -1,13 +1,41 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
 } from 'recharts';
-import { Wallet, TrendingUp, TrendingDown, FileText, CheckCircle2, Clock3, AlertTriangle } from 'lucide-react';
+import {
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  FileText,
+  CheckCircle2,
+  Clock3,
+  AlertTriangle,
+} from 'lucide-react';
 import { fetchAllReportsForAdmin } from '../lib/reports.js';
 import { damageTypeDisplayLabel, DAMAGE_TYPE_LABEL_ID } from '../ai/hazardScore.js';
 
-const DAMAGE_COLORS = ['#e03131', '#f08c00', '#2f9e44', '#1c7ed6', '#845ef7', '#e64980', '#20c997', '#868e96'];
+const DAMAGE_COLORS = [
+  '#e03131',
+  '#f08c00',
+  '#2f9e44',
+  '#1c7ed6',
+  '#845ef7',
+  '#e64980',
+  '#20c997',
+  '#868e96',
+];
 
 function formatRupiah(n) {
   if (n == null) return '-';
@@ -50,7 +78,9 @@ export default function AdminStatistikPage() {
   function weekOverWeek(filterFn) {
     const now = Date.now();
     const oneWeek = 7 * 24 * 60 * 60 * 1000;
-    const thisWeek = reports.filter((r) => filterFn(r) && now - new Date(r.created_at).getTime() <= oneWeek).length;
+    const thisWeek = reports.filter(
+      (r) => filterFn(r) && now - new Date(r.created_at).getTime() <= oneWeek
+    ).length;
     const lastWeek = reports.filter((r) => {
       const age = now - new Date(r.created_at).getTime();
       return filterFn(r) && age > oneWeek && age <= 2 * oneWeek;
@@ -59,18 +89,24 @@ export default function AdminStatistikPage() {
     return Math.round(((thisWeek - lastWeek) / lastWeek) * 100);
   }
 
-  const trendPct = useMemo(() => ({
-    total: weekOverWeek(() => true),
-    resolved: weekOverWeek((r) => r.status === 'resolved'),
-    open: weekOverWeek((r) => r.status === 'open'),
-    darurat: weekOverWeek((r) => r.severity === 'darurat' || r.severity === 'emergency'),
-  }), [reports]);
+  const trendPct = useMemo(
+    () => ({
+      total: weekOverWeek(() => true),
+      resolved: weekOverWeek((r) => r.status === 'resolved'),
+      open: weekOverWeek((r) => r.status === 'open'),
+      darurat: weekOverWeek((r) => r.severity === 'darurat' || r.severity === 'emergency'),
+    }),
+    [reports]
+  );
 
   // Tren laporan harian (30 hari terakhir) — sama seperti chart di Dashboard
   const dailyTrend = useMemo(() => {
     const byDay = {};
     reports.forEach((r) => {
-      const day = new Date(r.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+      const day = new Date(r.created_at).toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+      });
       if (!byDay[day]) byDay[day] = { day, masuk: 0, selesai: 0 };
       byDay[day].masuk++;
       if (r.status === 'resolved') byDay[day].selesai++;
@@ -126,7 +162,8 @@ export default function AdminStatistikPage() {
       const d = new Date(r.created_at);
       const sortKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const label = d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
-      if (!byMonth[sortKey]) byMonth[sortKey] = { sortKey, label, masuk: 0, selesai: 0, estimasi: 0, aktual: 0 };
+      if (!byMonth[sortKey])
+        byMonth[sortKey] = { sortKey, label, masuk: 0, selesai: 0, estimasi: 0, aktual: 0 };
       byMonth[sortKey].masuk++;
       if (r.status === 'resolved') {
         byMonth[sortKey].selesai++;
@@ -134,7 +171,9 @@ export default function AdminStatistikPage() {
         byMonth[sortKey].aktual += r.actual_cost ?? 0;
       }
     });
-    return Object.values(byMonth).sort((a, b) => a.sortKey.localeCompare(b.sortKey)).slice(-12);
+    return Object.values(byMonth)
+      .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
+      .slice(-12);
   }, [reports]);
 
   // Statistik per jenis kerusakan: jumlah laporan + total estimasi/aktual
@@ -161,12 +200,16 @@ export default function AdminStatistikPage() {
   const resolvedWithCost = useMemo(() => {
     return reports
       .filter((r) => r.status === 'resolved' && (r.estimated_cost != null || r.actual_cost != null))
-      .sort((a, b) => new Date(b.resolved_at ?? b.created_at) - new Date(a.resolved_at ?? a.created_at));
+      .sort(
+        (a, b) => new Date(b.resolved_at ?? b.created_at) - new Date(a.resolved_at ?? a.created_at)
+      );
   }, [reports]);
 
   return (
     <section>
-      <h1 className="display" style={{ fontSize: 24, marginBottom: 4 }}>Statistik</h1>
+      <h1 className="display" style={{ fontSize: 24, marginBottom: 4 }}>
+        Statistik
+      </h1>
       <p style={{ color: 'var(--color-ink-soft)', marginTop: 0, fontSize: 14 }}>
         Ringkasan performa laporan dan perbandingan biaya estimasi dengan biaya aktual.
       </p>
@@ -199,11 +242,21 @@ export default function AdminStatistikPage() {
               sub={`${costSummary.countAktual} laporan`}
             />
             <SummaryCard
-              icon={costSummary.selisih > 0 ? <TrendingUp size={22} color="#e03131" /> : <TrendingDown size={22} color="#2f9e44" />}
+              icon={
+                costSummary.selisih > 0 ? (
+                  <TrendingUp size={22} color="#e03131" />
+                ) : (
+                  <TrendingDown size={22} color="#2f9e44" />
+                )
+              }
               iconBg={costSummary.selisih > 0 ? '#FBE3E3' : '#E7F6EC'}
               label="Selisih Biaya"
               value={`${costSummary.selisih > 0 ? '+' : ''}${formatRupiah(costSummary.selisih)}`}
-              sub={costSummary.selisihPct != null ? `${costSummary.selisihPct > 0 ? '+' : ''}${costSummary.selisihPct}% dari estimasi` : 'Belum ada data'}
+              sub={
+                costSummary.selisihPct != null
+                  ? `${costSummary.selisihPct > 0 ? '+' : ''}${costSummary.selisihPct}% dari estimasi`
+                  : 'Belum ada data'
+              }
               valueColor={costSummary.selisih > 0 ? '#e03131' : '#2f9e44'}
             />
           </div>
@@ -247,13 +300,29 @@ export default function AdminStatistikPage() {
                       <YAxis allowDecimals={false} fontSize={11} />
                       <Tooltip />
                       <Legend wrapperStyle={{ fontSize: 12 }} />
-                      <Line type="monotone" dataKey="masuk" name="Masuk" stroke="#e03131" strokeWidth={2} dot={{ r: 3 }} />
-                      <Line type="monotone" dataKey="selesai" name="Selesai" stroke="#2f9e44" strokeWidth={2} dot={{ r: 3 }} />
+                      <Line
+                        type="monotone"
+                        dataKey="masuk"
+                        name="Masuk"
+                        stroke="#e03131"
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="selesai"
+                        name="Selesai"
+                        stroke="#2f9e44"
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                      />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>Belum ada data laporan.</p>
+                <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>
+                  Belum ada data laporan.
+                </p>
               )}
             </div>
 
@@ -264,7 +333,13 @@ export default function AdminStatistikPage() {
                   <div style={{ width: 140, height: 140, flexShrink: 0 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={severityBuckets} dataKey="count" innerRadius={38} outerRadius={65} paddingAngle={2}>
+                        <Pie
+                          data={severityBuckets}
+                          dataKey="count"
+                          innerRadius={38}
+                          outerRadius={65}
+                          paddingAngle={2}
+                        >
                           {severityBuckets.map((b, i) => (
                             <Cell key={b.key} fill={SEVERITY_DONUT_COLORS[i]} />
                           ))}
@@ -276,17 +351,31 @@ export default function AdminStatistikPage() {
                     {severityBuckets.map((b, i) => {
                       const pct = reports.length ? Math.round((b.count / reports.length) * 100) : 0;
                       return (
-                        <div key={b.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-                          <span style={{ width: 10, height: 10, borderRadius: '50%', background: SEVERITY_DONUT_COLORS[i] }} />
+                        <div
+                          key={b.key}
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}
+                        >
+                          <span
+                            style={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: '50%',
+                              background: SEVERITY_DONUT_COLORS[i],
+                            }}
+                          />
                           <span style={{ minWidth: 110 }}>{b.label}</span>
-                          <strong>{b.count} ({pct}%)</strong>
+                          <strong>
+                            {b.count} ({pct}%)
+                          </strong>
                         </div>
                       );
                     })}
                   </div>
                 </div>
               ) : (
-                <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>Belum ada data.</p>
+                <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>
+                  Belum ada data.
+                </p>
               )}
             </div>
           </div>
@@ -309,7 +398,9 @@ export default function AdminStatistikPage() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>Belum ada laporan selesai dengan data biaya.</p>
+              <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>
+                Belum ada laporan selesai dengan data biaya.
+              </p>
             )}
           </div>
 
@@ -318,13 +409,30 @@ export default function AdminStatistikPage() {
             <div style={{ ...panelCard, flex: '1 1 340px' }}>
               <h3 style={panelTitle}>Distribusi Jenis Kerusakan Jalan</h3>
               {damageTypeStats.length > 0 ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 16,
+                    marginTop: 10,
+                    flexWrap: 'wrap',
+                  }}
+                >
                   <div style={{ width: 150, height: 150, flexShrink: 0 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={damageTypeStats} dataKey="count" innerRadius={40} outerRadius={70} paddingAngle={2}>
+                        <Pie
+                          data={damageTypeStats}
+                          dataKey="count"
+                          innerRadius={40}
+                          outerRadius={70}
+                          paddingAngle={2}
+                        >
                           {damageTypeStats.map((d, i) => (
-                            <Cell key={d.damage_type} fill={DAMAGE_COLORS[i % DAMAGE_COLORS.length]} />
+                            <Cell
+                              key={d.damage_type}
+                              fill={DAMAGE_COLORS[i % DAMAGE_COLORS.length]}
+                            />
                           ))}
                         </Pie>
                         <Tooltip />
@@ -335,17 +443,32 @@ export default function AdminStatistikPage() {
                     {damageTypeStats.map((d, i) => {
                       const pct = reports.length ? Math.round((d.count / reports.length) * 100) : 0;
                       return (
-                        <div key={d.damage_type} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
-                          <span style={{ width: 10, height: 10, borderRadius: '50%', background: DAMAGE_COLORS[i % DAMAGE_COLORS.length], flexShrink: 0 }} />
+                        <div
+                          key={d.damage_type}
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}
+                        >
+                          <span
+                            style={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: '50%',
+                              background: DAMAGE_COLORS[i % DAMAGE_COLORS.length],
+                              flexShrink: 0,
+                            }}
+                          />
                           <span style={{ flex: 1 }}>{d.label}</span>
-                          <strong>{d.count} ({pct}%)</strong>
+                          <strong>
+                            {d.count} ({pct}%)
+                          </strong>
                         </div>
                       );
                     })}
                   </div>
                 </div>
               ) : (
-                <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>Belum ada data.</p>
+                <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>
+                  Belum ada data.
+                </p>
               )}
             </div>
 
@@ -370,12 +493,21 @@ export default function AdminStatistikPage() {
                       const selisih = d.aktual - d.estimasi;
                       const hasBoth = d.estimasi > 0 && d.aktual > 0;
                       return (
-                        <tr key={d.damage_type} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                        <tr
+                          key={d.damage_type}
+                          style={{ borderBottom: '1px solid var(--color-border)' }}
+                        >
                           <td style={td}>{d.label}</td>
                           <td style={td}>{d.count}</td>
                           <td style={td}>{d.estimasi > 0 ? formatRupiah(d.estimasi) : '-'}</td>
                           <td style={td}>{d.aktual > 0 ? formatRupiah(d.aktual) : '-'}</td>
-                          <td style={{ ...td, fontWeight: 700, color: hasBoth ? (selisih > 0 ? '#e03131' : '#2f9e44') : 'inherit' }}>
+                          <td
+                            style={{
+                              ...td,
+                              fontWeight: 700,
+                              color: hasBoth ? (selisih > 0 ? '#e03131' : '#2f9e44') : 'inherit',
+                            }}
+                          >
                             {hasBoth ? `${selisih > 0 ? '+' : ''}${formatRupiah(selisih)}` : '-'}
                           </td>
                         </tr>
@@ -406,7 +538,11 @@ export default function AdminStatistikPage() {
                 </thead>
                 <tbody>
                   {resolvedWithCost.length === 0 && (
-                    <tr><td style={td} colSpan={6}>Belum ada laporan selesai dengan data biaya.</td></tr>
+                    <tr>
+                      <td style={td} colSpan={6}>
+                        Belum ada laporan selesai dengan data biaya.
+                      </td>
+                    </tr>
                   )}
                   {resolvedWithCost.map((r) => {
                     const kode = r.code ?? `#${String(r.id).slice(0, 6).toUpperCase()}-JASIDA`;
@@ -416,10 +552,20 @@ export default function AdminStatistikPage() {
                       <tr key={r.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                         <td style={td}>{kode}</td>
                         <td style={td}>{damageTypeDisplayLabel(r.damage_type)}</td>
-                        <td style={td}>{r.resolved_at ? new Date(r.resolved_at).toLocaleDateString('id-ID') : '-'}</td>
+                        <td style={td}>
+                          {r.resolved_at
+                            ? new Date(r.resolved_at).toLocaleDateString('id-ID')
+                            : '-'}
+                        </td>
                         <td style={td}>{formatRupiah(r.estimated_cost)}</td>
                         <td style={td}>{formatRupiah(r.actual_cost)}</td>
-                        <td style={{ ...td, color: hasBoth ? (selisih > 0 ? '#e03131' : '#2f9e44') : 'inherit', fontWeight: 700 }}>
+                        <td
+                          style={{
+                            ...td,
+                            color: hasBoth ? (selisih > 0 ? '#e03131' : '#2f9e44') : 'inherit',
+                            fontWeight: 700,
+                          }}
+                        >
                           {hasBoth ? `${selisih > 0 ? '+' : ''}${formatRupiah(selisih)}` : '-'}
                         </td>
                       </tr>
@@ -441,12 +587,27 @@ function SummaryCard({ icon, iconBg, label, value, sub, valueColor, trend, inver
   const badColor = invertTrend ? '#2f9e44' : '#e03131';
   return (
     <div style={summaryCard}>
-      <div style={{ width: 44, height: 44, borderRadius: 12, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 12,
+          background: iconBg,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 10,
+        }}
+      >
         {icon}
       </div>
       <div style={{ fontSize: 13, color: 'var(--color-ink-soft)' }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, marginTop: 2, color: valueColor ?? 'inherit' }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, marginTop: 4, color: 'var(--color-ink-soft)' }}>{sub}</div>}
+      <div style={{ fontSize: 22, fontWeight: 800, marginTop: 2, color: valueColor ?? 'inherit' }}>
+        {value}
+      </div>
+      {sub && (
+        <div style={{ fontSize: 12, marginTop: 4, color: 'var(--color-ink-soft)' }}>{sub}</div>
+      )}
       {trend !== null && trend !== undefined && (
         <div style={{ fontSize: 12, marginTop: 6, color: isUp ? goodColor : badColor }}>
           {isUp ? '↑' : '↓'} {Math.abs(trend)}% dari minggu lalu
@@ -460,14 +621,14 @@ const summaryGrid = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
   gap: 16,
-  marginTop: 20
+  marginTop: 20,
 };
 
 const summaryCard = {
   padding: '18px 20px',
   background: 'var(--color-surface)',
   borderRadius: 'var(--radius-lg)',
-  boxShadow: 'var(--shadow-card)'
+  boxShadow: 'var(--shadow-card)',
 };
 
 const panelCard = {
@@ -475,7 +636,7 @@ const panelCard = {
   padding: 16,
   background: 'var(--color-surface)',
   borderRadius: 'var(--radius-lg)',
-  boxShadow: 'var(--shadow-card)'
+  boxShadow: 'var(--shadow-card)',
 };
 
 const panelTitle = { fontSize: 15, fontWeight: 700, margin: 0 };

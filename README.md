@@ -10,11 +10,11 @@ BACKEND/DB      Supabase (free) — PostgreSQL + PostGIS + pgvector + Storage + 
 AI              ONNX Runtime Web, jalan di browser pengguna
 ```
 
-Untuk melanjutkan project yang sudah berjalan, ikuti [DEPLOYMENT.md](DEPLOYMENT.md)
-dan [AUDIT-AND-HANDOFF.md](AUDIT-AND-HANDOFF.md). Jangan menjalankan ulang skema
-awal pada database live. YOLO sudah aktif; pemeriksaan visual duplikat masih
-menunggu model CLIP yang sesuai. Tanpa CLIP, saran duplikat menggunakan jenis
-kerusakan dan jarak maksimal 50 meter, dengan konfirmasi pengguna.
+Untuk melanjutkan project yang sudah berjalan, ikuti [DEPLOYMENT.md](DEPLOYMENT.md).
+Jangan menjalankan ulang skema awal pada database live. YOLO sudah aktif;
+pemeriksaan visual duplikat masih menunggu model CLIP yang sesuai. Tanpa CLIP,
+saran duplikat menggunakan jenis kerusakan dan jarak maksimal 50 meter, dengan
+konfirmasi pengguna.
 
 ## Struktur project
 
@@ -112,8 +112,19 @@ deteksi positif yang disimulasikan khusus build `e2e`; kamera sintetis juga
 diuji dengan YOLO asli untuk memastikan foto tanpa kerusakan ditolak.
 Skenario mencakup kedua mode lokasi, gagal kamera/GPS, retry upload,
 login/admin, perubahan ukuran viewport, dan tiga skrip regresi browser.
-Build pengujian berada di `dist-test`, terpisah dari `dist`.
-Detail cakupan dan batasan: [LOCAL-VERIFICATION.md](LOCAL-VERIFICATION.md).
+Build pengujian berada di `dist-test`, terpisah dari `dist`. Kedua folder build,
+`test-results`, dan `playwright-report` merupakan artefak lokal yang diabaikan Git
+dan aman dihapus setelah pemeriksaan selesai.
+
+## Format kode
+
+```bash
+npm run format
+npm run format:check
+```
+
+Prettier merapikan source, server, script, pengujian, dan konfigurasi. Jalankan
+`npm run check` setelah memformat untuk memastikan perilaku aplikasi tetap sama.
 
 ## 4. Menyiapkan model AI
 

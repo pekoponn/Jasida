@@ -2,17 +2,38 @@ import { useMemo } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LabelList
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+  LabelList,
 } from 'recharts';
 import { MapPin, AlertTriangle, Gauge, CircleSlash } from 'lucide-react';
 import { damageTypeDisplayLabel } from '../ai/hazardScore.js';
 import { SEVERITY_STYLE } from '../pages/AdminDashboardPage.jsx';
 import { findKecamatan, getKecamatanGeoJSON } from '../lib/kecamatanBoundaries.js';
 
-const STATUS_LABEL = { open: 'Baru', accepted: 'Diterima', in_progress: 'Diproses', resolved: 'Selesai', rejected: 'Ditolak' };
-const STATUS_COLORS = { open: '#1c7ed6', accepted: '#845ef7', in_progress: '#f08c00', resolved: '#2f9e44', rejected: '#868e96' };
+const STATUS_LABEL = {
+  open: 'Baru',
+  accepted: 'Diterima',
+  in_progress: 'Diproses',
+  resolved: 'Selesai',
+  rejected: 'Ditolak',
+};
+const STATUS_COLORS = {
+  open: '#1c7ed6',
+  accepted: '#845ef7',
+  in_progress: '#f08c00',
+  resolved: '#2f9e44',
+  rejected: '#868e96',
+};
 const STATUS_KEYS = ['open', 'accepted', 'in_progress', 'resolved', 'rejected'];
-const DEFAULT_CENTER = [-7.4558, 112.6817]
+const DEFAULT_CENTER = [-7.4558, 112.6817];
 const DEFAULT_ZOOM = 11;
 
 export function colorForScore(score) {
@@ -49,13 +70,13 @@ export default function AdminMap({ reports }) {
   const chartData = useMemo(() => {
     const allNames = new Set([
       ...(kecamatanGeoJSON?.features?.map((f) => f.properties.kecamatan) ?? []),
-      ...Object.keys(kecamatanStats)
+      ...Object.keys(kecamatanStats),
     ]);
     return [...allNames]
       .map((nama) => ({
         kecamatan: nama,
         count: kecamatanStats[nama]?.count ?? 0,
-        avgScore: kecamatanStats[nama]?.avgScore ?? null
+        avgScore: kecamatanStats[nama]?.avgScore ?? null,
       }))
       .sort((a, b) => b.count - a.count);
   }, [kecamatanGeoJSON, kecamatanStats]);
@@ -72,7 +93,7 @@ export default function AdminMap({ reports }) {
       kecamatanTerpantau: withReports.length,
       kecamatanDarurat: darurat,
       kecamatanTanpaLaporan: tanpaLaporan,
-      avgKota
+      avgKota,
     };
   }, [chartData]);
 
@@ -84,7 +105,15 @@ export default function AdminMap({ reports }) {
     points.forEach((r) => {
       const nama = findKecamatan(r.lat, r.lng);
       if (!nama) return;
-      if (!raw[nama]) raw[nama] = { kecamatan: nama, open: 0, accepted: 0, in_progress: 0, resolved: 0, rejected: 0 };
+      if (!raw[nama])
+        raw[nama] = {
+          kecamatan: nama,
+          open: 0,
+          accepted: 0,
+          in_progress: 0,
+          resolved: 0,
+          rejected: 0,
+        };
       if (raw[nama][r.status] !== undefined) raw[nama][r.status] += 1;
     });
     return Object.values(raw).sort((a, b) => {
@@ -104,14 +133,13 @@ export default function AdminMap({ reports }) {
       .slice(0, 5);
   }, [chartData]);
 
-
   function styleFeature(feature) {
     const stat = kecamatanStats[feature.properties.kecamatan];
     return {
       fillColor: colorForScore(stat?.avgScore),
       fillOpacity: 0.55,
       color: '#495057',
-      weight: 1
+      weight: 1,
     };
   }
 
@@ -122,7 +150,7 @@ export default function AdminMap({ reports }) {
     layer.bindTooltip(nama, {
       permanent: true,
       direction: 'center',
-      className: 'kecamatan-label'
+      className: 'kecamatan-label',
     });
 
     layer.bindPopup(
@@ -152,7 +180,11 @@ export default function AdminMap({ reports }) {
       {/* PETA (lebih kecil) */}
       <div>
         <div style={{ height: 380, borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-          <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} style={{ height: '100%', width: '100%' }}>
+          <MapContainer
+            center={DEFAULT_CENTER}
+            zoom={DEFAULT_ZOOM}
+            style={{ height: '100%', width: '100%' }}
+          >
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution="© OpenStreetMap contributors"
@@ -167,19 +199,34 @@ export default function AdminMap({ reports }) {
                   key={r.id}
                   center={[r.lat, r.lng]}
                   radius={7}
-                  pathOptions={{ color: '#fff', weight: 2, fillColor: style.color, fillOpacity: 0.95 }}
+                  pathOptions={{
+                    color: '#fff',
+                    weight: 2,
+                    fillColor: style.color,
+                    fillOpacity: 0.95,
+                  }}
                 >
                   <Popup minWidth={200}>
                     {r.imageUrl && (
                       <img
                         src={r.imageUrl}
                         alt={damageTypeDisplayLabel(r.damage_type)}
-                        style={{ width: '100%', maxHeight: 140, objectFit: 'cover', borderRadius: 6, marginBottom: 6 }}
+                        style={{
+                          width: '100%',
+                          maxHeight: 140,
+                          objectFit: 'cover',
+                          borderRadius: 6,
+                          marginBottom: 6,
+                        }}
                       />
                     )}
                     <div style={{ fontWeight: 700 }}>{damageTypeDisplayLabel(r.damage_type)}</div>
-                    <div>{style.label} · Skor {r.hazard_score}</div>
-                    <div style={{ color: '#666', fontSize: 12 }}>{STATUS_LABEL[r.status] ?? r.status}</div>
+                    <div>
+                      {style.label} · Skor {r.hazard_score}
+                    </div>
+                    <div style={{ color: '#666', fontSize: 12 }}>
+                      {STATUS_LABEL[r.status] ?? r.status}
+                    </div>
                   </Popup>
                 </CircleMarker>
               );
@@ -230,11 +277,19 @@ export default function AdminMap({ reports }) {
         {topDarurat.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
             {topDarurat.map((d, i) => (
-              <TopDaruratRow key={d.kecamatan} rank={i + 1} kecamatan={d.kecamatan} avgScore={d.avgScore} count={d.count} />
+              <TopDaruratRow
+                key={d.kecamatan}
+                rank={i + 1}
+                kecamatan={d.kecamatan}
+                avgScore={d.avgScore}
+                count={d.count}
+              />
             ))}
           </div>
         ) : (
-          <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>Belum ada data laporan.</p>
+          <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>
+            Belum ada data laporan.
+          </p>
         )}
       </div>
 
@@ -251,12 +306,17 @@ export default function AdminMap({ reports }) {
                 <Tooltip
                   formatter={(value, name, props) => [
                     `${value} laporan${props.payload.avgScore != null ? ` · skor rata-rata ${props.payload.avgScore}` : ''}`,
-                    'Laporan'
+                    'Laporan',
                   ]}
                 />
                 <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                   {chartData.map((d) => (
-                    <Cell key={d.kecamatan} fill={colorForScore(d.avgScore)} stroke="#495057" strokeWidth={0.5} />
+                    <Cell
+                      key={d.kecamatan}
+                      fill={colorForScore(d.avgScore)}
+                      stroke="#495057"
+                      strokeWidth={0.5}
+                    />
                   ))}
                   <LabelList dataKey="count" position="right" fontSize={11} />
                 </Bar>
@@ -264,7 +324,9 @@ export default function AdminMap({ reports }) {
             </ResponsiveContainer>
           </div>
         ) : (
-          <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>Belum ada data laporan.</p>
+          <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>
+            Belum ada data laporan.
+          </p>
         )}
       </div>
 
@@ -274,7 +336,11 @@ export default function AdminMap({ reports }) {
         {statusChartData.length > 0 ? (
           <div style={{ height: statusChartHeight, marginTop: 10 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={statusChartData} layout="vertical" margin={{ left: 8, right: 24, bottom: 8 }}>
+              <BarChart
+                data={statusChartData}
+                layout="vertical"
+                margin={{ left: 8, right: 24, bottom: 8 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#eee" horizontal={false} />
                 <XAxis type="number" allowDecimals={false} fontSize={11} />
                 <YAxis type="category" dataKey="kecamatan" width={110} fontSize={11} />
@@ -284,13 +350,22 @@ export default function AdminMap({ reports }) {
                   wrapperStyle={{ fontSize: 12 }}
                 />
                 {STATUS_KEYS.map((key) => (
-                  <Bar key={key} dataKey={key} name={key} stackId="status" fill={STATUS_COLORS[key]} radius={key === 'rejected' ? [0, 4, 4, 0] : 0} />
+                  <Bar
+                    key={key}
+                    dataKey={key}
+                    name={key}
+                    stackId="status"
+                    fill={STATUS_COLORS[key]}
+                    radius={key === 'rejected' ? [0, 4, 4, 0] : 0}
+                  />
                 ))}
               </BarChart>
             </ResponsiveContainer>
           </div>
         ) : (
-          <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>Belum ada data laporan.</p>
+          <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>
+            Belum ada data laporan.
+          </p>
         )}
       </div>
     </div>
@@ -308,13 +383,23 @@ function TopDaruratRow({ rank, kecamatan, avgScore, count }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
           <span style={{ fontWeight: 700, fontSize: 13.5 }}>{kecamatan}</span>
-          <span style={{ fontSize: 12, color: 'var(--color-ink-soft)', flexShrink: 0 }}>{count} laporan</span>
+          <span style={{ fontSize: 12, color: 'var(--color-ink-soft)', flexShrink: 0 }}>
+            {count} laporan
+          </span>
         </div>
         <div style={scoreTrack}>
-          <div style={{ ...scoreFill, width: `${Math.min(avgScore, 100)}%`, background: colorForScore(avgScore) }} />
+          <div
+            style={{
+              ...scoreFill,
+              width: `${Math.min(avgScore, 100)}%`,
+              background: colorForScore(avgScore),
+            }}
+          />
         </div>
       </div>
-      <div style={{ fontWeight: 800, fontSize: 16, minWidth: 30, textAlign: 'right' }}>{avgScore}</div>
+      <div style={{ fontWeight: 800, fontSize: 16, minWidth: 30, textAlign: 'right' }}>
+        {avgScore}
+      </div>
     </div>
   );
 }
@@ -322,7 +407,19 @@ function TopDaruratRow({ rank, kecamatan, avgScore, count }) {
 function MiniCard({ icon, iconBg, label, value }) {
   return (
     <div style={miniCard}>
-      <div style={{ width: 34, height: 34, borderRadius: 10, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8, flexShrink: 0 }}>
+      <div
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: 10,
+          background: iconBg,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 8,
+          flexShrink: 0,
+        }}
+      >
         {icon}
       </div>
       <div style={{ fontSize: 12, color: 'var(--color-ink-soft)' }}>{label}</div>
@@ -334,7 +431,16 @@ function MiniCard({ icon, iconBg, label, value }) {
 function LegendSwatch({ color, label }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-      <span style={{ width: 12, height: 12, borderRadius: 3, background: color, display: 'inline-block', border: '1px solid #ccc' }} />
+      <span
+        style={{
+          width: 12,
+          height: 12,
+          borderRadius: 3,
+          background: color,
+          display: 'inline-block',
+          border: '1px solid #ccc',
+        }}
+      />
       {label}
     </div>
   );
@@ -345,14 +451,14 @@ const legendRow = { display: 'flex', flexWrap: 'wrap', gap: 14, marginTop: 10 };
 const summaryGrid = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-  gap: 10
+  gap: 10,
 };
 
 const miniCard = {
   padding: '14px 16px',
   background: 'var(--color-surface)',
   borderRadius: 'var(--radius-lg)',
-  boxShadow: 'var(--shadow-card)'
+  boxShadow: 'var(--shadow-card)',
 };
 
 const panelCard = {
@@ -360,7 +466,7 @@ const panelCard = {
   padding: 16,
   background: 'var(--color-surface)',
   borderRadius: 'var(--radius-lg)',
-  boxShadow: 'var(--shadow-card)'
+  boxShadow: 'var(--shadow-card)',
 };
 
 const panelTitle = { fontSize: 15, fontWeight: 700, margin: 0 };
@@ -369,7 +475,7 @@ const topDaruratRow = {
   display: 'flex',
   alignItems: 'center',
   gap: 12,
-  padding: '8px 4px'
+  padding: '8px 4px',
 };
 
 const rankBadge = {
@@ -381,7 +487,7 @@ const rankBadge = {
   justifyContent: 'center',
   fontSize: 12,
   fontWeight: 800,
-  flexShrink: 0
+  flexShrink: 0,
 };
 
 const scoreTrack = {
@@ -389,10 +495,10 @@ const scoreTrack = {
   borderRadius: 999,
   background: '#f1f3f5',
   marginTop: 6,
-  overflow: 'hidden'
+  overflow: 'hidden',
 };
 
 const scoreFill = {
   height: '100%',
-  borderRadius: 999
+  borderRadius: 999,
 };

@@ -1,7 +1,7 @@
 const WEIGHTS = {
   distance: 0.3,
   imageSimilarity: 0.5,
-  recency: 0.2
+  recency: 0.2,
 };
 
 const RADIUS_METERS = 50;
@@ -13,7 +13,9 @@ function distanceScore(distanceMeters) {
 
 function recencyScore(createdAt) {
   const hoursAgo = (Date.now() - new Date(createdAt).getTime()) / 36e5;
-  return Number.isFinite(hoursAgo) ? Math.max(0, Math.min(1, 1 - hoursAgo / RECENCY_WINDOW_HOURS)) : 0;
+  return Number.isFinite(hoursAgo)
+    ? Math.max(0, Math.min(1, 1 - hoursAgo / RECENCY_WINDOW_HOURS))
+    : 0;
 }
 
 /**
@@ -25,22 +27,22 @@ export function scoreDuplicateCandidate(candidate) {
     return { ...candidate, probability: null, action: 'ask_user' };
   }
   const dScore = distanceScore(candidate.distance_m);
-  const iScore = Number.isFinite(candidate.similarity) ? Math.max(0, Math.min(1, candidate.similarity)) : 0;
+  const iScore = Number.isFinite(candidate.similarity)
+    ? Math.max(0, Math.min(1, candidate.similarity))
+    : 0;
   const rScore = candidate.created_at ? recencyScore(candidate.created_at) : 0.5;
 
   const probability =
-    dScore * WEIGHTS.distance +
-    iScore * WEIGHTS.imageSimilarity +
-    rScore * WEIGHTS.recency;
+    dScore * WEIGHTS.distance + iScore * WEIGHTS.imageSimilarity + rScore * WEIGHTS.recency;
 
   return {
     ...candidate,
     probability,
-    action: recommendedAction(probability, iScore)
+    action: recommendedAction(probability, iScore),
   };
 }
 
-const IMAGE_SIMILARITY_THRESHOLD = 0.5; 
+const IMAGE_SIMILARITY_THRESHOLD = 0.5;
 
 export function recommendedAction(probability, similarity) {
   if (similarity >= IMAGE_SIMILARITY_THRESHOLD) return 'ask_user';

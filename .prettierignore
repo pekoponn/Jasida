@@ -1,0 +1,8 @@
+node_modules
+dist
+dist-test
+.vercel
+test-results
+playwright-report
+public/models/*.onnx
+package-lock.json

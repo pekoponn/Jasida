@@ -8,10 +8,12 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "format": "prettier --write \"src/**/*.{js,jsx,css,json}\" \"api/**/*.js\" \"server/**/*.js\" \"scripts/**/*.mjs\" \"tests/**/*.js\" eslint.config.js playwright.config.js vite.config.js package.json vercel.json",
+    "format:check": "prettier --check \"src/**/*.{js,jsx,css,json}\" \"api/**/*.js\" \"server/**/*.js\" \"scripts/**/*.mjs\" \"tests/**/*.js\" eslint.config.js playwright.config.js vite.config.js package.json vercel.json",
     "lint": "eslint . --max-warnings 0",
     "test": "playwright test",
     "test:preview": "playwright test --project=preview",
-    "check": "npm run lint && npm run build && npm run test:server && npm test",
+    "check": "npm run format:check && npm run lint && npm run build && npm run test:server && npm test",
     "test:server": "node --test tests/server/*.test.js"
   },
   "engines": {
@@ -38,6 +40,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "globals": "^17.12.0",
+    "prettier": "^3.9.8",
     "vite": "^7.3.6",
     "vite-plugin-static-copy": "^3.4.0"
   }

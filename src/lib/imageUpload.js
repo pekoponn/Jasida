@@ -21,10 +21,14 @@ export async function prepareUploadPhoto(file) {
   }
   if (!(file instanceof Blob) || !file.size) throw new Error('Pilih foto yang tidak kosong.');
   const accepted = PHOTO_INPUT_ACCEPT.split(',');
-  if (!accepted.includes(file.type) && !(file.type === '' && /\.(jpe?g|png|webp)$/i.test(file.name || ''))) {
+  if (
+    !accepted.includes(file.type) &&
+    !(file.type === '' && /\.(jpe?g|png|webp)$/i.test(file.name || ''))
+  ) {
     throw new Error('Pilih foto JPEG, PNG, atau WebP.');
   }
-  if (file.size > INPUT_MAX_BYTES) throw new Error('Foto asli terlalu besar. Pilih foto maksimal 25 MB.');
+  if (file.size > INPUT_MAX_BYTES)
+    throw new Error('Foto asli terlalu besar. Pilih foto maksimal 25 MB.');
 
   const sourceUrl = URL.createObjectURL(file);
   const image = new Image();
@@ -53,8 +57,15 @@ export async function prepareUploadPhoto(file) {
           throw new Error('Browser ini belum mendukung konversi WebP. Gunakan browser terbaru.');
         }
         if (blob.size > 0 && blob.size <= PHOTO_MAX_BYTES) {
-          const stem = (file.name || 'foto').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 80) || 'foto';
-          const result = new File([blob], `${stem}.webp`, { type: 'image/webp', lastModified: file.lastModified ?? Date.now() });
+          const stem =
+            (file.name || 'foto')
+              .replace(/\.[^.]+$/, '')
+              .replace(/[^a-zA-Z0-9_-]/g, '-')
+              .slice(0, 80) || 'foto';
+          const result = new File([blob], `${stem}.webp`, {
+            type: 'image/webp',
+            lastModified: file.lastModified ?? Date.now(),
+          });
           await validateUploadPhoto(result);
           preparedPhotos.add(result);
           return result;

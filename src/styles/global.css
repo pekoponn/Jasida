@@ -1,20 +1,20 @@
 :root {
-  --color-bg: #FAFAF9;
-  --color-surface: #FFFFFF;
-  --color-surface-raised: #FBFAF7;
-  --color-ink: #191B1F;
-  --color-ink-soft: #5B5F68;
-  --color-border: #DEDBD3;
-  --color-primary: #24506F;
-  --color-primary-ink: #FFFFFF;
-  --color-accent: #E0561F;
-  --color-accent-ink: #FFFFFF;
+  --color-bg: #fafaf9;
+  --color-surface: #ffffff;
+  --color-surface-raised: #fbfaf7;
+  --color-ink: #191b1f;
+  --color-ink-soft: #5b5f68;
+  --color-border: #dedbd3;
+  --color-primary: #24506f;
+  --color-primary-ink: #ffffff;
+  --color-accent: #e0561f;
+  --color-accent-ink: #ffffff;
 
   /* severity scale */
-  --sev-low: #2F9E44;
-  --sev-medium: #E8A93B;
-  --sev-high: #E0561F;
-  --sev-emergency: #D62828;
+  --sev-low: #2f9e44;
+  --sev-medium: #e8a93b;
+  --sev-high: #e0561f;
+  --sev-emergency: #d62828;
 
   /* ---- Type tokens ---- */
   --font-display: 'Plus Jakarta Sans', sans-serif;
@@ -25,7 +25,7 @@
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
-  --shadow-card: 0 1px 2px rgba(25,27,31,0.06), 0 4px 16px rgba(25,27,31,0.06);
+  --shadow-card: 0 1px 2px rgba(25, 27, 31, 0.06), 0 4px 16px rgba(25, 27, 31, 0.06);
   --lane-dash: repeating-linear-gradient(
     90deg,
     var(--color-border) 0px,
@@ -39,7 +39,9 @@
   box-sizing: border-box;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   width: 100%;
   max-width: 100%;
   overflow-x: clip;
@@ -59,7 +61,10 @@ img {
   height: auto;
 }
 
-h1, h2, h3, .display {
+h1,
+h2,
+h3,
+.display {
   font-family: var(--font-display);
   letter-spacing: -0.01em;
   margin: 0;
@@ -191,7 +196,9 @@ a {
   }
 }
 
-#root, .page-wrapper, .rw-hero-section {
+#root,
+.page-wrapper,
+.rw-hero-section {
   min-height: auto !important;
   height: auto !important;
 }
@@ -234,21 +241,21 @@ a {
 
 .rw-bottom-item.active,
 .rw-bottom-item:hover {
-  color: #A61C24;
+  color: #a61c24;
 }
 
-  .mobile-nav-item.active,
-  .mobile-nav-item:hover {
-    color: #A61C24;
-  }
+.mobile-nav-item.active,
+.mobile-nav-item:hover {
+  color: #a61c24;
+}
 
-  .mobile-nav-icon {
-    width: 20px;
-    height: 20px;
-    fill: currentColor;
-  }
+.mobile-nav-icon {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
 
-  /* Hilangkan arrow bawaan select di semua browser */
+/* Hilangkan arrow bawaan select di semua browser */
 .rw-select::-ms-expand {
   display: none;
 }

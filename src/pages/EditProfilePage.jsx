@@ -16,9 +16,15 @@ import avatar8 from '../assets/avatars/avatar-8.png';
 import avatar9 from '../assets/avatars/avatar-9.png';
 
 const AVATAR_PRESETS = [
-  avatar1, avatar2, avatar3,
-  avatar4, avatar5, avatar6,
-  avatar7, avatar8, avatar9
+  avatar1,
+  avatar2,
+  avatar3,
+  avatar4,
+  avatar5,
+  avatar6,
+  avatar7,
+  avatar8,
+  avatar9,
 ];
 
 export default function EditProfilePage() {
@@ -68,7 +74,9 @@ function ProfileForm() {
 
   return (
     <section style={{ maxWidth: 380, margin: '48px auto' }}>
-      <h1 className="display" style={{ fontSize: 22, marginBottom: 4 }}>Edit Profil</h1>
+      <h1 className="display" style={{ fontSize: 22, marginBottom: 4 }}>
+        Edit Profil
+      </h1>
       <p style={{ color: 'var(--color-ink-soft)', fontSize: 14, marginTop: 0, marginBottom: 32 }}>
         Ubah username dan avatar kamu.
       </p>
@@ -100,10 +108,13 @@ function ProfileForm() {
               <button
                 key={url}
                 type="button"
-                onClick={() => { setSelectedAvatar(url); setPickerOpen(false); }}
+                onClick={() => {
+                  setSelectedAvatar(url);
+                  setPickerOpen(false);
+                }}
                 style={{
                   ...avatarOption,
-                  borderColor: selectedAvatar === url ? '#A61C24' : 'transparent'
+                  borderColor: selectedAvatar === url ? '#A61C24' : 'transparent',
                 }}
               >
                 <img src={url} alt="Pilihan avatar" style={avatarOptionImg} />
@@ -131,7 +142,9 @@ function ProfileForm() {
         />
 
         {error && <p style={{ color: 'var(--sev-emergency)', fontSize: 13, margin: 0 }}>{error}</p>}
-        {success && <p style={{ color: '#2f9e44', fontSize: 13, margin: 0 }}>Profil berhasil disimpan.</p>}
+        {success && (
+          <p style={{ color: '#2f9e44', fontSize: 13, margin: 0 }}>Profil berhasil disimpan.</p>
+        )}
 
         <button type="submit" disabled={saving} style={primaryBtn}>
           {saving ? 'Menyimpan…' : 'Simpan'}
@@ -154,7 +167,14 @@ function ProfileForm() {
 
 function HistoryIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
       <path d="M3 12a9 9 0 1 0 3-6.7" strokeLinecap="round" />
       <polyline points="3 3 3 9 9 9" strokeLinecap="round" strokeLinejoin="round" />
       <polyline points="12 8 12 12 15 14" strokeLinecap="round" strokeLinejoin="round" />
@@ -164,8 +184,19 @@ function HistoryIcon() {
 
 function LogoutIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path
+        d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
       <polyline points="16 17 21 12 16 7" strokeLinecap="round" strokeLinejoin="round" />
       <line x1="21" y1="12" x2="9" y2="12" strokeLinecap="round" />
     </svg>
@@ -183,7 +214,16 @@ function DefaultAvatarIcon() {
 
 function PencilIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#495057" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#495057"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
     </svg>
@@ -193,8 +233,14 @@ function PencilIcon() {
 const avatarOuterWrap = { position: 'relative', width: 140, height: 140 };
 
 const avatarWrapper = {
-  width: 140, height: 140, borderRadius: '50%', overflow: 'hidden',
-  background: '#9aa0a6', display: 'flex', alignItems: 'center', justifyContent: 'center'
+  width: 140,
+  height: 140,
+  borderRadius: '50%',
+  overflow: 'hidden',
+  background: '#9aa0a6',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
 };
 
 const avatarImg = { width: '100%', height: '100%', objectFit: 'cover' };
@@ -212,7 +258,7 @@ const editBadgeBtn = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  cursor: 'pointer'
+  cursor: 'pointer',
 };
 
 const avatarGrid = {
@@ -221,7 +267,7 @@ const avatarGrid = {
   gap: 14,
   maxWidth: 260,
   margin: '0 auto',
-  justifyItems: 'center'
+  justifyItems: 'center',
 };
 
 const avatarOption = {
@@ -232,7 +278,7 @@ const avatarOption = {
   border: '2px solid transparent',
   cursor: 'pointer',
   overflow: 'hidden',
-  background: '#f1f3f5'
+  background: '#f1f3f5',
 };
 
 const avatarOptionImg = { width: '100%', height: '100%', objectFit: 'cover' };
@@ -243,14 +289,14 @@ const inputStyle = {
   border: '1px solid #dee2e6',
   fontSize: 15,
   fontFamily: 'inherit',
-  background: '#fff'
+  background: '#fff',
 };
 
 const inputDisabledStyle = {
   ...inputStyle,
   background: '#f1f3f5',
   color: '#868e96',
-  cursor: 'not-allowed'
+  cursor: 'not-allowed',
 };
 
 const primaryBtn = {
@@ -262,14 +308,14 @@ const primaryBtn = {
   fontWeight: 800,
   fontSize: 15,
   cursor: 'pointer',
-  marginTop: 8
+  marginTop: 8,
 };
 
 const mobileAccountActions = {
   display: 'flex',
   flexDirection: 'column',
   gap: 10,
-  marginTop: 24
+  marginTop: 24,
 };
 
 const secondaryBtn = {
@@ -284,11 +330,11 @@ const secondaryBtn = {
   color: '#A61C24',
   fontWeight: 700,
   fontSize: 14,
-  cursor: 'pointer'
+  cursor: 'pointer',
 };
 
 const logoutBtn = {
   ...secondaryBtn,
   border: '1.5px solid #dee2e6',
-  color: '#868e96'
+  color: '#868e96',
 };

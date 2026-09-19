@@ -9,11 +9,16 @@ export default function CameraCapture({ onCapture, disabled, onBusyChange }) {
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState(null);
   const [capturing, setCapturing] = useState(false);
-  useEffect(() => { onBusyChange?.(capturing); }, [capturing, onBusyChange]);
+  useEffect(() => {
+    onBusyChange?.(capturing);
+  }, [capturing, onBusyChange]);
 
   useEffect(() => {
     startCamera();
-    return () => { cameraRequest.current += 1; stopCamera(); };
+    return () => {
+      cameraRequest.current += 1;
+      stopCamera();
+    };
   }, []);
 
   async function startCamera() {
@@ -24,7 +29,7 @@ export default function CameraCapture({ onCapture, disabled, onBusyChange }) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' } },
-        audio: false
+        audio: false,
       });
       if (request !== cameraRequest.current) {
         stream.getTracks().forEach((track) => track.stop());
@@ -60,7 +65,8 @@ export default function CameraCapture({ onCapture, disabled, onBusyChange }) {
       const positionPromise = getCurrentPosition().catch(() => null);
 
       const video = videoRef.current;
-      if (!video.videoWidth || !video.videoHeight) throw new Error('Kamera belum siap. Coba lagi sebentar.');
+      if (!video.videoWidth || !video.videoHeight)
+        throw new Error('Kamera belum siap. Coba lagi sebentar.');
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -90,16 +96,31 @@ export default function CameraCapture({ onCapture, disabled, onBusyChange }) {
           autoPlay
           playsInline
           muted
-          style={{ width: '100%', display: 'block', borderRadius: 'var(--radius-lg)', background: '#000' }}
+          style={{
+            width: '100%',
+            display: 'block',
+            borderRadius: 'var(--radius-lg)',
+            background: '#000',
+          }}
         />
-        {status === 'starting' && (
-          <div style={overlay}>Menyalakan kamera…</div>
-        )}
+        {status === 'starting' && <div style={overlay}>Menyalakan kamera…</div>}
       </div>
 
-      {error && <div style={errorBox} role="status"><p>{error}</p>
-        {status === 'error' && <button type="button" disabled={disabled || capturing} style={retryBtn} onClick={startCamera}>Coba kamera lagi</button>}
-      </div>}
+      {error && (
+        <div style={errorBox} role="status">
+          <p>{error}</p>
+          {status === 'error' && (
+            <button
+              type="button"
+              disabled={disabled || capturing}
+              style={retryBtn}
+              onClick={startCamera}
+            >
+              Coba kamera lagi
+            </button>
+          )}
+        </div>
+      )}
 
       <button
         type="button"
@@ -116,7 +137,9 @@ export default function CameraCapture({ onCapture, disabled, onBusyChange }) {
         )}
       </button>
 
-      <p style={{ fontSize: 12, color: 'var(--color-ink-soft)', textAlign: 'center', marginTop: 6 }}>
+      <p
+        style={{ fontSize: 12, color: 'var(--color-ink-soft)', textAlign: 'center', marginTop: 6 }}
+      >
         Gunakan foto terbaru. Lokasi laporan mengikuti GPS perangkat saat foto diambil.
       </p>
     </div>
@@ -128,7 +151,7 @@ const frameWrap = {
   aspectRatio: '4 / 3',
   overflow: 'hidden',
   borderRadius: 'var(--radius-lg)',
-  background: '#000'
+  background: '#000',
 };
 
 const overlay = {
@@ -139,7 +162,7 @@ const overlay = {
   justifyContent: 'center',
   color: '#fff',
   fontSize: 14,
-  fontWeight: 600
+  fontWeight: 600,
 };
 
 const shutterBtn = {
@@ -156,7 +179,7 @@ const shutterBtn = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  gap: 8
+  gap: 8,
 };
 
 const errorBox = {
@@ -164,7 +187,7 @@ const errorBox = {
   borderRadius: 'var(--radius-lg)',
   background: 'var(--color-surface-raised)',
   border: '1px solid var(--color-border)',
-  textAlign: 'center'
+  textAlign: 'center',
 };
 
 const retryBtn = {
@@ -173,5 +196,5 @@ const retryBtn = {
   borderRadius: 'var(--radius-md)',
   border: '1px solid var(--color-border)',
   background: 'var(--color-surface)',
-  fontWeight: 600
+  fontWeight: 600,
 };

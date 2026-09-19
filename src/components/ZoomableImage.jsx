@@ -22,7 +22,14 @@ export default function ZoomableImage({ src, alt = '', style, className, zoomAlt
             style={zoomImg}
             onClick={(e) => e.stopPropagation()}
           />
-          <button type="button" style={zoomCloseBtn} onClick={() => setZoomed(false)} aria-label="Tutup">✕</button>
+          <button
+            type="button"
+            style={zoomCloseBtn}
+            onClick={() => setZoomed(false)}
+            aria-label="Tutup"
+          >
+            ✕
+          </button>
         </div>
       )}
     </>
@@ -37,14 +44,14 @@ const overlay = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  padding: 20
+  padding: 20,
 };
 
 const zoomImg = {
   maxWidth: '90vw',
   maxHeight: '90vh',
   borderRadius: 12,
-  display: 'block'
+  display: 'block',
 };
 
 const zoomCloseBtn = {
@@ -59,5 +66,5 @@ const zoomCloseBtn = {
   color: '#333',
   fontSize: 16,
   cursor: 'pointer',
-  zIndex: 10000
+  zIndex: 10000,
 };

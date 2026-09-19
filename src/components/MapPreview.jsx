@@ -11,12 +11,12 @@ export default function MapPreview({ lat, lng, label = 'Lokasi Laporan' }) {
     if (!mapInstanceRef.current) {
       mapInstanceRef.current = window.L.map(mapContainerRef.current, {
         zoomControl: false,
-        attributionControl: true
+        attributionControl: true,
       }).setView([lat, lng], 17);
 
       window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors'
+        attribution: '&copy; OpenStreetMap contributors',
       }).addTo(mapInstanceRef.current);
 
       markerRef.current = window.L.marker([lat, lng], { icon: reportPinIcon })
@@ -25,7 +25,7 @@ export default function MapPreview({ lat, lng, label = 'Lokasi Laporan' }) {
           permanent: true,
           direction: 'top',
           offset: [0, -58],
-          className: 'rw-marker-tooltip'
+          className: 'rw-marker-tooltip',
         });
     } else {
       mapInstanceRef.current.setView([lat, lng], 17);
@@ -35,9 +35,7 @@ export default function MapPreview({ lat, lng, label = 'Lokasi Laporan' }) {
 
     setTimeout(() => mapInstanceRef.current?.invalidateSize(), 100);
 
-    return () => {
-
-    };
+    return () => {};
   }, [lat, lng, label]);
 
   useEffect(() => {
@@ -70,7 +68,7 @@ const reportPinIcon = window.L
         </div>
       `,
       iconSize: [46, 66],
-      iconAnchor: [23, 50]
+      iconAnchor: [23, 50],
     })
   : null;
 
@@ -118,5 +116,5 @@ const mapBox = {
   height: 180,
   borderRadius: 'var(--radius-lg)',
   marginTop: 10,
-  overflow: 'hidden'
+  overflow: 'hidden',
 };

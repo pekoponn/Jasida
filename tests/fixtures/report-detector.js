@@ -10,6 +10,6 @@ export async function detectDamage(file) {
   return {
     imageWidth: img.naturalWidth,
     imageHeight: img.naturalHeight,
-    detections: [{ damage_type: 'pothole', confidence: 0.9, bbox: [10, 10, 120, 100] }]
+    detections: [{ damage_type: 'pothole', confidence: 0.9, bbox: [10, 10, 120, 100] }],
   };
 }

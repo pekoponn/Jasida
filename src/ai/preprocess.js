@@ -51,9 +51,9 @@ export function canvasToCHWTensor(canvas) {
     const r = data[i * 4] / 255;
     const g = data[i * 4 + 1] / 255;
     const b = data[i * 4 + 2] / 255;
-    chw[i] = r;                 // R plane
-    chw[plane + i] = g;         // G plane
-    chw[plane * 2 + i] = b;     // B plane
+    chw[i] = r; // R plane
+    chw[plane + i] = g; // G plane
+    chw[plane * 2 + i] = b; // B plane
   }
 
   return new ort.Tensor('float32', chw, [1, 3, height, width]);

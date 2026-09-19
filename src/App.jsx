@@ -25,7 +25,17 @@ const EditProfilePage = lazy(() => import('./pages/EditProfilePage.jsx'));
 const RiwayatPage = lazy(() => import('./pages/RiwayatPage.jsx'));
 
 export default function App() {
-  return <Suspense fallback={<p role="status" style={{ padding: 24 }}>Memuat halaman…</p>}><AppContent /></Suspense>;
+  return (
+    <Suspense
+      fallback={
+        <p role="status" style={{ padding: 24 }}>
+          Memuat halaman…
+        </p>
+      }
+    >
+      <AppContent />
+    </Suspense>
+  );
 }
 
 function AppContent() {
@@ -35,7 +45,8 @@ function AppContent() {
   const isMobileDevice = useIsMobileDevice();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  if (passwordRecovery && location.pathname !== '/login') return <Navigate to="/login?mode=reset" replace />;
+  if (passwordRecovery && location.pathname !== '/login')
+    return <Navigate to="/login?mode=reset" replace />;
 
   if (location.pathname === '/login') {
     return (
@@ -52,17 +63,14 @@ function AppContent() {
     return (
       <div style={{ minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
         <ScrollToTop />
-        <AdminSidebar
-          mobileOpen={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
+        <AdminSidebar mobileOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <div
           style={{
             marginLeft: isMobileDevice ? 0 : ADMIN_SIDEBAR_WIDTH,
             minHeight: '100vh',
             display: 'flex',
             flexDirection: 'column',
-            background: '#F5F6FA'
+            background: '#F5F6FA',
           }}
         >
           <div style={{ position: 'sticky', top: 0, zIndex: 2100 }}>
@@ -138,7 +146,16 @@ function AppContent() {
   const isReportPage = location.pathname === '/lapor' || location.pathname === '/riwayat';
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Inter, sans-serif', userSelect: 'none', WebkitUserSelect: 'none' }}>
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: 'Inter, sans-serif',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+      }}
+    >
       <ScrollToTop />
 
       {/* NAVBAR KOMPONEN BARU */}
@@ -147,15 +164,15 @@ function AppContent() {
       <div style={dashedDivider()} />
 
       <main
-          style={{
-            flex: 1,
-            width: '100%',
-            maxWidth: isLandingOrFullWidth || isReportPage ? '100%' : 860,
-            margin: '0 auto',
-            padding: isLandingOrFullWidth ? 0 : isReportPage ? '32px 6% 64px' : '32px 20px 64px',
-            paddingBottom: isMobileDevice ? 80 : (isLandingOrFullWidth ? 0 : 64)
-          }}
-        >
+        style={{
+          flex: 1,
+          width: '100%',
+          maxWidth: isLandingOrFullWidth || isReportPage ? '100%' : 860,
+          margin: '0 auto',
+          padding: isLandingOrFullWidth ? 0 : isReportPage ? '32px 6% 64px' : '32px 20px 64px',
+          paddingBottom: isMobileDevice ? 80 : isLandingOrFullWidth ? 0 : 64,
+        }}
+      >
         <Routes>
           <Route path="/" element={isAdmin ? <Navigate to="/admin" replace /> : <LandingPage />} />
           <Route path="/redirect" element={<RoleRedirect />} />
@@ -178,6 +195,6 @@ function dashedDivider() {
   return {
     height: 3,
     width: '100%',
-    backgroundImage: `repeating-linear-gradient(90deg, ${color} 0, ${color} 10px, transparent 10px, transparent 18px)`
+    backgroundImage: `repeating-linear-gradient(90deg, ${color} 0, ${color} 10px, transparent 10px, transparent 18px)`,
   };
 }

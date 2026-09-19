@@ -1,8 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 
 const MONTH_NAMES = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  'Januari',
+  'Februari',
+  'Maret',
+  'April',
+  'Mei',
+  'Juni',
+  'Juli',
+  'Agustus',
+  'September',
+  'Oktober',
+  'November',
+  'Desember',
 ];
 const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
@@ -73,7 +83,13 @@ export default function CustomDateRangePicker({ startDate, endDate, onChange }) 
   }
 
   function isSameDay(a, b) {
-    return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    return (
+      a &&
+      b &&
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate()
+    );
   }
 
   const year = viewDate.getFullYear();
@@ -90,28 +106,42 @@ export default function CustomDateRangePicker({ startDate, endDate, onChange }) 
   return (
     <div ref={wrapperRef} style={{ position: 'relative' }}>
       <button type="button" onClick={() => setOpen((o) => !o)} style={triggerStyle}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a61e4d" strokeWidth="2">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#a61e4d"
+          strokeWidth="2"
+        >
           <rect x="3" y="5" width="18" height="16" rx="2" />
           <path d="M3 9h18M8 3v4M16 3v4" />
         </svg>
-        <span style={{ color: (startDate || endDate) ? '#495057' : '#868e96', fontSize: 13 }}>
-          {formatDisplay(startDate)} <span style={{ color: '#adb5bd' }}>s/d</span> {formatDisplay(endDate)}
+        <span style={{ color: startDate || endDate ? '#495057' : '#868e96', fontSize: 13 }}>
+          {formatDisplay(startDate)} <span style={{ color: '#adb5bd' }}>s/d</span>{' '}
+          {formatDisplay(endDate)}
         </span>
       </button>
 
       {open && (
         <div style={panelStyle}>
           <div style={headerRow}>
-            <button type="button" onClick={goPrevMonth} style={navBtnStyle}>‹</button>
+            <button type="button" onClick={goPrevMonth} style={navBtnStyle}>
+              ‹
+            </button>
             <span style={{ fontWeight: 700, fontSize: 13, color: '#343a40' }}>
               {MONTH_NAMES[month]} {year}
             </span>
-            <button type="button" onClick={goNextMonth} style={navBtnStyle}>›</button>
+            <button type="button" onClick={goNextMonth} style={navBtnStyle}>
+              ›
+            </button>
           </div>
 
           <div style={weekRow}>
             {DAY_NAMES.map((d) => (
-              <div key={d} style={weekLabel}>{d}</div>
+              <div key={d} style={weekLabel}>
+                {d}
+              </div>
             ))}
           </div>
 
@@ -129,7 +159,7 @@ export default function CustomDateRangePicker({ startDate, endDate, onChange }) 
                     backgroundColor: selected ? '#a61e4d' : inRange ? '#FDECEE' : 'transparent',
                     color: selected ? '#ffffff' : '#343a40',
                     fontWeight: selected ? 700 : 500,
-                    cursor: day ? 'pointer' : 'default'
+                    cursor: day ? 'pointer' : 'default',
                   }}
                 >
                   {day ? day.getDate() : ''}
@@ -161,7 +191,7 @@ const triggerStyle = {
   alignItems: 'center',
   gap: 8,
   cursor: 'pointer',
-  fontFamily: 'inherit'
+  fontFamily: 'inherit',
 };
 
 const panelStyle = {
@@ -174,15 +204,52 @@ const panelStyle = {
   borderRadius: 12,
   boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
   zIndex: 1000,
-  padding: 14
+  padding: 14,
 };
 
-const headerRow = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 };
-const navBtnStyle = { border: 'none', background: 'none', fontSize: 18, color: '#a61e4d', cursor: 'pointer', width: 28, height: 28, borderRadius: '50%' };
+const headerRow = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: 10,
+};
+const navBtnStyle = {
+  border: 'none',
+  background: 'none',
+  fontSize: 18,
+  color: '#a61e4d',
+  cursor: 'pointer',
+  width: 28,
+  height: 28,
+  borderRadius: '50%',
+};
 const weekRow = { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 4 };
 const weekLabel = { textAlign: 'center', fontSize: 11, color: '#adb5bd', fontWeight: 600 };
 const gridStyle = { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 };
-const dayCellStyle = { height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, borderRadius: 8 };
+const dayCellStyle = {
+  height: 32,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 12,
+  borderRadius: 8,
+};
 const footerRow = { display: 'flex', justifyContent: 'space-between', marginTop: 12 };
-const clearBtnStyle = { border: 'none', background: 'none', color: '#868e96', fontSize: 12, cursor: 'pointer', fontWeight: 600 };
-const doneBtnStyle = { border: 'none', background: '#a61e4d', color: '#ffffff', fontSize: 12, fontWeight: 700, padding: '6px 16px', borderRadius: 16, cursor: 'pointer' };
+const clearBtnStyle = {
+  border: 'none',
+  background: 'none',
+  color: '#868e96',
+  fontSize: 12,
+  cursor: 'pointer',
+  fontWeight: 600,
+};
+const doneBtnStyle = {
+  border: 'none',
+  background: '#a61e4d',
+  color: '#ffffff',
+  fontSize: 12,
+  fontWeight: 700,
+  padding: '6px 16px',
+  borderRadius: 16,
+  cursor: 'pointer',
+};

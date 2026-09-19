@@ -41,9 +41,12 @@ export default function AdminDoubleCheckPage() {
 
   return (
     <section>
-      <h1 className="display" style={{ fontSize: 24, marginBottom: 4 }}>Double Check</h1>
+      <h1 className="display" style={{ fontSize: 24, marginBottom: 4 }}>
+        Double Check
+      </h1>
       <p style={{ color: '#868e96', marginTop: 0, fontSize: 14 }}>
-        Validasi laporan yang pelapor tandai sebagai "kerusakan berbeda", padahal AI mendeteksinya mirip dengan laporan lain.
+        Validasi laporan yang pelapor tandai sebagai "kerusakan berbeda", padahal AI mendeteksinya
+        mirip dengan laporan lain.
       </p>
 
       {error && <p style={{ color: '#e03131', marginTop: 12 }}>{error}</p>}
@@ -69,8 +72,12 @@ export default function AdminDoubleCheckPage() {
 
 function ReviewCard({ item, busy, onResolve }) {
   const candidate = item.candidate;
-  const matchPct = typeof item.duplicate_similarity === 'number' ? Math.round(item.duplicate_similarity * 100) : null;
-  const distance = typeof item.duplicate_distance_m === 'number' ? Math.round(item.duplicate_distance_m) : null;
+  const matchPct =
+    typeof item.duplicate_similarity === 'number'
+      ? Math.round(item.duplicate_similarity * 100)
+      : null;
+  const distance =
+    typeof item.duplicate_distance_m === 'number' ? Math.round(item.duplicate_distance_m) : null;
 
   return (
     <div style={cardStyle}>
@@ -82,7 +89,9 @@ function ReviewCard({ item, busy, onResolve }) {
             <span style={avatarFallback}>{(item.profile?.username?.[0] ?? '?').toUpperCase()}</span>
           )}
           <div>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>{item.profile?.username ?? 'Anonim'}</div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>
+              {item.profile?.username ?? 'Anonim'}
+            </div>
             <div style={{ fontSize: 12, color: '#868e96' }}>
               Melaporkan pada {new Date(item.created_at).toLocaleString('id-ID')}
             </div>
@@ -104,7 +113,11 @@ function ReviewCard({ item, busy, onResolve }) {
           />
           <div style={{ marginTop: 8, fontSize: 12.5, color: '#495057' }}>
             {item.damage_type && <div>{damageTypeDisplayLabel(item.damage_type)}</div>}
-            {item.severity && <div>{severityDisplayLabel(item.severity)} · Skor {item.hazard_score}</div>}
+            {item.severity && (
+              <div>
+                {severityDisplayLabel(item.severity)} · Skor {item.hazard_score}
+              </div>
+            )}
             {item.address && <div style={{ color: '#868e96', marginTop: 4 }}>{item.address}</div>}
             {item.note && <div style={{ marginTop: 4, fontStyle: 'italic' }}>"{item.note}"</div>}
           </div>
@@ -120,9 +133,17 @@ function ReviewCard({ item, busy, onResolve }) {
                 style={photoStyle}
               />
               <div style={{ marginTop: 8, fontSize: 12.5, color: '#495057' }}>
-                {candidate.damage_type && <div>{damageTypeDisplayLabel(candidate.damage_type)}</div>}
-                {candidate.severity && <div>{severityDisplayLabel(candidate.severity)} · Skor {candidate.hazard_score}</div>}
-                {candidate.address && <div style={{ color: '#868e96', marginTop: 4 }}>{candidate.address}</div>}
+                {candidate.damage_type && (
+                  <div>{damageTypeDisplayLabel(candidate.damage_type)}</div>
+                )}
+                {candidate.severity && (
+                  <div>
+                    {severityDisplayLabel(candidate.severity)} · Skor {candidate.hazard_score}
+                  </div>
+                )}
+                {candidate.address && (
+                  <div style={{ color: '#868e96', marginTop: 4 }}>{candidate.address}</div>
+                )}
               </div>
             </>
           ) : (
@@ -139,19 +160,20 @@ function ReviewCard({ item, busy, onResolve }) {
           disabled={busy}
           onClick={() => onResolve(true)}
         >
-        Laporan Sama
+          Laporan Sama
         </button>
         <button
           style={{ ...actionBtn, background: '#2f9e44' }}
           disabled={busy}
           onClick={() => onResolve(false)}
         >
-        Laporan Beda
+          Laporan Beda
         </button>
       </div>
       <p style={{ fontSize: 11.5, color: '#adb5bd', marginTop: 8, marginBottom: 0 }}>
         "AI Benar" akan membatalkan laporan baru ini dan menambahkan pelapor ke laporan existing.
-        "AI Salah" akan membuat laporan baru ini resmi (status Menunggu Verifikasi) dan muncul di Kelola Laporan &amp; Daftar Laporan.
+        "AI Salah" akan membuat laporan baru ini resmi (status Menunggu Verifikasi) dan muncul di
+        Kelola Laporan &amp; Daftar Laporan.
       </p>
     </div>
   );
@@ -164,14 +186,14 @@ const emptyState = {
   color: '#868e96',
   background: '#fff',
   borderRadius: 16,
-  boxShadow: '0 1px 2px rgba(25,27,31,0.06), 0 4px 16px rgba(25,27,31,0.06)'
+  boxShadow: '0 1px 2px rgba(25,27,31,0.06), 0 4px 16px rgba(25,27,31,0.06)',
 };
 
 const cardStyle = {
   background: '#fff',
   borderRadius: 16,
   boxShadow: '0 1px 2px rgba(25,27,31,0.06), 0 4px 16px rgba(25,27,31,0.06)',
-  padding: 20
+  padding: 20,
 };
 
 const metaRow = {
@@ -180,30 +202,57 @@ const metaRow = {
   justifyContent: 'space-between',
   flexWrap: 'wrap',
   gap: 12,
-  marginBottom: 16
+  marginBottom: 16,
 };
 
 const avatarImg = { width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 };
 const avatarFallback = {
-  width: 32, height: 32, borderRadius: '50%', background: '#A61C24', color: '#fff',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0
+  width: 32,
+  height: 32,
+  borderRadius: '50%',
+  background: '#A61C24',
+  color: '#fff',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 13,
+  fontWeight: 700,
+  flexShrink: 0,
 };
 
 const infoPill = {
-  fontSize: 12, fontWeight: 600, color: '#A61C24', background: '#FDECEE', padding: '5px 12px', borderRadius: 999
+  fontSize: 12,
+  fontWeight: 600,
+  color: '#A61C24',
+  background: '#FDECEE',
+  padding: '5px 12px',
+  borderRadius: 999,
 };
 
 const photoCompareGrid = {
   display: 'grid',
   gridTemplateColumns: '1fr 1fr',
-  gap: 20
+  gap: 20,
 };
 
 const photoLabel = { fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#495057' };
-const photoStyle = { width: '100%', height: 200, objectFit: 'cover', borderRadius: 10, display: 'block' };
+const photoStyle = {
+  width: '100%',
+  height: 200,
+  objectFit: 'cover',
+  borderRadius: 10,
+  display: 'block',
+};
 const placeholderBox = {
-  background: '#f8f9fa', border: '1px dashed #dee2e6', display: 'flex', alignItems: 'center',
-  justifyContent: 'center', color: '#adb5bd', fontSize: 12, textAlign: 'center', padding: 12
+  background: '#f8f9fa',
+  border: '1px dashed #dee2e6',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: '#adb5bd',
+  fontSize: 12,
+  textAlign: 'center',
+  padding: 12,
 };
 
 const actionBtn = {
@@ -214,5 +263,5 @@ const actionBtn = {
   color: '#fff',
   fontSize: 13,
   fontWeight: 700,
-  cursor: 'pointer'
+  cursor: 'pointer',
 };

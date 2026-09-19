@@ -3,7 +3,7 @@ const CLASS_BASE_SCORE = {
   alligator_crack: 55,
   other_corruption: 50,
   longitudinal_crack: 40,
-  transverse_crack: 35
+  transverse_crack: 35,
 };
 
 const CLASS_AREA_SENSITIVITY = {
@@ -11,18 +11,18 @@ const CLASS_AREA_SENSITIVITY = {
   alligator_crack: 1.0,
   other_corruption: 1.0,
   longitudinal_crack: 0.6,
-  transverse_crack: 0.6
+  transverse_crack: 0.6,
 };
 
 const MAX_AREA_BOOST = 40;
-const MULTI_DETECTION_BONUS = 3; 
-const MULTI_DETECTION_THRESHOLD = 40; 
-const MAX_MULTI_BONUS = 15; 
+const MULTI_DETECTION_BONUS = 3;
+const MULTI_DETECTION_THRESHOLD = 40;
+const MAX_MULTI_BONUS = 15;
 
 const SEVERITY_SCORE_RANGE = {
   aman: [0, 34],
   sedang: [35, 69],
-  darurat: [70, 100]
+  darurat: [70, 100],
 };
 
 export const DAMAGE_TYPE_LABEL_ID = {
@@ -30,7 +30,7 @@ export const DAMAGE_TYPE_LABEL_ID = {
   alligator_crack: 'Retak Buaya',
   longitudinal_crack: 'Retak Memanjang',
   transverse_crack: 'Retak Melintang',
-  other_corruption: 'Kerusakan Lain'
+  other_corruption: 'Kerusakan Lain',
 };
 
 /**
@@ -81,7 +81,7 @@ function scoreToSeverity(score) {
 const SEVERITY_LABEL_ID = {
   aman: 'Aman',
   sedang: 'Sedang',
-  darurat: 'Darurat'
+  darurat: 'Darurat',
 };
 
 export function severityDisplayLabel(severity) {

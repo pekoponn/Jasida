@@ -15,6 +15,8 @@ export function distanceMeters(a, b) {
   const radians = Math.PI / 180;
   const dLat = (b.lat - a.lat) * radians;
   const dLng = (b.lng - a.lng) * radians;
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * radians) * Math.cos(b.lat * radians) * Math.sin(dLng / 2) ** 2;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.lat * radians) * Math.cos(b.lat * radians) * Math.sin(dLng / 2) ** 2;
   return 6371000 * 2 * Math.asin(Math.sqrt(Math.min(1, Math.max(0, h))));
 }

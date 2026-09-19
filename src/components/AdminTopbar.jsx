@@ -32,7 +32,12 @@ export default function AdminTopbar({ onMenuClick }) {
     <header className="admin-topbar" style={topbar}>
       <style>{topbarCss}</style>
 
-      <button className="admin-topbar-hamburger" style={hamburgerBtn} onClick={onMenuClick} aria-label="Buka menu">
+      <button
+        className="admin-topbar-hamburger"
+        style={hamburgerBtn}
+        onClick={onMenuClick}
+        aria-label="Buka menu"
+      >
         <Menu size={22} color="#1a1a1a" />
       </button>
 
@@ -42,7 +47,11 @@ export default function AdminTopbar({ onMenuClick }) {
         <button style={profileBtn} onClick={() => setOpen((v) => !v)}>
           <div style={avatar}>
             {profile?.avatar_url ? (
-              <img src={profile.avatar_url} alt={name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+              <img
+                src={profile.avatar_url}
+                alt={name}
+                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+              />
             ) : (
               <User size={18} color="#868e96" />
             )}
@@ -54,7 +63,11 @@ export default function AdminTopbar({ onMenuClick }) {
             {roleLabel && <div style={roleText}>{roleLabel}</div>}
           </div>
 
-          <ChevronDown size={16} color="#868e96" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+          <ChevronDown
+            size={16}
+            color="#868e96"
+            style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}
+          />
         </button>
 
         {open && (
@@ -64,7 +77,13 @@ export default function AdminTopbar({ onMenuClick }) {
               <div style={nameText}>{name}</div>
               {roleLabel && <div style={roleText}>{roleLabel}</div>}
             </div>
-            <button style={dropdownItem} onClick={() => { setOpen(false); navigate('/admin/profil'); }}>
+            <button
+              style={dropdownItem}
+              onClick={() => {
+                setOpen(false);
+                navigate('/admin/profil');
+              }}
+            >
               <User size={16} /> Profil Saya
             </button>
             <button style={{ ...dropdownItem, color: '#e03131' }} onClick={handleSignOut}>
@@ -99,7 +118,7 @@ const topbar = {
   borderBottom: '1px solid #EDEEF2',
   position: 'sticky',
   top: 0,
-  zIndex: 2100, 
+  zIndex: 2100,
 };
 
 const hamburgerBtn = {

@@ -27,9 +27,21 @@ export default function Footer() {
 
           <div>
             <h4 style={footerHeading}>Menu</h4>
-            <p style={footerText}><Link to="/" style={footerLink}>Beranda</Link></p>
-            <p style={footerText}><Link to="/dashboard" style={footerLink}>Daftar Laporan</Link></p>
-            <p style={footerText}><Link to="/lapor" style={footerLink}>Laporkan</Link></p>
+            <p style={footerText}>
+              <Link to="/" style={footerLink}>
+                Beranda
+              </Link>
+            </p>
+            <p style={footerText}>
+              <Link to="/dashboard" style={footerLink}>
+                Daftar Laporan
+              </Link>
+            </p>
+            <p style={footerText}>
+              <Link to="/lapor" style={footerLink}>
+                Laporkan
+              </Link>
+            </p>
           </div>
         </div>
 
@@ -40,22 +52,36 @@ export default function Footer() {
           <div>
             <h4 style={footerHeading}>Tentang</h4>
             <p style={footerText}>
-              Platform cerdas pelaporan jalan berbasis AI untuk mobilitas Sidoarjo yang lebih aman dan nyaman.
+              Platform cerdas pelaporan jalan berbasis AI untuk mobilitas Sidoarjo yang lebih aman
+              dan nyaman.
             </p>
           </div>
 
           <div>
             <h4 style={footerHeading}>Sosial Media</h4>
-            <p style={footerText}><a href="#" style={footerLink}>Facebook ↗</a></p>
-            <p style={footerText}><a href="#" style={footerLink}>Instagram ↗</a></p>
-            <p style={footerText}><a href="#" style={footerLink}>Linkedin ↗</a></p>
+            <p style={footerText}>
+              <a href="#" style={footerLink}>
+                Facebook ↗
+              </a>
+            </p>
+            <p style={footerText}>
+              <a href="#" style={footerLink}>
+                Instagram ↗
+              </a>
+            </p>
+            <p style={footerText}>
+              <a href="#" style={footerLink}>
+                Linkedin ↗
+              </a>
+            </p>
           </div>
         </div>
       </div>
 
       {/* Pembatas Garis Patah-Patah & Copyright */}
       <div style={copyrightText}>
-        © 2026 Jasida. Dikembangkan oleh Tim Saya Ganti Kimpul. Seluruh hak cipta dilindungi undang-undang.
+        © 2026 Jasida. Dikembangkan oleh Tim Saya Ganti Kimpul. Seluruh hak cipta dilindungi
+        undang-undang.
       </div>
     </footer>
   );
@@ -65,7 +91,7 @@ const footerSection = {
   position: 'relative',
   padding: '28px 6% 24px',
   marginTop: 'auto',
-  isolation: 'isolate'
+  isolation: 'isolate',
 };
 
 const footerBgLayer = {
@@ -74,7 +100,7 @@ const footerBgLayer = {
   background: '#FFF5F5',
   borderRadius: '56px 56px 0 0',
   overflow: 'hidden',
-  zIndex: -1
+  zIndex: -1,
 };
 
 const logoImgWrap = {
@@ -87,7 +113,7 @@ const logoImgWrap = {
   flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
-  pointerEvents: 'none'
+  pointerEvents: 'none',
 };
 
 const logoImg = {
@@ -95,7 +121,7 @@ const logoImg = {
   height: 'auto',
   display: 'block',
   imageRendering: 'auto',
-  filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.12))'
+  filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.12))',
 };
 
 const footerGrid = {
@@ -107,19 +133,19 @@ const footerGrid = {
   margin: '0 auto',
   padding: '0 12px',
   position: 'relative',
-  zIndex: 1
+  zIndex: 1,
 };
 
 const leftGroup = {
   display: 'flex',
   gap: 80,
-  justifySelf: 'end'
+  justifySelf: 'end',
 };
 
 const rightGroup = {
   display: 'flex',
   gap: 80,
-  justifySelf: 'start'
+  justifySelf: 'start',
 };
 
 const footerLogoText = {
@@ -129,25 +155,25 @@ const footerLogoText = {
   fontFamily: JASIDA_FONT,
   letterSpacing: '-0.5px',
   marginTop: 4,
-  pointerEvents: 'auto'
+  pointerEvents: 'auto',
 };
 
-const footerHeading = { 
-  fontSize: 20, 
-  fontWeight: 700, 
-  margin: '0 0 16px', 
+const footerHeading = {
+  fontSize: 20,
+  fontWeight: 700,
+  margin: '0 0 16px',
   color: '#111',
   fontFamily: 'Poppins, Inter, sans-serif',
-  whiteSpace: 'nowrap'
+  whiteSpace: 'nowrap',
 };
 
-const footerText = { 
-  fontSize: 15, 
-  color: '#444', 
-  margin: '9px 0', 
+const footerText = {
+  fontSize: 15,
+  color: '#444',
+  margin: '9px 0',
   lineHeight: 1.7,
   fontFamily: 'Poppins, Inter, sans-serif',
-  maxWidth: 260
+  maxWidth: 260,
 };
 
 const footerLink = { color: '#444', textDecoration: 'none' };
@@ -161,5 +187,5 @@ const copyrightText = {
   color: '#A61C24',
   fontFamily: 'Poppins, Inter, sans-serif',
   position: 'relative',
-  zIndex: 1
+  zIndex: 1,
 };

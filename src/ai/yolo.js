@@ -6,7 +6,7 @@ export const DAMAGE_CLASSES = [
   'pothole',
   'alligator_crack',
   'longitudinal_crack',
-  'transverse_crack'
+  'transverse_crack',
 ];
 
 const MODEL_URL = '/models/yolo-damage.onnx';
@@ -18,7 +18,7 @@ let sessionPromise = null;
 function getSession() {
   if (!sessionPromise) {
     sessionPromise = ort.InferenceSession.create(MODEL_URL, {
-      executionProviders: ['wasm']
+      executionProviders: ['wasm'],
     }).catch((err) => {
       sessionPromise = null;
       throw err;
@@ -42,15 +42,30 @@ export async function detectDamage(file) {
   const outputName = session.outputNames[0];
   const raw = outputs[outputName];
 
-  const detections = parseYoloOutput(raw, { scale, padX, padY, imageWidth: img.width, imageHeight: img.height });
-  return { detections, imageWidth: img.naturalWidth ?? img.width, imageHeight: img.naturalHeight ?? img.height };
+  const detections = parseYoloOutput(raw, {
+    scale,
+    padX,
+    padY,
+    imageWidth: img.width,
+    imageHeight: img.height,
+  });
+  return {
+    detections,
+    imageWidth: img.naturalWidth ?? img.width,
+    imageHeight: img.naturalHeight ?? img.height,
+  };
 }
 
 export function parseYoloOutput(tensor, { scale, padX, padY, imageWidth, imageHeight }) {
   const [, numAttrs, numBoxes] = tensor.dims;
   const numClasses = numAttrs - 4;
   const data = tensor.data;
-  if (tensor.dims.length !== 3 || tensor.dims[0] !== 1 || numClasses !== DAMAGE_CLASSES.length || data.length !== numAttrs * numBoxes) {
+  if (
+    tensor.dims.length !== 3 ||
+    tensor.dims[0] !== 1 ||
+    numClasses !== DAMAGE_CLASSES.length ||
+    data.length !== numAttrs * numBoxes
+  ) {
     throw new Error('Output/kelas model YOLO tidak cocok dengan konfigurasi aplikasi.');
   }
 
@@ -82,7 +97,7 @@ export function parseYoloOutput(tensor, { scale, padX, padY, imageWidth, imageHe
     candidates.push({
       damage_type: DAMAGE_CLASSES[bestClass] ?? `class_${bestClass}`,
       confidence: bestScore,
-      bbox: [x, y, boxW, boxH]
+      bbox: [x, y, boxW, boxH],
     });
   }
 
@@ -96,7 +111,10 @@ function nonMaxSuppression(boxes, iouThreshold) {
     const current = sorted.shift();
     kept.push(current);
     for (let i = sorted.length - 1; i >= 0; i--) {
-      if (current.damage_type === sorted[i].damage_type && iou(current.bbox, sorted[i].bbox) > iouThreshold) {
+      if (
+        current.damage_type === sorted[i].damage_type &&
+        iou(current.bbox, sorted[i].bbox) > iouThreshold
+      ) {
         sorted.splice(i, 1);
       }
     }

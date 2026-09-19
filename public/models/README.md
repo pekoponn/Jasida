@@ -14,6 +14,5 @@ Jika analisis gagal, pengiriman ditahan; halaman laporan tidak memakai mock.
 `clip-image-encoder.onnx` belum tersedia sehingga pemeriksaan visual duplikat
 belum aktif; pemeriksaan lokasi + jenis tetap memberikan saran dengan konfirmasi
 pengguna. Pastikan encoder menghasilkan 512 nilai dan preprocessing sesuai
-model sebelum mengaktifkannya. `severity-classifier.onnx` masih disimpan untuk
-modul `src/ai/severity.js`, tetapi label laporan saat ini berasal dari YOLO
-dan aturan `src/ai/hazardScore.js`.
+model sebelum mengaktifkannya. Label laporan saat ini berasal dari YOLO dan
+aturan `src/ai/hazardScore.js`.

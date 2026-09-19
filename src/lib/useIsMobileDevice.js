@@ -8,7 +8,9 @@ export function useIsMobileDevice(breakpoint = 860) {
 
   useEffect(() => {
     const query = window.matchMedia(`(max-width: ${breakpoint}px)`);
-    function check() { setIsMobile(query.matches); }
+    function check() {
+      setIsMobile(query.matches);
+    }
     check();
     query.addEventListener('change', check);
     return () => {

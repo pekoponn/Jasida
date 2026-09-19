@@ -6,7 +6,7 @@ import { withResolvedAvatar } from '../lib/profileAvatar.js';
 
 const ROLE_META = {
   admin: { label: 'Admin', bg: '#FDECEE', color: '#A61C24' },
-  user: { label: 'Warga', bg: '#E7F1FF', color: '#1c5dcf' }
+  user: { label: 'Warga', bg: '#E7F1FF', color: '#1c5dcf' },
 };
 
 export default function AdminPenggunaPage() {
@@ -62,7 +62,9 @@ export default function AdminPenggunaPage() {
 
   return (
     <section>
-      <h1 className="display" style={{ fontSize: 24, marginBottom: 4 }}>Kelola Pengguna</h1>
+      <h1 className="display" style={{ fontSize: 24, marginBottom: 4 }}>
+        Kelola Pengguna
+      </h1>
       <p style={{ color: '#868e96', marginTop: 0, fontSize: 14 }}>
         Lihat semua pengguna terdaftar dan atur siapa yang punya akses admin.
       </p>
@@ -80,7 +82,11 @@ export default function AdminPenggunaPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               style={searchInputStyle}
             />
-            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} style={selectFilterStyle}>
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              style={selectFilterStyle}
+            >
               <option value="">Semua Role</option>
               <option value="user">Warga</option>
               <option value="admin">Admin</option>
@@ -100,7 +106,11 @@ export default function AdminPenggunaPage() {
               </thead>
               <tbody>
                 {filtered.length === 0 && (
-                  <tr><td style={td} colSpan={5}>Tidak ada pengguna yang cocok.</td></tr>
+                  <tr>
+                    <td style={td} colSpan={5}>
+                      Tidak ada pengguna yang cocok.
+                    </td>
+                  </tr>
                 )}
                 {filtered.map((u) => (
                   <UserRow
@@ -140,7 +150,11 @@ function UserRow({ profileUser, reportCount, busy, isSelf, onRoleChange }) {
           </div>
         </div>
       </td>
-      <td style={td}>{profileUser.created_at ? new Date(profileUser.created_at).toLocaleDateString('id-ID') : '-'}</td>
+      <td style={td}>
+        {profileUser.created_at
+          ? new Date(profileUser.created_at).toLocaleDateString('id-ID')
+          : '-'}
+      </td>
       <td style={td}>{reportCount}</td>
       <td style={td}>
         <span style={{ ...badge, background: meta.bg, color: meta.color }}>{meta.label}</span>
@@ -165,7 +179,7 @@ const panelCard = {
   background: '#fff',
   borderRadius: 16,
   boxShadow: '0 1px 2px rgba(25,27,31,0.06), 0 4px 16px rgba(25,27,31,0.06)',
-  overflow: 'hidden'
+  overflow: 'hidden',
 };
 
 const toolbarRow = {
@@ -173,7 +187,7 @@ const toolbarRow = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
-  alignItems: 'center'
+  alignItems: 'center',
 };
 
 const searchInputStyle = {
@@ -182,7 +196,7 @@ const searchInputStyle = {
   borderRadius: 8,
   border: '1px solid #dee2e6',
   fontSize: 13,
-  fontFamily: 'inherit'
+  fontFamily: 'inherit',
 };
 
 const selectFilterStyle = {
@@ -193,7 +207,7 @@ const selectFilterStyle = {
   fontFamily: 'inherit',
   background: '#fff',
   color: '#333',
-  cursor: 'pointer'
+  cursor: 'pointer',
 };
 
 const roleSelectStyle = {
@@ -203,7 +217,7 @@ const roleSelectStyle = {
   fontSize: 12.5,
   fontFamily: 'inherit',
   background: '#fff',
-  cursor: 'pointer'
+  cursor: 'pointer',
 };
 
 const th = { padding: '12px 16px', fontWeight: 600 };
@@ -214,7 +228,7 @@ const badge = {
   padding: '4px 10px',
   borderRadius: 999,
   fontSize: 11.5,
-  fontWeight: 700
+  fontWeight: 700,
 };
 
 const avatarImg = { width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 };
@@ -230,5 +244,5 @@ const avatarFallback = {
   justifyContent: 'center',
   fontSize: 13,
   fontWeight: 700,
-  flexShrink: 0
+  flexShrink: 0,
 };

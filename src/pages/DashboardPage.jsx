@@ -76,9 +76,10 @@ export default function DashboardPage() {
   const filteredReports = useMemo(() => {
     return reports.filter((r) => {
       if (appliedFilters.kecamatan) {
-        const nama = typeof r.lat === 'number' && typeof r.lng === 'number'
-          ? findKecamatan(r.lat, r.lng)
-          : null;
+        const nama =
+          typeof r.lat === 'number' && typeof r.lng === 'number'
+            ? findKecamatan(r.lat, r.lng)
+            : null;
         if (nama !== appliedFilters.kecamatan) return false;
       }
       if (appliedFilters.from) {
@@ -113,7 +114,7 @@ export default function DashboardPage() {
 
   return (
     <div style={{ backgroundColor: 'var(--color-bg, #f8f9fa)', minHeight: '100vh' }}>
-    {/* Hero Banner Red Header */}
+      {/* Hero Banner Red Header */}
       <section
         style={{
           ...heroCardStyle,
@@ -121,7 +122,7 @@ export default function DashboardPage() {
           textAlign: isMobileDevice ? 'center' : 'left',
           margin: isMobileDevice ? '20px 5% 0' : heroCardStyle.margin,
           padding: isMobileDevice ? '28px 20px 24px' : heroCardStyle.padding,
-          minHeight: isMobileDevice ? 'auto' : heroCardStyle.minHeight
+          minHeight: isMobileDevice ? 'auto' : heroCardStyle.minHeight,
         }}
       >
         {!isMobileDevice && (
@@ -132,26 +133,52 @@ export default function DashboardPage() {
             onError={(e) => (e.target.style.display = 'none')}
           />
         )}
-        <div style={{ color: '#ffffff', marginLeft: isMobileDevice ? 0 : 350, marginTop: isMobileDevice ? 10 : 0 }}>
+        <div
+          style={{
+            color: '#ffffff',
+            marginLeft: isMobileDevice ? 0 : 350,
+            marginTop: isMobileDevice ? 10 : 0,
+          }}
+        >
           <h2 style={{ margin: 0, fontSize: 30, fontWeight: 450 }}>
             Bersama Jaga Sidoarjo. Laporkan Sekarang!
           </h2>
           <p style={{ margin: '10px 0 18px', fontSize: 15, opacity: 0.9, maxWidth: 500 }}>
-            Temu masalah infrastruktur? Laporkan lewat Jasida, biar langsung ditindaklanjuti oleh pihak berwenang.
+            Temu masalah infrastruktur? Laporkan lewat Jasida, biar langsung ditindaklanjuti oleh
+            pihak berwenang.
           </p>
-          <button style={btnHeroStyle} onClick={() => navigate('/lapor')}>Mulai Buat Laporan</button>
+          <button style={btnHeroStyle} onClick={() => navigate('/lapor')}>
+            Mulai Buat Laporan
+          </button>
         </div>
       </section>
 
       {/* Main Container */}
       <main style={{ width: '100%', padding: '0 5% 40px', boxSizing: 'border-box' }}>
-        <h2 style={{ textAlign: 'center', fontSize: 22, fontWeight: 600, marginTop: 56, marginBottom: 36 }}>
+        <h2
+          style={{
+            textAlign: 'center',
+            fontSize: 22,
+            fontWeight: 600,
+            marginTop: 56,
+            marginBottom: 36,
+          }}
+        >
           <span style={{ color: '#c92a2a' }}>Laporan</span>{' '}
           <span style={{ color: '#212529' }}>Kerusakan Terkini</span>
         </h2>
 
-                {/* Filter Controls */}
-        <div style={{ display: 'flex', justifyContent: isMobileDevice ? 'center' : 'flex-end', gap: 10, marginBottom: 30, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* Filter Controls */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: isMobileDevice ? 'center' : 'flex-end',
+            gap: 10,
+            marginBottom: 30,
+            flexWrap: 'wrap',
+            alignItems: 'center',
+          }}
+        >
           <CustomSelect
             value={kecamatanFilter}
             onChange={setKecamatanFilter}
@@ -162,13 +189,29 @@ export default function DashboardPage() {
           <CustomDateRangePicker
             startDate={dateFrom}
             endDate={dateTo}
-            onChange={(from, to) => { setDateFrom(from); setDateTo(to); }}
+            onChange={(from, to) => {
+              setDateFrom(from);
+              setDateTo(to);
+            }}
           />
 
-          <button onClick={handleSearch} className="rw-btn-anim" style={searchBtnStyle} aria-label="Cari">
+          <button
+            onClick={handleSearch}
+            className="rw-btn-anim"
+            style={searchBtnStyle}
+            aria-label="Cari"
+          >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <circle cx="11" cy="11" r="7" stroke="#fff" strokeWidth="2.2" />
-              <line x1="21" y1="21" x2="16.2" y2="16.2" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" />
+              <line
+                x1="21"
+                y1="21"
+                x2="16.2"
+                y2="16.2"
+                stroke="#fff"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
         </div>
@@ -177,7 +220,9 @@ export default function DashboardPage() {
         {error && <p style={{ textAlign: 'center', color: '#e03131' }}>{error}</p>}
         {!loading && !error && filteredReports.length === 0 && (
           <p style={{ textAlign: 'center', color: '#868e96', margin: '40px 0' }}>
-            {reports.length === 0 ? 'Belum ada laporan.' : 'Tidak ada laporan yang cocok dengan filter.'}
+            {reports.length === 0
+              ? 'Belum ada laporan.'
+              : 'Tidak ada laporan yang cocok dengan filter.'}
           </p>
         )}
 
@@ -195,9 +240,22 @@ export default function DashboardPage() {
         </div>
 
         {/* Pagination Arrows */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 30, marginBottom: 60 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            marginTop: 30,
+            marginBottom: 60,
+          }}
+        >
           <button
-            style={{ ...pageArrowStyle, opacity: page === 0 ? 0.4 : 1, cursor: page === 0 ? 'default' : 'pointer' }}
+            style={{
+              ...pageArrowStyle,
+              opacity: page === 0 ? 0.4 : 1,
+              cursor: page === 0 ? 'default' : 'pointer',
+            }}
             onClick={goPrevPage}
             disabled={page === 0}
           >
@@ -207,7 +265,11 @@ export default function DashboardPage() {
             {page + 1} / {totalPages}
           </span>
           <button
-            style={{ ...pageArrowStyle, opacity: page >= totalPages - 1 ? 0.4 : 1, cursor: page >= totalPages - 1 ? 'default' : 'pointer' }}
+            style={{
+              ...pageArrowStyle,
+              opacity: page >= totalPages - 1 ? 0.4 : 1,
+              cursor: page >= totalPages - 1 ? 'default' : 'pointer',
+            }}
             onClick={goNextPage}
             disabled={page >= totalPages - 1}
           >
@@ -220,7 +282,15 @@ export default function DashboardPage() {
 }
 function PinIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A61C24" strokeWidth="2.2" style={{ flexShrink: 0 }}>
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#A61C24"
+      strokeWidth="2.2"
+      style={{ flexShrink: 0 }}
+    >
       <path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z" />
       <circle cx="12" cy="9" r="2.3" />
     </svg>
@@ -230,7 +300,16 @@ function PinIcon() {
 function ChevronIcon({ direction }) {
   const points = direction === 'left' ? '15 18 9 12 15 6' : '9 18 15 12 9 6';
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#fff"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <polyline points={points} />
     </svg>
   );
@@ -238,7 +317,17 @@ function ChevronIcon({ direction }) {
 
 function ReporterIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, display: 'block' }}>
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flexShrink: 0, display: 'block' }}
+    >
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
       <circle cx="9" cy="7" r="4" />
       <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -249,7 +338,17 @@ function ReporterIcon() {
 
 function ThumbsUpIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flexShrink: 0 }}
+    >
       <path d="M7 10v11" />
       <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h2.76a2 2 0 0 0 1.79-1.11L12 3a1.5 1.5 0 0 1 3 1.5v1.38z" />
     </svg>
@@ -261,7 +360,7 @@ const DASHBOARD_STATUS_INFO = {
   accepted: { label: 'Diterima', bg: '#E7F1FF', color: '#1c5dcf' },
   in_progress: { label: 'Sedang Diperbaiki', bg: '#fff3bf', color: '#996a00' },
   resolved: { label: 'Sudah Dikerjakan', bg: '#d3f9d8', color: '#2b8a3e' },
-  rejected: { label: 'Ditolak', bg: '#FDECEE', color: '#A61C24' }
+  rejected: { label: 'Ditolak', bg: '#FDECEE', color: '#A61C24' },
 };
 
 function reportStatusInfo(status) {
@@ -284,7 +383,9 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
   }, [report.lat, report.lng]);
 
   useEffect(() => {
-    const originalPhoto = report.imageUrl ? [{ id: 'original', url: report.imageUrl, photo_type: 'original' }] : [];
+    const originalPhoto = report.imageUrl
+      ? [{ id: 'original', url: report.imageUrl, photo_type: 'original' }]
+      : [];
     setPhotos(originalPhoto);
     getReportPhotos(report.id)
       .then((extra) => setPhotos([...originalPhoto, ...extra]))
@@ -316,11 +417,11 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
     e.stopPropagation();
     setIndex((i) => (i + 1) % photos.length);
   }
-  
+
   const PHOTO_TYPE_LABEL = {
     original: 'Sebelum',
     resolution: 'Sesudah',
-    support: 'Dukungan'
+    support: 'Dukungan',
   };
 
   const posterName = report.profile?.username?.trim() || 'Anonim';
@@ -332,11 +433,30 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
   return (
     <article style={cardStyle}>
       {/* Top Image Preview & Severity */}
-      <div style={{ position: 'relative', height: 220, backgroundColor: '#e9ecef', overflow: 'hidden' }}>
+      <div
+        style={{
+          position: 'relative',
+          height: 220,
+          backgroundColor: '#e9ecef',
+          overflow: 'hidden',
+        }}
+      >
         {currentPhoto?.url ? (
-          <ZoomableImage src={currentPhoto.url} alt="Kerusakan" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <ZoomableImage
+            src={currentPhoto.url}
+            alt="Kerusakan"
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
         ) : (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#adb5bd' }}>
+          <div
+            style={{
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#adb5bd',
+            }}
+          >
             No Image
           </div>
         )}
@@ -352,10 +472,20 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
 
         {photos.length > 1 && (
           <>
-            <button type="button" onClick={goPrev} style={{ ...photoNavBtn, left: 8 }} aria-label="Foto sebelumnya">
+            <button
+              type="button"
+              onClick={goPrev}
+              style={{ ...photoNavBtn, left: 8 }}
+              aria-label="Foto sebelumnya"
+            >
               <ChevronIcon direction="left" />
             </button>
-            <button type="button" onClick={goNext} style={{ ...photoNavBtn, right: 8 }} aria-label="Foto berikutnya">
+            <button
+              type="button"
+              onClick={goNext}
+              style={{ ...photoNavBtn, right: 8 }}
+              aria-label="Foto berikutnya"
+            >
               <ChevronIcon direction="right" />
             </button>
 
@@ -363,7 +493,11 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
               {photos.map((p, i) => (
                 <span
                   key={p.id ?? i}
-                  style={{ ...photoDot, opacity: i === index ? 1 : 0.4, transform: i === index ? 'scale(1.2)' : 'scale(1)' }}
+                  style={{
+                    ...photoDot,
+                    opacity: i === index ? 1 : 0.4,
+                    transform: i === index ? 'scale(1.2)' : 'scale(1)',
+                  }}
                 />
               ))}
             </div>
@@ -373,8 +507,18 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
 
       {/* Details Section */}
       <div style={{ padding: 12, flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <span style={{ fontSize: 11, color: '#495057', display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
+        >
+          <span
+            style={{
+              fontSize: 11,
+              color: '#495057',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
             <PinIcon /> {address || 'Sekardangan, Sidoarjo, Jawa Timur'}
           </span>
 
@@ -389,7 +533,9 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
         </div>
 
         {/* Dukung + Komentar + Status — dikasih jarak dari baris di atasnya */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 12 }}
+        >
           <span style={reporterBadge}>
             <ReporterIcon /> {reporterCount} Pelapor
           </span>
@@ -411,9 +557,7 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
         </div>
 
         {report.status === 'rejected' && report.rejection_reason && (
-          <div style={rejectionReasonPill}>
-            Alasan ditolak: {report.rejection_reason}
-          </div>
+          <div style={rejectionReasonPill}>Alasan ditolak: {report.rejection_reason}</div>
         )}
 
         <div style={noteBox}>
@@ -445,7 +589,7 @@ const heroCardStyle = {
   alignItems: 'center',
   overflow: 'visible',
   position: 'relative',
-  minHeight: 140
+  minHeight: 140,
 };
 
 const heroIconStyle = {
@@ -455,7 +599,7 @@ const heroIconStyle = {
   width: 350,
   height: 'auto',
   objectFit: 'contain',
-  pointerEvents: 'none'
+  pointerEvents: 'none',
 };
 
 const btnHeroStyle = {
@@ -466,7 +610,7 @@ const btnHeroStyle = {
   borderRadius: 20,
   fontWeight: 700,
   fontSize: 12,
-  cursor: 'pointer'
+  cursor: 'pointer',
 };
 
 const searchBtnStyle = {
@@ -479,13 +623,13 @@ const searchBtnStyle = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  flexShrink: 0
+  flexShrink: 0,
 };
 
 const gridStyle = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-  gap: 20
+  gap: 20,
 };
 
 const cardStyle = {
@@ -495,7 +639,7 @@ const cardStyle = {
   boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
   display: 'flex',
   flexDirection: 'column',
-  height: 500
+  height: 500,
 };
 
 const noteBox = {
@@ -504,13 +648,13 @@ const noteBox = {
   overflowY: 'auto',
   background: '#f1f3f5',
   borderRadius: 8,
-  padding: '10px 12px'
+  padding: '10px 12px',
 };
 
 const reportDateText = {
   fontSize: 11,
   color: '#adb5bd',
-  margin: '8px 0 0'
+  margin: '8px 0 0',
 };
 
 const photoTypeBadge = {
@@ -522,7 +666,7 @@ const photoTypeBadge = {
   fontSize: 10.5,
   fontWeight: 700,
   padding: '4px 10px',
-  borderRadius: 999
+  borderRadius: 999,
 };
 
 const photoNavBtn = {
@@ -537,7 +681,7 @@ const photoNavBtn = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  cursor: 'pointer'
+  cursor: 'pointer',
 };
 
 const photoDotsRow = {
@@ -546,7 +690,7 @@ const photoDotsRow = {
   left: '50%',
   transform: 'translateX(-50%)',
   display: 'flex',
-  gap: 5
+  gap: 5,
 };
 
 const photoDot = {
@@ -554,14 +698,14 @@ const photoDot = {
   height: 6,
   borderRadius: '50%',
   background: '#fff',
-  transition: 'transform 0.15s ease, opacity 0.15s ease'
+  transition: 'transform 0.15s ease, opacity 0.15s ease',
 };
 
 const posterBadge = {
   display: 'flex',
   alignItems: 'center',
   gap: 6,
-  flexShrink: 0
+  flexShrink: 0,
 };
 
 const posterAvatar = {
@@ -575,7 +719,7 @@ const posterAvatar = {
   justifyContent: 'center',
   fontSize: 10,
   fontWeight: 700,
-  flexShrink: 0
+  flexShrink: 0,
 };
 
 const posterAvatarImg = {
@@ -583,14 +727,14 @@ const posterAvatarImg = {
   height: 20,
   borderRadius: '50%',
   objectFit: 'cover',
-  flexShrink: 0
+  flexShrink: 0,
 };
 
 const posterNameText = {
   fontSize: 11,
   fontWeight: 600,
   color: '#343a40',
-  whiteSpace: 'nowrap'
+  whiteSpace: 'nowrap',
 };
 
 const reporterBadge = {
@@ -603,7 +747,7 @@ const reporterBadge = {
   borderRadius: 20,
   fontWeight: 700,
   fontSize: 11,
-  whiteSpace: 'nowrap'
+  whiteSpace: 'nowrap',
 };
 
 // Badge "👍 Dukung {n}+" — pengganti tombol "Kirim" yang dobel
@@ -619,14 +763,14 @@ const dukungBadge = {
   fontWeight: 700,
   fontSize: 11,
   cursor: 'pointer',
-  whiteSpace: 'nowrap'
+  whiteSpace: 'nowrap',
 };
 
 const dukungBadgeDisabled = {
   ...dukungBadge,
   backgroundColor: '#f1f3f5',
   color: '#868e96',
-  cursor: 'default'
+  cursor: 'default',
 };
 
 const statusBadge = {
@@ -636,7 +780,7 @@ const statusBadge = {
   borderRadius: 20,
   fontWeight: 700,
   fontSize: 11,
-  whiteSpace: 'nowrap'
+  whiteSpace: 'nowrap',
 };
 
 const rejectionReasonPill = {
@@ -647,7 +791,7 @@ const rejectionReasonPill = {
   background: '#FDECEE',
   padding: '8px 12px',
   borderRadius: 8,
-  lineHeight: 1.4
+  lineHeight: 1.4,
 };
 
 const pageArrowStyle = {
@@ -662,5 +806,5 @@ const pageArrowStyle = {
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'center'
+  justifyContent: 'center',
 };

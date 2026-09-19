@@ -69,130 +69,190 @@ export default function LoginPage() {
           className="red-bg-svg"
           aria-hidden="true"
         >
-        <defs>
-          <linearGradient id="redGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#A61C24" />
-            <stop offset="100%" stopColor="#7C1420" />
-          </linearGradient>
-        </defs>
-        {/* Path ini dibalik: putihnya yang menjorok (melengkung) ke dalam merah */}
-        <path
-          d="M 100 0 L 40 0 C 40 0, 70 70, 35 125 L 200 100 Z"
-          fill="url(#redGradient)"
-        />
-      </svg>
+          <defs>
+            <linearGradient id="redGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#A61C24" />
+              <stop offset="100%" stopColor="#7C1420" />
+            </linearGradient>
+          </defs>
+          {/* Path ini dibalik: putihnya yang menjorok (melengkung) ke dalam merah */}
+          <path d="M 100 0 L 40 0 C 40 0, 70 70, 35 125 L 200 100 Z" fill="url(#redGradient)" />
+        </svg>
 
-      {/* Tombol Kembali (Pojok Kanan Atas) */}
-      <button 
-        type="button" 
-        onClick={() => navigate(-1)} 
-        style={backBtn}
-        className="mobile-back-btn"
-      >
-        Kembali <span aria-hidden="true">→</span>
-      </button>
+        {/* Tombol Kembali (Pojok Kanan Atas) */}
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          style={backBtn}
+          className="mobile-back-btn"
+        >
+          Kembali <span aria-hidden="true">→</span>
+        </button>
 
-      {/* Header Logo (Posisi Absolut di Kiri Atas) */}
-      <div style={brandHeader} className="brand-header">
-        <img src={brandLogo} alt="Logo" style={logoImg} />
-      </div>
-
-      {/* Panel Kiri: Ilustrasi */}
-      <div style={leftPanel} className="auth-brand-panel">
-        <div style={illustrationWrap}>
-          <img src={workerIllustration} alt="Ilustrasi Pekerja" style={illustrationImg} />
+        {/* Header Logo (Posisi Absolut di Kiri Atas) */}
+        <div style={brandHeader} className="brand-header">
+          <img src={brandLogo} alt="Logo" style={logoImg} />
         </div>
-      </div>
 
-      {/* Panel Kanan: Form */}
-      <div style={rightPanel} className="auth-form-panel">
-        <div style={formContainer} className="auth-form-container">
-          <img
-            src={workerIllustration}
-            alt="Ilustrasi Pekerja"
-            className="mobile-illustration"
-            style={mobileIllustrationImg}
-          />
-          <h1 className="display" style={{ fontSize: 32, marginBottom: 12, color: '#ffffff', userSelect: 'none', cursor: 'default' }}>
-            {showRecovery ? (recoveryMode ? 'Atur Sandi Baru' : 'Lupa Sandi') : mode === 'login' ? 'Masuk' : 'Daftar'}
-          </h1>
+        {/* Panel Kiri: Ilustrasi */}
+        <div style={leftPanel} className="auth-brand-panel">
+          <div style={illustrationWrap}>
+            <img src={workerIllustration} alt="Ilustrasi Pekerja" style={illustrationImg} />
+          </div>
+        </div>
 
-          {showRecovery ? <PasswordResetForm reset={recoveryMode} inputStyle={inputStyle} buttonStyle={submitBtn} linkStyle={linkBtn} onBack={() => { setMode('login'); navigate('/login', { replace: true }); }} /> : <>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 20 }}>
-            {mode === 'register' && (
-              <Field label="Username">
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                  style={inputStyle}
-                />
-              </Field>
-            )}
-
-            <Field label="Email">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                style={inputStyle}
-              />
-            </Field>
-
-            <Field label="Password">
-              <span style={passwordFieldStyle}>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  style={{ ...inputStyle, width: '100%', paddingRight: 50, boxSizing: 'border-box' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((visible) => !visible)}
-                  aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
-                  aria-pressed={showPassword}
-                  style={passwordVisibilityButton}
-                >
-                  {showPassword ? <EyeOff size={19} aria-hidden="true" /> : <Eye size={19} aria-hidden="true" />}
-                </button>
-              </span>
-            </Field>
-
-            {mode === 'login' && (
-              <button
-                type="button"
-                onClick={() => { setMode('forgot'); setError(null); setNotice(null); }}
-                style={forgotLink}
-              >
-                Lupa Sandi?
-              </button>
-            )}
-
-            {error && <p style={{ color: '#ffb3b3', fontSize: 13, margin: 0 }}>{error}</p>}
-            {notice && <p role="status" style={{ color: '#fff', fontSize: 13 }}>{notice}</p>}
-
-            <button type="submit" disabled={loading} style={submitBtn}>
-              {loading ? 'Memproses…' : mode === 'login' ? 'Masuk Sekarang' : 'Daftar Sekarang'}
-            </button>
-          </form>
-
-          <p style={{ textAlign: 'center', fontSize: 13, marginTop: 28, color: 'rgba(255, 255, 255, 0.8)' }}>
-            {mode === 'login' ? 'Belum punya akun?' : 'Sudah punya akun?'}{' '}
-            <button
-              type="button"
-              onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setShowPassword(false); setError(null); }}
-              style={linkBtn}
+        {/* Panel Kanan: Form */}
+        <div style={rightPanel} className="auth-form-panel">
+          <div style={formContainer} className="auth-form-container">
+            <img
+              src={workerIllustration}
+              alt="Ilustrasi Pekerja"
+              className="mobile-illustration"
+              style={mobileIllustrationImg}
+            />
+            <h1
+              className="display"
+              style={{
+                fontSize: 32,
+                marginBottom: 12,
+                color: '#ffffff',
+                userSelect: 'none',
+                cursor: 'default',
+              }}
             >
-              {mode === 'login' ? 'Daftar di sini' : 'Masuk di sini'}
-            </button>
-          </p>
-          </>}
-        </div>
+              {showRecovery
+                ? recoveryMode
+                  ? 'Atur Sandi Baru'
+                  : 'Lupa Sandi'
+                : mode === 'login'
+                  ? 'Masuk'
+                  : 'Daftar'}
+            </h1>
+
+            {showRecovery ? (
+              <PasswordResetForm
+                reset={recoveryMode}
+                inputStyle={inputStyle}
+                buttonStyle={submitBtn}
+                linkStyle={linkBtn}
+                onBack={() => {
+                  setMode('login');
+                  navigate('/login', { replace: true });
+                }}
+              />
+            ) : (
+              <>
+                <form
+                  onSubmit={handleSubmit}
+                  style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 20 }}
+                >
+                  {mode === 'register' && (
+                    <Field label="Username">
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        required
+                        style={inputStyle}
+                      />
+                    </Field>
+                  )}
+
+                  <Field label="Email">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      style={inputStyle}
+                    />
+                  </Field>
+
+                  <Field label="Password">
+                    <span style={passwordFieldStyle}>
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        minLength={6}
+                        style={{
+                          ...inputStyle,
+                          width: '100%',
+                          paddingRight: 50,
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((visible) => !visible)}
+                        aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                        aria-pressed={showPassword}
+                        style={passwordVisibilityButton}
+                      >
+                        {showPassword ? (
+                          <EyeOff size={19} aria-hidden="true" />
+                        ) : (
+                          <Eye size={19} aria-hidden="true" />
+                        )}
+                      </button>
+                    </span>
+                  </Field>
+
+                  {mode === 'login' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('forgot');
+                        setError(null);
+                        setNotice(null);
+                      }}
+                      style={forgotLink}
+                    >
+                      Lupa Sandi?
+                    </button>
+                  )}
+
+                  {error && <p style={{ color: '#ffb3b3', fontSize: 13, margin: 0 }}>{error}</p>}
+                  {notice && (
+                    <p role="status" style={{ color: '#fff', fontSize: 13 }}>
+                      {notice}
+                    </p>
+                  )}
+
+                  <button type="submit" disabled={loading} style={submitBtn}>
+                    {loading
+                      ? 'Memproses…'
+                      : mode === 'login'
+                        ? 'Masuk Sekarang'
+                        : 'Daftar Sekarang'}
+                  </button>
+                </form>
+
+                <p
+                  style={{
+                    textAlign: 'center',
+                    fontSize: 13,
+                    marginTop: 28,
+                    color: 'rgba(255, 255, 255, 0.8)',
+                  }}
+                >
+                  {mode === 'login' ? 'Belum punya akun?' : 'Sudah punya akun?'}{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode(mode === 'login' ? 'register' : 'login');
+                      setShowPassword(false);
+                      setError(null);
+                    }}
+                    style={linkBtn}
+                  >
+                    {mode === 'login' ? 'Daftar di sini' : 'Masuk di sini'}
+                  </button>
+                </p>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </>
@@ -201,7 +261,18 @@ export default function LoginPage() {
 
 function Field({ label, children }) {
   return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, fontWeight: 500, color: '#ffffff', userSelect: 'none', cursor: 'default' }}>
+    <label
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        fontSize: 13,
+        fontWeight: 500,
+        color: '#ffffff',
+        userSelect: 'none',
+        cursor: 'default',
+      }}
+    >
       {label}
       {children}
     </label>
@@ -282,8 +353,8 @@ const wrapper = {
   minHeight: '100vh',
   width: '100%',
   position: 'relative',
-  backgroundColor: '#f8f9fa', 
-  overflow: 'hidden'
+  backgroundColor: '#f8f9fa',
+  overflow: 'hidden',
 };
 
 const redBackgroundStyle = {
@@ -292,7 +363,7 @@ const redBackgroundStyle = {
   top: 0,
   height: '100%',
   width: '100%', // Diubah 100% agar kordinat SVG pas dengan layar
-  zIndex: 0
+  zIndex: 0,
 };
 
 const backBtn = {
@@ -311,20 +382,20 @@ const backBtn = {
   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
   display: 'flex',
   alignItems: 'center',
-  gap: '6px'
+  gap: '6px',
 };
 
-const brandHeader = { 
+const brandHeader = {
   position: 'absolute',
   top: '40px',
   left: '60px',
   zIndex: 2,
-  className: 'brand-header'
+  className: 'brand-header',
 };
 
-const logoImg = { 
+const logoImg = {
   height: 75,
-  width: 'auto' 
+  width: 'auto',
 };
 
 const leftPanel = {
@@ -332,7 +403,7 @@ const leftPanel = {
   display: 'flex',
   flexDirection: 'column',
   position: 'relative',
-  zIndex: 1
+  zIndex: 1,
 };
 
 const illustrationWrap = {
@@ -340,7 +411,7 @@ const illustrationWrap = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  padding: '40px'
+  padding: '40px',
 };
 
 const illustrationImg = { width: '100%', maxWidth: 450, height: 'auto' };
@@ -350,7 +421,7 @@ const mobileIllustrationImg = {
   width: '55%',
   maxWidth: 180,
   height: 'auto',
-  margin: '0 auto 16px'
+  margin: '0 auto 16px',
 };
 
 const rightPanel = {
@@ -360,13 +431,13 @@ const rightPanel = {
   justifyContent: 'center',
   padding: '40px',
   position: 'relative',
-  zIndex: 1
+  zIndex: 1,
 };
 
-const formContainer = { 
-  width: '100%', 
+const formContainer = {
+  width: '100%',
   maxWidth: 320, // Diperkecil dari sebelumnya 340
-  marginLeft: '10px' // Digeser ke kanan agar tidak menabrak lengkungan
+  marginLeft: '10px', // Digeser ke kanan agar tidak menabrak lengkungan
 };
 
 const inputStyle = {
@@ -377,13 +448,13 @@ const inputStyle = {
   color: '#ffffff',
   fontSize: 14,
   fontFamily: 'inherit',
-  outline: 'none'
+  outline: 'none',
 };
 
 const passwordFieldStyle = {
   position: 'relative',
   display: 'block',
-  width: '100%'
+  width: '100%',
 };
 
 const passwordVisibilityButton = {
@@ -400,7 +471,7 @@ const passwordVisibilityButton = {
   borderRadius: 7,
   background: 'rgba(255, 255, 255, 0.94)',
   color: '#A61C24',
-  cursor: 'pointer'
+  cursor: 'pointer',
 };
 
 const forgotLink = {
@@ -412,7 +483,7 @@ const forgotLink = {
   cursor: 'pointer',
   padding: 0,
   marginTop: -4,
-  textDecoration: 'underline'
+  textDecoration: 'underline',
 };
 
 const submitBtn = {
@@ -420,12 +491,12 @@ const submitBtn = {
   borderRadius: 999,
   border: 'none',
   background: '#ffffff',
-  color: '#A61C24', 
+  color: '#A61C24',
   fontWeight: 700,
   fontSize: 14,
   marginTop: 8,
   cursor: 'pointer',
-  transition: 'opacity 0.2s'
+  transition: 'opacity 0.2s',
 };
 
 const linkBtn = {
@@ -436,5 +507,5 @@ const linkBtn = {
   cursor: 'pointer',
   padding: 0,
   fontSize: 13,
-  textDecoration: 'underline'
+  textDecoration: 'underline',
 };

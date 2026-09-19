@@ -42,21 +42,39 @@ export default function CommentSection({ reportId, photoUrl }) {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="rw-btn-anim" style={triggerBtn}>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="rw-btn-anim"
+        style={triggerBtn}
+      >
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          style={{ flexShrink: 0 }}
+        >
           <path d="M21 11.5a8.5 8.5 0 1 1-3.8-7.1L21 3l-1 4.3a8.4 8.4 0 0 1 1 4.2z" />
         </svg>
         <span style={{ fontWeight: 700 }}>{loading ? '…' : comments.length}</span>
       </button>
-      
+
       {open && (
         <div style={overlay} role="dialog" aria-modal="true" onClick={() => setOpen(false)}>
           <div style={panel} onClick={(e) => e.stopPropagation()}>
-            <button type="button" onClick={() => setOpen(false)} style={closeBtn} aria-label="Tutup">✕</button>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              style={closeBtn}
+              aria-label="Tutup"
+            >
+              ✕
+            </button>
 
-            {photoUrl && (
-              <img src={photoUrl} alt="Foto laporan" style={panelPhoto} />
-            )}
+            {photoUrl && <img src={photoUrl} alt="Foto laporan" style={panelPhoto} />}
 
             <div style={commentListWrap}>
               {loading && <p style={{ fontSize: 13, color: '#868e96' }}>Memuat komentar…</p>}
@@ -68,10 +86,14 @@ export default function CommentSection({ reportId, photoUrl }) {
                 const initial = name[0]?.toUpperCase() ?? 'A';
                 const color = AVATAR_COLORS[i % AVATAR_COLORS.length];
                 return (
-                  <div key={c.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
+                  <div
+                    key={c.id}
+                    style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}
+                  >
                     <span style={{ ...commentAvatar, backgroundColor: color }}>{initial}</span>
                     <div style={{ fontSize: 13, lineHeight: 1.4 }}>
-                      <span style={{ fontWeight: 700 }}>{name}</span>{'  '}
+                      <span style={{ fontWeight: 700 }}>{name}</span>
+                      {'  '}
                       <span>{c.content}</span>
                     </div>
                   </div>
@@ -79,7 +101,14 @@ export default function CommentSection({ reportId, photoUrl }) {
               })}
             </div>
 
-            <div style={{ display: 'flex', gap: 8, padding: '10px 16px 16px', borderTop: '1px solid #eee' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: 8,
+                padding: '10px 16px 16px',
+                borderTop: '1px solid #eee',
+              }}
+            >
               <input
                 type="text"
                 value={text}
@@ -88,7 +117,12 @@ export default function CommentSection({ reportId, photoUrl }) {
                 placeholder={user ? 'Tulis komentar…' : 'Masuk untuk berkomentar'}
                 style={inputStyle}
               />
-              <button onClick={handleSend} disabled={sending} className="rw-btn-anim" style={sendBtn}>
+              <button
+                onClick={handleSend}
+                disabled={sending}
+                className="rw-btn-anim"
+                style={sendBtn}
+              >
                 Kirim <span aria-hidden="true">➤</span>
               </button>
             </div>
@@ -111,7 +145,7 @@ const triggerBtn = {
   cursor: 'pointer',
   padding: '5px 12px',
   borderRadius: 20,
-  whiteSpace: 'nowrap'
+  whiteSpace: 'nowrap',
 };
 
 const overlay = {
@@ -122,7 +156,7 @@ const overlay = {
   alignItems: 'center',
   justifyContent: 'center',
   padding: 16,
-  zIndex: 2000
+  zIndex: 2000,
 };
 
 const panel = {
@@ -135,7 +169,7 @@ const panel = {
   position: 'relative',
   display: 'flex',
   flexDirection: 'column',
-  overflow: 'hidden'
+  overflow: 'hidden',
 };
 
 const closeBtn = {
@@ -150,7 +184,7 @@ const closeBtn = {
   color: '#fff',
   fontSize: 14,
   cursor: 'pointer',
-  zIndex: 2
+  zIndex: 2,
 };
 
 const panelPhoto = {
@@ -158,13 +192,13 @@ const panelPhoto = {
   maxHeight: 260,
   objectFit: 'cover',
   display: 'block',
-  flexShrink: 0
+  flexShrink: 0,
 };
 
 const commentListWrap = {
   padding: '14px 16px',
   overflowY: 'auto',
-  flex: 1
+  flex: 1,
 };
 
 const commentAvatar = {
@@ -178,7 +212,7 @@ const commentAvatar = {
   alignItems: 'center',
   justifyContent: 'center',
   flexShrink: 0,
-  marginTop: 1
+  marginTop: 1,
 };
 
 const inputStyle = {
@@ -186,7 +220,7 @@ const inputStyle = {
   padding: '8px 12px',
   borderRadius: 8,
   border: '1px solid #dee2e6',
-  fontSize: 13
+  fontSize: 13,
 };
 
 const sendBtn = {
@@ -201,5 +235,5 @@ const sendBtn = {
   display: 'flex',
   alignItems: 'center',
   gap: 6,
-  whiteSpace: 'nowrap'
+  whiteSpace: 'nowrap',
 };

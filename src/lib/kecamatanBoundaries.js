@@ -6,8 +6,7 @@ function pointInRing(point, ring) {
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
     const [xi, yi] = ring[i];
     const [xj, yj] = ring[j];
-    const intersect =
-      yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+    const intersect = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
     if (intersect) inside = !inside;
   }
   return inside;
@@ -30,9 +29,7 @@ function pointInPolygonGeometry(point, geometry) {
 export function findKecamatan(lat, lng) {
   if (typeof lat !== 'number' || typeof lng !== 'number') return null;
   const point = [lng, lat];
-  const feature = sidoarjoKecamatan.features.find((f) =>
-    pointInPolygonGeometry(point, f.geometry)
-  );
+  const feature = sidoarjoKecamatan.features.find((f) => pointInPolygonGeometry(point, f.geometry));
   return feature ? feature.properties.kecamatan : null;
 }
 

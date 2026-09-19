@@ -43,8 +43,8 @@ export async function reverseGeocode(lat, lng) {
 
     const res = await fetch(url, {
       headers: {
-        'Accept-Language': 'id'
-      }
+        'Accept-Language': 'id',
+      },
     });
 
     if (!res.ok) {
@@ -56,10 +56,12 @@ export async function reverseGeocode(lat, lng) {
     const parts = [
       addr.road || addr.pedestrian || addr.footway || addr.neighbourhood,
       addr.suburb || addr.village || addr.town || addr.city_district,
-      addr.county || addr.city || addr.state
+      addr.county || addr.city || addr.state,
     ].filter(Boolean);
 
-    return parts.length > 0 ? parts.join(', ') : (data.display_name ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+    return parts.length > 0
+      ? parts.join(', ')
+      : (data.display_name ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`);
   });
 
   geocodeCache.set(cacheKey, result);

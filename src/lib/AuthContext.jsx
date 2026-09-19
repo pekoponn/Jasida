@@ -12,11 +12,7 @@ export function AuthProvider({ children }) {
   const [profileError, setProfileError] = useState(null);
 
   async function fetchProfile(userId) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
     if (error) {
       throw error;
     }
@@ -55,7 +51,9 @@ export function AuthProvider({ children }) {
         if (active && current === revision) setLoading(false);
       }
     }
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active) return;
       if (_event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
       if (_event === 'SIGNED_OUT') setPasswordRecovery(false);
@@ -63,7 +61,9 @@ export function AuthProvider({ children }) {
       revision += 1;
       setLoading(true);
       clearTimeout(timer);
-      timer = setTimeout(() => { void applySession(session); }, 0);
+      timer = setTimeout(() => {
+        void applySession(session);
+      }, 0);
     });
 
     return () => {
@@ -78,7 +78,7 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { username } }
+      options: { data: { username } },
     });
     if (error) throw error;
     return data;
@@ -98,7 +98,21 @@ export function AuthProvider({ children }) {
   const isAdmin = profile?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, profileError, isAdmin, passwordRecovery, finishPasswordRecovery: () => setPasswordRecovery(false), signUp, signIn, signOut, refreshProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        profileError,
+        isAdmin,
+        passwordRecovery,
+        finishPasswordRecovery: () => setPasswordRecovery(false),
+        signUp,
+        signIn,
+        signOut,
+        refreshProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
