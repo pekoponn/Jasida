@@ -25,7 +25,11 @@ export default defineConfig({
   },
   projects: [
     { name: 'dev', use: { baseURL: 'http://127.0.0.1:5175' } },
-    { name: 'preview', testMatch: /flows\.spec\.js/, use: { baseURL: 'http://127.0.0.1:4175' } },
+    {
+      name: 'preview',
+      testMatch: /(flows|multi-photo)\.spec\.js/,
+      use: { baseURL: 'http://127.0.0.1:4175' },
+    },
   ],
   webServer: [
     {

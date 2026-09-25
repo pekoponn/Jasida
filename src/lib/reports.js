@@ -59,6 +59,61 @@ export async function uploadReportImage(file, reportId) {
   return path;
 }
 
+// Keep successful steps in memory so retries resume the same report and photos.
+export async function uploadReportEvidence(photos, reportId, progress, primary = true) {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) throw authError || new Error('Masuk kembali untuk mengirim foto.');
+  for (let index = 0; index < photos.length; index++) {
+    const item = photos[index];
+    const photo = await prepareUploadPhoto(item.file);
+    const key = `${reportId}/${item.id}`;
+    let entry = progress.get(key);
+    if (!entry) {
+      entry = { path: `${reportId}/${item.id}-${photo.name}`, uploaded: false, linked: false };
+      progress.set(key, entry);
+    }
+    if (!entry.uploaded) {
+      const { error } = await supabase.storage
+        .from('report-images')
+        .upload(entry.path, photo, { contentType: 'image/webp' });
+      // A lost response can leave a completed object. The UUID path belongs to this draft.
+      if (error && String(error.statusCode) !== '409') throw error;
+      entry.uploaded = true;
+    }
+    if (!entry.linked) {
+      if (primary && index === 0) {
+        const { error } = await supabase
+          .from('reports')
+          .update({ image_path: entry.path })
+          .eq('id', reportId)
+          .select('id')
+          .single();
+        if (error) throw error;
+      } else {
+        const { data: existing, error: readError } = await supabase
+          .from('report_photos')
+          .select('id')
+          .eq('report_id', reportId)
+          .eq('image_path', entry.path);
+        if (readError) throw readError;
+        if (!existing?.length) {
+          const { error } = await supabase.from('report_photos').insert({
+            report_id: reportId,
+            image_path: entry.path,
+            user_id: user.id,
+            photo_type: 'support',
+          });
+          if (error) throw error;
+        }
+      }
+      entry.linked = true;
+    }
+  }
+}
+
 export async function createReport({
   damageType,
   confidence,

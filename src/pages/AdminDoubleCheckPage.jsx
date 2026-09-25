@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchPendingDuplicateReviews, resolveDuplicateReview } from '../lib/reports.js';
 import { damageTypeDisplayLabel, severityDisplayLabel } from '../ai/hazardScore.js';
 import ZoomableImage from '../components/ZoomableImage.jsx';
+import ReportEvidenceGallery from '../components/ReportEvidenceGallery.jsx';
 
 export default function AdminDoubleCheckPage() {
   const [items, setItems] = useState([]);
@@ -111,6 +112,7 @@ function ReviewCard({ item, busy, onResolve }) {
             alt="Foto laporan baru"
             style={photoStyle}
           />
+          <ReportEvidenceGallery reportId={item.id} />
           <div style={{ marginTop: 8, fontSize: 12.5, color: '#495057' }}>
             {item.damage_type && <div>{damageTypeDisplayLabel(item.damage_type)}</div>}
             {item.severity && (
@@ -132,6 +134,7 @@ function ReviewCard({ item, busy, onResolve }) {
                 alt="Foto laporan existing"
                 style={photoStyle}
               />
+              <ReportEvidenceGallery reportId={candidate.id} />
               <div style={{ marginTop: 8, fontSize: 12.5, color: '#495057' }}>
                 {candidate.damage_type && (
                   <div>{damageTypeDisplayLabel(candidate.damage_type)}</div>

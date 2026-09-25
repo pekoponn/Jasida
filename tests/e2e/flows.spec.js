@@ -148,7 +148,8 @@ test('real YOLO rejects the synthetic camera frame without writing a report', as
     { timeout: 60000 }
   );
   expect(backend.writes).toEqual([]);
-  await page.getByRole('button', { name: 'Ambil Foto Ulang' }).click();
+  await page.getByRole('button', { name: 'Periksa Foto Lagi' }).click();
+  await page.getByRole('button', { name: 'Ambil ulang foto 1' }).click();
   await expect(page.getByRole('button', { name: 'Ambil Foto', exact: true })).toBeEnabled();
 });
 
@@ -185,7 +186,7 @@ test('real location mode captures camera and sends WebP with a positive detector
 }) => {
   await login(page);
   await expect(page.getByRole('heading', { name: 'Buat Laporan Kerusakan Jalan' })).toBeVisible();
-  await expect(page.locator('input[type=file]')).toHaveCount(0);
+  await expect(page.locator('input[type=file]')).toHaveCount(1);
   await capture(page);
   await expect(page.getByRole('button', { name: 'Kirim Laporan' })).toBeEnabled({ timeout: 60000 });
   await page.getByRole('button', { name: 'Kirim Laporan' }).click();
@@ -225,7 +226,7 @@ test('outside Sidoarjo rejected in real mode; competition mode succeeds anywhere
   expect(report.note).toContain('UJI COBA LOMBA');
 });
 
-test('camera unavailable is recoverable and never offers gallery upload', async ({
+test('camera unavailable is recoverable and still offers gallery upload', async ({
   page,
   backend,
 }) => {
@@ -235,11 +236,12 @@ test('camera unavailable is recoverable and never offers gallery upload', async 
     };
   });
   await login(page);
+  await page.getByRole('button', { name: 'Buka Kamera', exact: true }).click();
   await expect(
     page.getByText('Kamera tidak tersedia di perangkat ini.', { exact: false })
   ).toBeVisible();
   await expect(page.getByRole('button', { name: 'Coba kamera lagi' })).toBeEnabled();
-  await expect(page.locator('input[type=file]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Pilih dari Galeri' })).toBeEnabled();
   await page.getByRole('button', { name: 'Mode Uji Coba (Bebas Lokasi)', exact: true }).click();
   await page.getByRole('button', { name: 'Coba kamera lagi' }).click();
   expect(backend.writes).toEqual([]);
@@ -336,6 +338,7 @@ test('mobile competition mode fits viewport and camera permission can be retried
         : original(options);
   });
   await login(page);
+  await page.getByRole('button', { name: 'Buka Kamera', exact: true }).click();
   await expect(page.getByText('Akses kamera ditolak.', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: 'Mode Uji Coba (Bebas Lokasi)', exact: true }).click();
   await page.evaluate(() => {

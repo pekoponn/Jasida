@@ -36,6 +36,10 @@ export const test = base.extend({
       realDetector: false,
       recoveryFailure: false,
       updateFailure: false,
+      photos: [],
+      detectionCalls: 0,
+      detectionResults: [],
+      failPhotoInsert: false,
     };
     page.on('pageerror', (error) => state.pageErrors.push(error.message));
     await page.route('**/*', async (route) => {
@@ -51,11 +55,13 @@ export const test = base.extend({
           ),
         });
       }
-      if (url.pathname === '/__test_detection')
+      if (url.pathname === '/__test_detection') {
+        const result = state.detectionResults[state.detectionCalls++];
         return route.fulfill({
           contentType: 'application/json',
-          body: JSON.stringify({ real: state.realDetector }),
+          body: JSON.stringify({ real: state.realDetector, result }),
         });
+      }
       if (url.hostname === '127.0.0.1' && ['5175', '4175'].includes(url.port))
         return route.continue();
       const json = (body, status = 200) =>
@@ -80,8 +86,17 @@ export const test = base.extend({
         if (url.pathname === '/auth/v1/signup') return json({ user, session: null });
         if (url.pathname === '/auth/v1/logout') return json({});
         if (url.pathname.startsWith('/storage/v1/object/')) {
+          if (request.method() === 'GET')
+            return route.fulfill({
+              contentType: 'image/png',
+              body: Buffer.from(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWQ0AAAAASUVORK5CYII=',
+                'base64'
+              ),
+            });
           state.writes.push({
             type: 'storage',
+            path: url.pathname,
             method: request.method(),
             bytes: request.postDataBuffer()?.length,
           });
@@ -123,9 +138,30 @@ export const test = base.extend({
           return json({ id: '00000000-0000-4000-8000-000000000002', ...request.postDataJSON() });
         }
         if (table === 'reports_with_coords' || table === 'reports') return json(state.reports);
-        if (['report_supports', 'report_photos', 'comments'].includes(table)) return json([]);
+        if (table === 'report_photos') {
+          if (request.method() === 'POST') {
+            const data = request.postDataJSON();
+            state.writes.push({ type: 'photo', data });
+            if (state.failPhotoInsert)
+              return json({ message: 'Foto pendukung gagal disimpan' }, 503);
+            state.photos.push({ ...data, id: `photo-${state.photos.length}` });
+            return json(null, 201);
+          }
+          return json(
+            state.photos.filter(
+              (photo) =>
+                (!url.searchParams.has('report_id') ||
+                  `eq.${photo.report_id}` === url.searchParams.get('report_id')) &&
+                (!url.searchParams.has('image_path') ||
+                  `eq.${photo.image_path}` === url.searchParams.get('image_path'))
+            )
+          );
+        }
+        if (['report_supports', 'comments'].includes(table)) return json([]);
         if (table?.startsWith('rpc/')) {
           state.writes.push({ type: table });
+          if (table === 'rpc/create_disputed_report')
+            return json({ id: '00000000-0000-4000-8000-000000000003' });
           return json(null);
         }
         state.unhandled.push(`${request.method()} ${url.pathname}`);
@@ -159,10 +195,20 @@ export async function login(page) {
 }
 
 export async function capture(page) {
+  const open = page.getByRole('button', { name: 'Buka Kamera', exact: true });
+  await expect(
+    open.or(page.getByRole('button', { name: 'Ambil Foto', exact: true }))
+  ).toBeVisible();
+  if (await open.isVisible()) await open.click();
   const button = page.getByRole('button', { name: 'Ambil Foto', exact: true });
   await expect(button).toBeEnabled();
   await page.waitForFunction(() => document.querySelector('video')?.videoWidth > 0);
   await button.click();
+  await expect(
+    page.getByRole('button', { name: 'Analisis Foto', exact: true }).or(page.getByRole('alert'))
+  ).toBeVisible();
+  const analyze = page.getByRole('button', { name: 'Analisis Foto', exact: true });
+  if (await analyze.isVisible()) await analyze.click();
 }
 
 export function recoveryUrl(path = '/login?mode=reset') {

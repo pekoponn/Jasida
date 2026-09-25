@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, Clock3 } from 'lucide-react';
 import { prepareUploadPhoto } from '../lib/imageUpload.js';
-import CameraCapture from '../features/report-upload/CameraCapture.jsx';
+import ReportPhotoPicker from '../features/report-upload/ReportPhotoPicker.jsx';
 import DuplicateModal from '../features/duplicate-check/DuplicateModal.jsx';
 import SeverityBadge from '../components/SeverityBadge.jsx';
 import { detectDamage } from '../ai/yolo.js';
 import { embedImage } from '../ai/clip.js';
-import { computeHazardScore, damageTypeDisplayLabel } from '../ai/hazardScore.js';
+import { damageTypeDisplayLabel } from '../ai/hazardScore.js';
+import { MAX_REPORT_PHOTOS, summarizePhotoAnalyses } from '../ai/multiPhoto.js';
 import { pickBestDuplicate } from '../ai/duplicateScore.js';
 import {
   findSimilarReports,
   createReport,
   createDisputedReport,
-  uploadReportImage,
+  uploadReportEvidence,
   addReporter,
 } from '../lib/reports.js';
 import { reverseGeocode, getCurrentPosition } from '../lib/geolocation.js';
@@ -27,6 +28,11 @@ export default function ReportPage() {
   const navigate = useNavigate();
   const isMobileDevice = useIsMobileDevice();
   const [file, setFile] = useState(null);
+  const [photos, setPhotos] = useState([]);
+  const [analysisSummary, setAnalysisSummary] = useState(null);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const uploadProgress = useRef(new Map());
+  const selecting = useRef(false);
   const [note, setNote] = useState('');
   const [previewUrl, setPreviewUrl] = useState(null);
   const [step, setStep] = useState('idle');
@@ -69,36 +75,85 @@ export default function ReportPage() {
     [step, hazard]
   );
 
-  async function handlePhotoCaptured({ file: selectedFile, position: gps, capturedAt }) {
-    setCameraBusy(false);
-    setError(null);
+  function clearAnalysis() {
+    setAnalysisSummary(null);
+    setDetections([]);
+    setImageDims(null);
+    setEmbedding(null);
+    setFile(null);
+    setPreviewUrl(null);
+    setHazard(null);
     setDuplicate(null);
     setDuplicateUnavailable(false);
     setDuplicateCheckFailed(false);
-    setHazard(null);
+  }
 
-    const locationError = gps && validateReportLocation(gps, testingMode);
-    if (locationError) {
-      setError(locationError);
-      return;
+  async function handlePhotoSelection({
+    files,
+    source,
+    replaceId,
+    position: gps,
+    capturedAt: time,
+  }) {
+    if (selecting.current || pendingReport.current || submitting.current) return false;
+    const nextCount = photos.length - (replaceId ? 1 : 0) + files.length;
+    if (!files.length || nextCount > MAX_REPORT_PHOTOS) {
+      setError('Maksimal 5 foto per laporan. Hapus salah satu foto untuk menggantinya.');
+      return false;
     }
-
+    selecting.current = true;
+    setCameraBusy(false);
+    setError(null);
     setStep('preparing');
-    let photo;
     try {
-      photo = await prepareUploadPhoto(selectedFile);
+      const additions = [];
+      for (const selectedFile of files) {
+        const photo = await prepareUploadPhoto(selectedFile);
+        additions.push({
+          id: crypto.randomUUID(),
+          file: photo,
+          source,
+          capturedAt: time || new Date().toISOString(),
+        });
+      }
+      const currentGps = position || gps || (await getCurrentPosition().catch(() => null));
+      const locationError = currentGps && validateReportLocation(currentGps, testingMode);
+      if (locationError) throw new Error(locationError);
+      setPhotos(
+        replaceId
+          ? photos.flatMap((photo) => (photo.id === replaceId ? additions : [photo]))
+          : [...photos, ...additions]
+      );
+      setPosition(currentGps);
+      setCapturedAt(time || new Date().toISOString());
+      clearAnalysis();
+      setStep('preview');
+      return true;
     } catch (err) {
       setError(err.message);
-      setStep('idle');
-      return;
+      setStep(photos.length ? 'preview' : 'idle');
+      return false;
+    } finally {
+      selecting.current = false;
     }
-    setFile(photo);
-    setPreviewUrl(URL.createObjectURL(photo));
-    setPosition(gps);
-    setCapturedAt(capturedAt);
-    setAddress(null);
-    setStep('analyzing');
+  }
 
+  function removePhoto(id) {
+    if (busy || pendingReport.current) return;
+    const remaining = photos.filter((photo) => photo.id !== id);
+    setPhotos(remaining);
+    clearAnalysis();
+    setError(null);
+    setStep(remaining.length ? 'preview' : 'idle');
+  }
+
+  async function analyzePhotos() {
+    if (busy || !photos.length || pendingReport.current) return;
+    clearAnalysis();
+    setError(null);
+    setAnalysisProgress(0);
+    setStep('analyzing');
+    const gps = position;
     if (gps) {
       setAddressLoading(true);
       reverseGeocode(gps.lat, gps.lng)
@@ -111,25 +166,32 @@ export default function ReportPage() {
     }
 
     try {
-      const { detections: dets, imageWidth, imageHeight } = await detectDamage(photo);
-      const MIN_ACCEPTED_CONFIDENCE = 0.4;
-      const bestConfidence = dets?.length ? Math.max(...dets.map((d) => d.confidence)) : 0;
-      if (!dets || dets.length === 0 || bestConfidence < MIN_ACCEPTED_CONFIDENCE) {
-        setDetections([]);
-        setImageDims({ width: imageWidth, height: imageHeight });
-        setEmbedding(null);
-        setHazard(null);
+      const analyses = [];
+      for (const photo of photos) {
+        analyses.push(await detectDamage(photo.file));
+        setAnalysisProgress(analyses.length);
+      }
+      const summary = summarizePhotoAnalyses(analyses);
+      setAnalysisSummary(summary);
+      if (!summary.hazard) {
         setStep('rejected');
         return;
       }
-
+      const photo = photos[summary.representativeIndex].file;
+      const {
+        detections: dets,
+        imageWidth,
+        imageHeight,
+      } = summary.results[summary.representativeIndex];
+      setFile(photo);
+      setPreviewUrl(URL.createObjectURL(photo));
       const emb = await runEmbedding(photo);
 
       setDetections(dets);
       setImageDims({ width: imageWidth, height: imageHeight });
       setEmbedding(emb);
 
-      const hazardResult = computeHazardScore({ detections: dets, imageWidth, imageHeight });
+      const hazardResult = summary.hazard;
       setHazard(hazardResult);
       setStep('analyzed');
 
@@ -144,8 +206,37 @@ export default function ReportPage() {
       console.error(err);
       setHazard(null);
       setError('Analisis AI gagal. Periksa koneksi, lalu coba lagi. Foto belum dapat dikirim.');
-      setStep('idle');
+      setStep('preview');
     }
+  }
+
+  function evidenceNote() {
+    const summary = analysisSummary.results
+      .map((result, index) => {
+        const source = photos[index].source === 'gallery' ? 'galeri' : 'kamera';
+        const types = [
+          ...new Set(result.detections.map((d) => damageTypeDisplayLabel(d.damage_type))),
+        ].join(', ');
+        return `Foto ${index + 1} (${source}): ${types ? `${types}; skor ${result.hazard.total}` : 'kerusakan tidak terdeteksi'}`;
+      })
+      .join('\n');
+    return [
+      testingMode ? '[UJI COBA LOMBA — BEBAS LOKASI]' : '',
+      note.trim(),
+      `Bukti ${photos.length} foto. Foto utama: ${analysisSummary.representativeIndex + 1}. Skor gabungan memakai median foto dengan deteksi, bukan jaminan akurasi.`,
+      summary,
+    ]
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  async function saveEvidence(reportId) {
+    const primary = photos[analysisSummary.representativeIndex];
+    await uploadReportEvidence(
+      [primary, ...photos.filter((photo) => photo.id !== primary.id)],
+      reportId,
+      uploadProgress.current
+    );
   }
 
   async function runEmbedding(selectedFile) {
@@ -192,7 +283,6 @@ export default function ReportPage() {
     setStep('submitting');
     setError(null);
     try {
-      const photo = await prepareUploadPhoto(file);
       const report =
         pendingReport.current ??
         (await createReport({
@@ -204,12 +294,12 @@ export default function ReportPage() {
           lng: position.lng,
           embedding,
           capturedAt,
-          note: testingMode ? `[UJI COBA LOMBA — BEBAS LOKASI] ${note}`.trim() : note,
+          note: evidenceNote(),
           bboxAreaPct: computeBboxAreaPct(detections, imageDims?.width, imageDims?.height),
           address,
         }));
       pendingReport.current = report;
-      await uploadReportImage(photo, report.id);
+      await saveEvidence(report.id);
       pendingReport.current = null;
       setStep('done');
     } catch (err) {
@@ -222,11 +312,20 @@ export default function ReportPage() {
   }
 
   async function handleSupportExisting(candidate) {
-    if (submitting.current) return;
+    if (submitting.current || (pendingReport.current && !pendingReport.current.support)) return;
+    const locationError = validateReportLocation(position, testingMode);
+    if (locationError) {
+      setError(locationError);
+      return;
+    }
     submitting.current = true;
     setStep('submitting');
+    setError(null);
     try {
+      pendingReport.current = { id: candidate.id, support: true };
+      await uploadReportEvidence(photos, candidate.id, uploadProgress.current, false);
       await addReporter(candidate.id);
+      pendingReport.current = null;
     } catch (err) {
       console.warn('[add-reporter]', err.message);
       setError(err.message || 'Gagal menambahkan laporanmu. Coba lagi.');
@@ -240,34 +339,53 @@ export default function ReportPage() {
   }
 
   async function handleDisputeDuplicate() {
-    if (!duplicate || !hazard || !file || !position) return;
+    if (
+      submitting.current ||
+      pendingReport.current?.support ||
+      !duplicate ||
+      !hazard ||
+      !file ||
+      !position
+    )
+      return;
+    const locationError = validateReportLocation(position, testingMode);
+    if (locationError) {
+      setError(locationError);
+      return;
+    }
+    submitting.current = true;
     setStep('submitting');
     setError(null);
     try {
-      const photo = await prepareUploadPhoto(file);
-      const report = await createDisputedReport({
-        damageType: hazard.dominant?.damage_type ?? 'other_corruption',
-        confidence: hazard.dominant?.confidence ?? 0,
-        hazardScore: hazard.total,
-        severity: hazard.severity,
-        lat: position.lat,
-        lng: position.lng,
-        embedding,
-        capturedAt,
-        note,
-        bboxAreaPct: computeBboxAreaPct(detections, imageDims?.width, imageDims?.height),
-        address,
-        candidateId: duplicate.id,
-        similarity: duplicate.similarity,
-        distanceM: duplicate.distance_m,
-      });
-      await uploadReportImage(photo, report.id);
+      const report =
+        pendingReport.current ??
+        (await createDisputedReport({
+          damageType: hazard.dominant?.damage_type ?? 'other_corruption',
+          confidence: hazard.dominant?.confidence ?? 0,
+          hazardScore: hazard.total,
+          severity: hazard.severity,
+          lat: position.lat,
+          lng: position.lng,
+          embedding,
+          capturedAt,
+          note: evidenceNote(),
+          bboxAreaPct: computeBboxAreaPct(detections, imageDims?.width, imageDims?.height),
+          address,
+          candidateId: duplicate.id,
+          similarity: duplicate.similarity,
+          distanceM: duplicate.distance_m,
+        }));
+      pendingReport.current = report;
+      await saveEvidence(report.id);
+      pendingReport.current = null;
       setDuplicate(null);
       setStep('disputed');
     } catch (err) {
       console.error(err);
       setError(err.message || 'Gagal mengirim laporan. Periksa koneksi dan coba lagi.');
       setStep('analyzed');
+    } finally {
+      submitting.current = false;
     }
   }
 
@@ -305,6 +423,10 @@ export default function ReportPage() {
   }
 
   function reset() {
+    if (pendingReport.current || busy) return;
+    setPhotos([]);
+    setAnalysisSummary(null);
+    uploadProgress.current.clear();
     pendingReport.current = null;
     setCameraBusy(false);
     setFile(null);
@@ -437,8 +559,8 @@ export default function ReportPage() {
         Buat Laporan Kerusakan Jalan
       </h1>
       <p className="rp-subtitle" style={rpSubtitleStyle}>
-        Ambil foto kondisi jalan langsung dari kamera. AI akan mendeteksi lubang/retak dan memeriksa
-        laporan serupa di sekitar lokasimu.
+        Ambil foto atau pilih dari galeri. Sertakan beberapa sudut dari kerusakan yang sama, periksa
+        fotonya, lalu mulai analisis AI.
       </p>
 
       <div style={modeToggleRow}>
@@ -477,36 +599,84 @@ export default function ReportPage() {
             <SectionHeading
               icon={<CameraIcon />}
               title="Foto Kerusakan"
-              subtitle="Ambil foto langsung dari kamera perangkat"
+              subtitle="Kamera atau galeri · maksimal 5 foto"
             />
 
             <div className="rp-photo-box" style={{ marginTop: 16, position: 'relative' }}>
-              {previewUrl && step !== 'idle' ? (
+              <ReportPhotoPicker
+                photos={photos}
+                onSelect={handlePhotoSelection}
+                onRemove={removePhoto}
+                onBusyChange={setCameraBusy}
+                disabled={busy || locatingSelf || !!pendingReport.current || !!duplicate}
+              />
+              {photos.length > 0 && ['preview', 'idle'].includes(step) && (
+                <button
+                  type="button"
+                  style={primaryBtn}
+                  onClick={analyzePhotos}
+                  disabled={busy || locatingSelf}
+                >
+                  Analisis Foto
+                </button>
+              )}
+              {previewUrl && hazard && (
                 <div style={{ position: 'relative' }}>
-                  <img
-                    src={previewUrl}
-                    alt="Foto kondisi jalan yang baru diambil"
-                    style={{ width: '100%', borderRadius: 'var(--radius-lg)', display: 'block' }}
-                  />
-                  {imageDims && detections.length > 0 && (
-                    <DetectionOverlay
-                      detections={detections}
-                      imageWidth={imageDims.width}
-                      imageHeight={imageDims.height}
+                  <p>Hasil foto utama (foto {analysisSummary?.representativeIndex + 1})</p>
+                  <div style={{ position: 'relative' }}>
+                    <img
+                      src={previewUrl}
+                      alt="Foto kondisi jalan yang baru diambil"
+                      style={{ width: '100%', borderRadius: 'var(--radius-lg)', display: 'block' }}
                     />
-                  )}
+                    {imageDims && detections.length > 0 && (
+                      <DetectionOverlay
+                        detections={detections}
+                        imageWidth={imageDims.width}
+                        imageHeight={imageDims.height}
+                      />
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <CameraCapture
-                  onCapture={handlePhotoCaptured}
-                  onBusyChange={setCameraBusy}
-                  disabled={locatingSelf || ['preparing', 'analyzing', 'submitting'].includes(step)}
-                />
               )}
             </div>
 
+            {analysisSummary && step !== 'rejected' && (
+              <div style={noteStyle}>
+                <strong>
+                  {analysisSummary.positiveCount} dari {photos.length} foto menunjukkan dugaan
+                  kerusakan.
+                </strong>
+                <ul>
+                  {analysisSummary.results.map((result, index) => (
+                    <li key={photos[index].id}>
+                      Foto {index + 1}:{' '}
+                      {result.detections.length
+                        ? `${[...new Set(result.detections.map((d) => damageTypeDisplayLabel(d.damage_type)))].join(', ')} · skor ${result.hazard.total}`
+                        : 'kerusakan tidak terdeteksi'}
+                    </li>
+                  ))}
+                </ul>
+                <p>
+                  Skor gabungan memakai nilai tengah dari foto dengan deteksi. Foto dari sudut
+                  berbeda membantu pemeriksaan petugas; hasil AI tetap perlu diverifikasi.
+                </p>
+                {analysisSummary.positiveCount < photos.length && (
+                  <p>
+                    Hasil antar foto berbeda. Pastikan semua foto menunjukkan lokasi yang sama dan
+                    detail kerusakannya terlihat jelas.
+                  </p>
+                )}
+              </div>
+            )}
+
             {previewUrl && ['analyzed', 'idle'].includes(step) && (
-              <button type="button" onClick={reset} style={retakeBtn}>
+              <button
+                type="button"
+                disabled={busy || !!pendingReport.current}
+                onClick={reset}
+                style={retakeBtn}
+              >
                 <CameraIcon small /> Ambil Foto Ulang
               </button>
             )}
@@ -584,11 +754,23 @@ export default function ReportPage() {
         </div>
 
         {step === 'preparing' && <StatusLine text="Menyiapkan dan mengecilkan foto…" />}
-        {step === 'analyzing' && <StatusLine text="Menganalisis foto dengan AI…" />}
+        {step === 'analyzing' && (
+          <StatusLine text={`Menganalisis foto dengan AI… ${analysisProgress}/${photos.length}`} />
+        )}
         {step === 'checking-duplicate' && (
           <StatusLine text="Memeriksa laporan serupa di sekitar…" />
         )}
-        {error && <p style={errorStyle}>{error}</p>}
+        {error && !duplicate && (
+          <p role="alert" style={errorStyle}>
+            {error}
+          </p>
+        )}
+        {!!pendingReport.current && step === 'analyzed' && (
+          <p role="status" style={noteStyle}>
+            Sebagian bukti belum tersimpan. Tekan kirim lagi untuk melanjutkan unggahan pada laporan
+            yang sama. Jangan tutup halaman ini.
+          </p>
+        )}
 
         {/* DESKRIPSI (FULL WIDTH) */}
         {step === 'analyzed' && hazardVisible && !duplicate && (
@@ -599,6 +781,7 @@ export default function ReportPage() {
               onChange={(e) => setNote(e.target.value)}
               placeholder="Masukkan Deskripsi…"
               rows={4}
+              disabled={!!pendingReport.current}
               style={noteInput}
             />
             <button
@@ -619,8 +802,14 @@ export default function ReportPage() {
         position={position}
         onSupport={handleSupportExisting}
         onDispute={handleDisputeDuplicate}
-        onClose={() => setDuplicate(null)}
+        onClose={() => {
+          if (!pendingReport.current) setDuplicate(null);
+        }}
         busy={step === 'submitting'}
+        pendingAction={
+          pendingReport.current ? (pendingReport.current.support ? 'support' : 'dispute') : null
+        }
+        error={error}
       />
 
       {step === 'rejected' && (
@@ -643,12 +832,18 @@ export default function ReportPage() {
                 lineHeight: 1.5,
               }}
             >
-              AI tidak menemukan tanda-tanda kerusakan jalan (lubang/retak) pada foto ini, jadi
+              AI tidak menemukan tanda-tanda kerusakan jalan (lubang/retak) pada foto-foto ini, jadi
               laporan tidak bisa dikirim. Pastikan foto diambil dari jarak yang jelas menunjukkan
               bagian jalan yang rusak, lalu coba lagi.
             </p>
-            <button style={{ ...primaryBtn, width: '100%' }} onClick={reset}>
-              Ambil Foto Ulang
+            <button
+              style={{ ...primaryBtn, width: '100%' }}
+              onClick={() => {
+                clearAnalysis();
+                setStep('preview');
+              }}
+            >
+              Periksa Foto Lagi
             </button>
           </div>
         </div>

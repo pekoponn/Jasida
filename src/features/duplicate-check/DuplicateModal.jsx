@@ -9,6 +9,8 @@ export default function DuplicateModal({
   onDispute,
   onClose,
   busy = false,
+  pendingAction = null,
+  error = null,
 }) {
   const [photos, setPhotos] = useState([]);
   const [index, setIndex] = useState(0);
@@ -53,7 +55,12 @@ export default function DuplicateModal({
   return (
     <div style={overlay} role="dialog" aria-modal="true" aria-labelledby="dup-title">
       <div style={panel}>
-        <button style={closeBtn} disabled={busy} onClick={onClose} aria-label="Tutup">
+        <button
+          style={closeBtn}
+          disabled={busy || !!pendingAction}
+          onClick={onClose}
+          aria-label="Tutup"
+        >
           ✕
         </button>
 
@@ -139,16 +146,31 @@ export default function DuplicateModal({
         </p>
         <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
           <button
-            disabled={busy}
+            disabled={busy || pendingAction === 'dispute'}
             style={{ ...primaryBtn, flex: 1 }}
             onClick={() => onSupport(candidate)}
           >
             {busy ? 'Memproses…' : 'Ya, kerusakan sama'}
           </button>
-          <button disabled={busy} style={{ ...secondaryDisputeBtn, flex: 1 }} onClick={onDispute}>
+          <button
+            disabled={busy || pendingAction === 'support'}
+            style={{ ...secondaryDisputeBtn, flex: 1 }}
+            onClick={onDispute}
+          >
             Tidak, kerusakan beda
           </button>
         </div>
+        {error && (
+          <p role="alert" style={{ color: '#A61C24', fontSize: 13 }}>
+            {error}
+          </p>
+        )}
+        {pendingAction && !busy && (
+          <p role="status">
+            Unggahan belum lengkap. Tekan pilihan yang sama untuk melanjutkan. Jangan tutup halaman
+            ini.
+          </p>
+        )}
         <p
           style={{
             fontSize: 11.5,

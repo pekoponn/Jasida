@@ -3,6 +3,7 @@ import { damageTypeDisplayLabel, severityDisplayLabel } from '../ai/hazardScore.
 import { listComments, listSupporters, getReportPhotos } from '../lib/reports.js';
 import { reverseGeocode } from '../lib/geolocation.js';
 import ZoomableImage from './ZoomableImage.jsx';
+import ReportEvidenceGallery from './ReportEvidenceGallery.jsx';
 
 const AVATAR_COLORS = ['#E8A93B', '#E0561F', '#191B1F', '#24506F'];
 
@@ -12,6 +13,7 @@ const STATUS_META = {
   in_progress: { label: 'Diproses', bg: '#E7F1FF', color: '#1c5dcf' },
   resolved: { label: 'Selesai', bg: '#E6F8EC', color: '#1c8a4b' },
   rejected: { label: 'Ditolak', bg: '#FDECEE', color: '#A61C24' },
+  pending_duplicate_review: { label: 'Menunggu Validasi Admin', bg: '#E7DFFB', color: '#5F3DC4' },
 };
 
 function formatDate(iso) {
@@ -137,6 +139,7 @@ export default function ReportDetailModal({ report, onClose }) {
               </div>
             </div>
 
+            <ReportEvidenceGallery reportId={report.id} />
             <div style={{ marginTop: 20 }}>
               <div style={sectionLabel}>
                 <NoteIcon /> Deskripsi

@@ -11,6 +11,7 @@ import { estimateMaterialsAndCost, formatMaterialItems } from '../ai/materialEst
 import { findKecamatan, getKecamatanNames } from '../lib/kecamatanBoundaries.js';
 import ZoomableImage from '../components/ZoomableImage.jsx';
 import CustomSelect from '../components/CustomSelect.jsx';
+import ReportDetailModal from '../components/ReportDetailModal.jsx';
 
 const STATUS_LABEL = {
   open: 'Menunggu Verifikasi',
@@ -64,6 +65,7 @@ function normalizeSeverity(severity) {
 }
 
 export default function AdminKelolaLaporanPage() {
+  const [detailReport, setDetailReport] = useState(null);
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -306,6 +308,7 @@ export default function AdminKelolaLaporanPage() {
                     onProgressClick={() => setProgressTarget(r)}
                     onCompleteClick={() => setCompleteTarget(r)}
                     onZoomPhoto={() => setZoomImage(r.imageUrl)}
+                    onDetail={() => setDetailReport(r)}
                   />
                 ))}
               </tbody>
@@ -314,6 +317,9 @@ export default function AdminKelolaLaporanPage() {
         </div>
       )}
 
+      {detailReport && (
+        <ReportDetailModal report={detailReport} onClose={() => setDetailReport(null)} />
+      )}
       {rejectTarget && (
         <RejectModal
           report={rejectTarget}
@@ -368,6 +374,7 @@ function RowItem({
   onProgressClick,
   onCompleteClick,
   onZoomPhoto,
+  onDetail,
 }) {
   const statusColor = STATUS_COLOR[report.status] ?? STATUS_COLOR.open;
   const normalizedSeverity = normalizeSeverity(report.severity);
@@ -393,6 +400,9 @@ function RowItem({
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
         </div>
+        <button type="button" onClick={onDetail} style={{ ...secondaryBtn, marginTop: 8 }}>
+          Lihat Semua Foto
+        </button>
       </td>
       <td style={td}>
         <div>

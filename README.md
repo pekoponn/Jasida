@@ -1,7 +1,7 @@
 # Jasida — Jaga Sidoarjo
 
 Jasida adalah aplikasi pelaporan kerusakan jalan untuk wilayah Sidoarjo. Pengguna
-bisa mengambil foto langsung dari kamera, mengirim lokasi, lalu melihat perkembangan
+bisa mengambil foto dari kamera atau galeri, mengirim lokasi, lalu melihat perkembangan
 laporannya. Admin dapat memeriksa laporan, mengubah status, dan mengelola data dari
 dashboard.
 
@@ -10,7 +10,8 @@ Website yang sedang aktif: [www.jasida.web.id](https://www.jasida.web.id/)
 ## Fitur utama
 
 - Login dan pendaftaran akun pengguna.
-- Pengambilan foto langsung dari kamera.
+- Foto dari kamera atau galeri, maksimal 5 foto dalam satu laporan.
+- Pratinjau, ambil ulang, dan hapus foto sebelum analisis AI.
 - Pemeriksaan lokasi untuk laporan wilayah Sidoarjo.
 - Mode uji coba agar alur laporan tetap dapat didemokan dari luar Sidoarjo.
 - Deteksi kerusakan jalan dengan model YOLO yang berjalan di browser.
@@ -87,17 +88,27 @@ database production. Folder `dist`, `dist-test`, `test-results`, dan
 ## Cara laporan diproses
 
 1. Pengguna masuk dan membuka halaman laporan.
-2. Browser meminta izin kamera dan GPS.
-3. Foto diubah menjadi WebP dengan ukuran di bawah 100 KB.
-4. Model YOLO memeriksa foto dan menentukan jenis kerusakan.
-5. Aplikasi menghitung tingkat bahaya dari hasil deteksi.
+2. Pengguna mengambil foto dari kamera atau memilih beberapa foto dari galeri.
+3. Pengguna memeriksa pratinjau dan bisa mengambil ulang atau menghapus foto yang kurang jelas.
+4. Setelah tombol **Analisis Foto** ditekan, YOLO memeriksa setiap foto. Masing-masing foto sudah dikecilkan menjadi WebP di bawah 100 KB.
+5. Aplikasi menampilkan hasil tiap foto dan menghitung skor gabungan dari nilai tengah foto yang menunjukkan kerusakan.
 6. Lokasi dan jenis kerusakan dibandingkan dengan laporan yang sudah ada.
-7. Setelah pengguna menyetujui hasilnya, laporan dan foto dikirim ke Supabase.
+7. Setelah pengguna mengirim laporan, foto utama dan seluruh foto pendukung disimpan di Supabase. Petugas bisa membukanya melalui **Lihat Semua Foto**.
 
-Jika proses deteksi gagal atau foto tidak berisi kerusakan jalan, laporan tidak
-akan dikirim. Pada mode laporan biasa, lokasi juga harus berada di wilayah
+Gunakan 2–3 sudut dari kerusakan yang sama, misalnya tampak dekat, samping, dan lingkungan sekitarnya.
+Beberapa foto membantu petugas memeriksa bukti, tetapi tidak menjamin AI selalu benar.
+Skor tiap sudut tidak dijumlahkan agar kerusakan yang sama tidak terhitung berulang.
+Jika hasil antar foto berbeda, aplikasi menampilkan keterangannya untuk ditinjau kembali.
+
+Jika analisis gagal atau tidak ada kerusakan yang terdeteksi di seluruh foto, laporan tidak
+bisa dikirim. Pada mode laporan biasa, lokasi juga harus berada di wilayah
 Sidoarjo. Mode uji coba tetap memerlukan GPS, tetapi dapat digunakan dari daerah
 lain untuk kebutuhan demonstrasi.
+
+Lokasi foto galeri tetap mengikuti GPS perangkat saat laporan dibuat, bukan metadata foto.
+Pastikan kamu berada di lokasi kerusakan dan memilih foto yang terbaru. GPS tetap membutuhkan izin meski kamera tidak dipakai.
+Jika sebagian unggahan gagal, kirim ulang dari halaman yang sama untuk melanjutkan foto yang belum tersimpan.
+Selama unggahan belum lengkap, jangan tutup halaman: progres percobaan ulang masih disimpan di memori tab.
 
 ## Struktur folder
 
