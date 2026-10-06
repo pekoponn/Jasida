@@ -78,7 +78,10 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { username } },
+      options: {
+        data: { username },
+        emailRedirectTo: `${window.location.origin}/login`,
+      },
     });
     if (error) throw error;
     return data;
@@ -88,6 +91,17 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     return data;
+  }
+
+  async function signInWithGoogle() {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/redirect`,
+        queryParams: { prompt: 'select_account' },
+      },
+    });
+    if (error) throw error;
   }
 
   async function signOut() {
@@ -109,6 +123,7 @@ export function AuthProvider({ children }) {
         finishPasswordRecovery: () => setPasswordRecovery(false),
         signUp,
         signIn,
+        signInWithGoogle,
         signOut,
         refreshProfile,
       }}

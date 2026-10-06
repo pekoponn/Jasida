@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, CircleMarker, Popup, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -17,6 +17,147 @@ function colorForScore(score) {
   return '#C85D5D';
 }
 
+/* ------------------------------------------------------------------ */
+/*  Animasi                                                            */
+/* ------------------------------------------------------------------ */
+const landingAnimCss = `
+  /* ---------- Hero: satu rangkaian animasi saat halaman dibuka ---------- */
+  @keyframes lp-fade-up {
+    from { opacity: 0; transform: translateY(22px); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes lp-slide-in-right {
+    from { opacity: 0; transform: translateX(40px) scale(0.97); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes lp-float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-10px); }
+  }
+  .lp-hero-text > * { animation: lp-fade-up 0.7s cubic-bezier(.22,1,.36,1) backwards; }
+  .lp-hero-text > *:nth-child(1) { animation-delay: 0.05s; }
+  .lp-hero-text > *:nth-child(2) { animation-delay: 0.18s; }
+  .lp-hero-text > *:nth-child(3) { animation-delay: 0.30s; }
+  .lp-hero-img {
+    animation:
+      lp-slide-in-right 0.9s cubic-bezier(.22,1,.36,1) 0.15s backwards,
+      lp-float 6s ease-in-out 1.2s infinite;
+  }
+
+  /* ---------- Tombol ---------- */
+  .lp-btn {
+    transition: transform 0.2s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s ease,
+                background-color 0.2s ease, color 0.2s ease;
+  }
+  .lp-btn:hover { transform: translateY(-3px); }
+  .lp-btn:active { transform: scale(0.95); }
+  .lp-btn:focus-visible { outline: 2px solid #A61C24; outline-offset: 3px; }
+  .lp-btn-primary:hover { box-shadow: 0 8px 20px rgba(166,28,36,0.35); background-color: #8f1820 !important; }
+  .lp-btn-outline:hover { background-color: #A61C24 !important; color: #fff !important; box-shadow: 0 8px 20px rgba(166,28,36,0.25); }
+  .lp-btn .lp-arrow { display: inline-block; transition: transform 0.2s ease; }
+  .lp-btn-primary:hover .lp-arrow { transform: translateX(4px); }
+  @keyframes lp-bounce-down {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(3px); }
+  }
+  .lp-btn-outline:hover .lp-arrow-down { animation: lp-bounce-down 0.7s ease-in-out infinite; }
+
+  /* ---------- Reveal saat di-scroll ---------- */
+  .lp-reveal {
+    opacity: 0;
+    transform: translateY(26px);
+    transition: opacity 0.7s cubic-bezier(.22,1,.36,1), transform 0.7s cubic-bezier(.22,1,.36,1);
+    will-change: opacity, transform;
+  }
+  .lp-reveal.lp-fade-only { transform: none; }
+  .lp-reveal.lp-in { opacity: 1; transform: none; }
+
+  /* ---------- Kartu langkah ---------- */
+  .lp-step {
+    transition: transform 0.3s cubic-bezier(.22,1,.36,1), box-shadow 0.3s ease;
+  }
+  .lp-step:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 32px rgba(166,28,36,0.12) !important;
+  }
+  @keyframes lp-rotate { to { transform: rotate(360deg); } }
+  .lp-step-ring { animation: lp-rotate 9s linear infinite; animation-play-state: paused; transform-origin: 50% 50%; }
+  .lp-step:hover .lp-step-ring { animation-play-state: running; }
+  .lp-step-num { transition: transform 0.3s cubic-bezier(.34,1.56,.64,1); }
+  .lp-step:hover .lp-step-num { transform: scale(1.18); }
+
+  /* ---------- Peta ---------- */
+  @keyframes lp-shimmer {
+    0%   { background-position: -600px 0; }
+    100% { background-position: 600px 0; }
+  }
+  .lp-map-skeleton {
+    background: linear-gradient(90deg, #f1f3f5 25%, #fbe9ea 37%, #f1f3f5 63%);
+    background-size: 1200px 100%;
+    animation: lp-shimmer 1.6s linear infinite;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    color: #A61C24; font-weight: 600; font-size: 14px;
+  }
+  @keyframes lp-spin { to { transform: rotate(360deg); } }
+  .lp-spinner {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2.5px solid rgba(166,28,36,0.22); border-top-color: #A61C24;
+    animation: lp-spin 0.75s linear infinite;
+  }
+  .rw-map-box .leaflet-interactive { transition: fill-opacity 0.2s ease, stroke-width 0.2s ease; }
+  .rw-map-box .leaflet-popup { animation: lp-fade-up 0.25s ease backwards; }
+
+  /* ---------- Legenda ---------- */
+  .lp-legend-item { transition: transform 0.2s ease; }
+  .lp-legend-item:hover { transform: translateY(-2px); }
+  .lp-legend-dot { transition: transform 0.25s cubic-bezier(.34,1.56,.64,1), box-shadow 0.25s ease; }
+  .lp-legend-item:hover .lp-legend-dot { transform: scale(1.3); box-shadow: 0 0 0 5px rgba(166,28,36,0.1); }
+
+  /* ---------- Hormati preferensi pengguna ---------- */
+  @media (prefers-reduced-motion: reduce) {
+    .lp-hero-text > *, .lp-hero-img, .lp-step-ring, .lp-map-skeleton, .lp-spinner,
+    .rw-map-box .leaflet-popup { animation: none !important; }
+    .lp-reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+    .lp-btn, .lp-step, .lp-step-num, .lp-legend-item, .lp-legend-dot { transition: none !important; }
+  }
+`;
+
+/* Muncul halus saat elemen masuk layar. */
+function Reveal({ children, delay = 0, fadeOnly = false, style }) {
+  const ref = useRef(null);
+  const [shown, setShown] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    if (typeof IntersectionObserver === 'undefined') {
+      setShown(true);
+      return undefined;
+    }
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShown(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.15 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={`lp-reveal${fadeOnly ? ' lp-fade-only' : ''}${shown ? ' lp-in' : ''}`}
+      style={{ transitionDelay: `${delay}ms`, ...style }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +167,16 @@ export default function LandingPage() {
       .then(setReports)
       .catch((err) => console.warn('[landing-map]', err.message))
       .finally(() => setLoading(false));
+  }, []);
+
+  // Scroll halus untuk tombol "Pantau Peta" (hanya selama halaman ini aktif)
+  useEffect(() => {
+    const root = document.documentElement;
+    const prev = root.style.scrollBehavior;
+    root.style.scrollBehavior = 'smooth';
+    return () => {
+      root.style.scrollBehavior = prev;
+    };
   }, []);
 
   const kecamatanStats = useMemo(() => {
@@ -67,14 +218,22 @@ export default function LandingPage() {
         ? `<strong>${nama}</strong><br/>Skor rata-rata: ${stat.avgScore}<br/>${stat.count} laporan`
         : `<strong>${nama}</strong><br/>Belum ada laporan`
     );
+    // Sorot wilayah saat kursor lewat
+    layer.on({
+      mouseover: (e) => e.target.setStyle({ fillOpacity: 0.88, weight: 2.2, dashArray: '' }),
+      mouseout: (e) => e.target.setStyle(styleFeature(feature)),
+    });
   }
 
   return (
     <div style={page}>
+      <style>{landingAnimCss}</style>
+      <style>{leafletZIndexFixCss}</style>
+
       {/* HERO SECTION */}
       <section id="beranda" className="rw-hero-section" style={heroSection}>
         <div className="rw-hero-container">
-          <div className="rw-hero-text">
+          <div className="rw-hero-text lp-hero-text">
             <h1 className="rw-hero-title" style={heroTitle}>
               Jalan <span style={{ color: '#A61C24' }}>Rusak</span> Mengancam?
               <br />
@@ -85,11 +244,17 @@ export default function LandingPage() {
               pemerintah mendeteksi titik bahaya secara real-time demi keselamatan perjalanan warga.
             </p>
             <div className="rw-hero-buttons" style={{ marginTop: 28 }}>
-              <Link to="/lapor" style={primaryBtn}>
+              <Link to="/lapor" className="lp-btn lp-btn-primary" style={primaryBtn}>
                 Mulai Lapor
+                <span className="lp-arrow" aria-hidden="true">
+                  →
+                </span>
               </Link>
-              <a href="#peta" style={outlineBtn}>
+              <a href="#peta" className="lp-btn lp-btn-outline" style={outlineBtn}>
                 Pantau Peta
+                <span className="lp-arrow lp-arrow-down" aria-hidden="true">
+                  ↓
+                </span>
               </a>
             </div>
           </div>
@@ -97,6 +262,7 @@ export default function LandingPage() {
             <img
               src={heroIllustration}
               alt="Ilustrasi Jasida"
+              className="lp-hero-img"
               style={{ width: '100%', height: 'auto' }}
             />
           </div>
@@ -105,94 +271,126 @@ export default function LandingPage() {
 
       {/* BAGAIMANA JASIDA BEKERJA */}
       <section className="rw-section-padding" style={howSection}>
-        <h2 className="rw-section-title" style={sectionTitle}>
-          <span style={{ color: '#A61C24' }}>Bagaimana</span> Jasida Bekerja?
-        </h2>
+        <Reveal>
+          <h2 className="rw-section-title" style={sectionTitle}>
+            <span style={{ color: '#A61C24' }}>Bagaimana</span> Jasida Bekerja?
+          </h2>
+        </Reveal>
         <div style={stepsGrid}>
-          <StepCard
-            number={1}
-            title="Ambil Foto"
-            desc="Potret kerusakan jalan di sekitarmu langsung menggunakan smartphone."
-          />
-          <StepCard
-            number={2}
-            title="Deteksi AI"
-            desc="Sistem otomatis menganalisis tingkat keparahan lubang atau retakan jalan."
-          />
-          <StepCard
-            number={3}
-            title="Pantau Perbaikan"
-            desc="Laporan langsung masuk ke peta publik dan dikawal hingga tuntas."
-          />
+          <Reveal delay={0} style={{ height: '100%' }}>
+            <StepCard
+              number={1}
+              title="Ambil Foto"
+              desc="Potret kerusakan jalan di sekitarmu langsung menggunakan smartphone."
+            />
+          </Reveal>
+          <Reveal delay={140} style={{ height: '100%' }}>
+            <StepCard
+              number={2}
+              title="Deteksi AI"
+              desc="Sistem otomatis menganalisis tingkat keparahan lubang atau retakan jalan."
+            />
+          </Reveal>
+          <Reveal delay={280} style={{ height: '100%' }}>
+            <StepCard
+              number={3}
+              title="Pantau Perbaikan"
+              desc="Laporan langsung masuk ke peta publik dan dikawal hingga tuntas."
+            />
+          </Reveal>
         </div>
       </section>
 
       {/* MAP SECTION */}
       <section id="peta" className="rw-section-padding" style={mapSection}>
-        <h2 className="rw-section-title" style={sectionTitle}>
-          Peta Persebaran <span style={{ color: '#A61C24' }}>Titik Darurat</span> Sidoarjo
-        </h2>
-        <p className="rw-section-subtitle" style={sectionSubtitle}>
-          Setiap titik merah di peta adalah laporan warga yang siap ditindaklanjuti.
-          <br />
-          Cek wilayahmu dan pastikan jalanan sekitarmu aman.
-        </p>
+        <Reveal>
+          <h2 className="rw-section-title" style={sectionTitle}>
+            Peta Persebaran <span style={{ color: '#A61C24' }}>Titik Darurat</span> Sidoarjo
+          </h2>
+          <p className="rw-section-subtitle" style={sectionSubtitle}>
+            Setiap titik merah di peta adalah laporan warga yang siap ditindaklanjuti.
+            <br />
+            Cek wilayahmu dan pastikan jalanan sekitarmu aman.
+          </p>
+        </Reveal>
 
-        {!loading && (
-          <div className="rw-map-box" style={mapBox}>
-            <style>{leafletZIndexFixCss}</style>
-            <MapContainer
-              center={DEFAULT_CENTER}
-              zoom={DEFAULT_ZOOM}
-              style={{ height: '100%', width: '100%' }}
-              scrollWheelZoom={false}
-            >
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution="© OpenStreetMap contributors"
-              />
-              <GeoJSON data={kecamatanGeoJSON} style={styleFeature} onEachFeature={onEachFeature} />
-              {reports
-                .filter((r) => typeof r.lat === 'number' && typeof r.lng === 'number')
-                .map((r) => (
-                  <CircleMarker
-                    key={r.id}
-                    center={[r.lat, r.lng]}
-                    radius={8}
-                    pathOptions={{
-                      color: '#fff',
-                      weight: 2,
-                      fillColor: '#A61C24',
-                      fillOpacity: 0.9,
-                    }}
-                  >
-                    <Popup minWidth={180}>
-                      {r.imageUrl && (
-                        <img
-                          src={r.imageUrl}
-                          alt=""
-                          style={{
-                            width: '100%',
-                            maxHeight: 120,
-                            objectFit: 'cover',
-                            borderRadius: 6,
-                            marginBottom: 6,
-                          }}
-                        />
-                      )}
-                      <div style={{ fontWeight: 700 }}>{damageTypeDisplayLabel(r.damage_type)}</div>
-                      <div style={{ fontSize: 12 }}>Skor {r.hazard_score}</div>
-                    </Popup>
-                  </CircleMarker>
-                ))}
-            </MapContainer>
+        {loading ? (
+          <div className="rw-map-box lp-map-skeleton" style={mapBox} role="status">
+            <span className="lp-spinner" aria-hidden="true" />
+            Memuat peta…
           </div>
+        ) : (
+          <Reveal fadeOnly>
+            <div className="rw-map-box" style={mapBox}>
+              <MapContainer
+                center={DEFAULT_CENTER}
+                zoom={DEFAULT_ZOOM}
+                style={{ height: '100%', width: '100%' }}
+                scrollWheelZoom={false}
+              >
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution="© OpenStreetMap contributors"
+                />
+                <GeoJSON
+                  data={kecamatanGeoJSON}
+                  style={styleFeature}
+                  onEachFeature={onEachFeature}
+                />
+                {reports
+                  .filter((r) => typeof r.lat === 'number' && typeof r.lng === 'number')
+                  .map((r) => (
+                    <CircleMarker
+                      key={r.id}
+                      center={[r.lat, r.lng]}
+                      radius={8}
+                      pathOptions={{
+                        color: '#fff',
+                        weight: 2,
+                        fillColor: '#A61C24',
+                        fillOpacity: 0.9,
+                      }}
+                      eventHandlers={{
+                        mouseover: (e) => e.target.setRadius(11),
+                        mouseout: (e) => e.target.setRadius(8),
+                      }}
+                    >
+                      <Popup minWidth={180}>
+                        {r.imageUrl && (
+                          <img
+                            src={r.imageUrl}
+                            alt=""
+                            style={{
+                              width: '100%',
+                              maxHeight: 120,
+                              objectFit: 'cover',
+                              borderRadius: 6,
+                              marginBottom: 6,
+                            }}
+                          />
+                        )}
+                        <div style={{ fontWeight: 700 }}>
+                          {damageTypeDisplayLabel(r.damage_type)}
+                        </div>
+                        <div style={{ fontSize: 12 }}>Skor {r.hazard_score}</div>
+                      </Popup>
+                    </CircleMarker>
+                  ))}
+              </MapContainer>
+            </div>
+          </Reveal>
         )}
 
         <div className="rw-legend-row" style={legendRow}>
-          <LegendDot color="#C85D5D" label="Sangat Parah" />
-          <LegendDot color="#E08E8E" label="Kerusakan Sedang" />
-          <LegendDot color="#F5D0D0" label="Kerusakan Ringan" />
+          <Reveal delay={0}>
+            <LegendDot color="#C85D5D" label="Sangat Parah" />
+          </Reveal>
+          <Reveal delay={100}>
+            <LegendDot color="#E08E8E" label="Kerusakan Sedang" />
+          </Reveal>
+          <Reveal delay={200}>
+            <LegendDot color="#F5D0D0" label="Kerusakan Ringan" />
+          </Reveal>
         </div>
       </section>
     </div>
@@ -201,14 +399,16 @@ export default function LandingPage() {
 
 function StepCard({ number, title, desc }) {
   return (
-    <div style={stepCard}>
+    <div className="lp-step" style={{ ...stepCard, height: '100%', boxSizing: 'border-box' }}>
       <div style={stepNumberWrap}>
-        <div style={stepNumberCircle}>
+        <div className="lp-step-num" style={stepNumberCircle}>
           <svg
+            className="lp-step-ring"
             width="38"
             height="38"
             viewBox="0 0 38 38"
             style={{ position: 'absolute', top: 0, left: 0 }}
+            aria-hidden="true"
           >
             <circle
               cx="19"
@@ -232,6 +432,7 @@ function StepCard({ number, title, desc }) {
 function LegendDot({ color, label }) {
   return (
     <div
+      className="lp-legend-item"
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -242,6 +443,7 @@ function LegendDot({ color, label }) {
       }}
     >
       <span
+        className="lp-legend-dot"
         style={{
           width: 20,
           height: 20,
@@ -270,6 +472,7 @@ const heroSection = {
   justifyContent: 'center',
   padding: '60px 5%',
   background: '#fff',
+  overflow: 'hidden',
 };
 
 const heroTitle = {
@@ -283,6 +486,9 @@ const heroTitle = {
 const heroSubtitle = { fontSize: 17, color: '#555', marginTop: 20, lineHeight: 1.6 };
 
 const primaryBtn = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
   padding: '14px 32px',
   borderRadius: 28,
   background: '#A61C24',
@@ -294,6 +500,9 @@ const primaryBtn = {
 };
 
 const outlineBtn = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
   padding: '14px 32px',
   borderRadius: 28,
   border: '1.5px solid #A61C24',

@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.115.0",
+    "exifr": "^7.1.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.45.0",
     "onnxruntime-web": "^1.27.0",

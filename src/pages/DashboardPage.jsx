@@ -12,23 +12,223 @@ import { useIsMobileDevice } from '../lib/useIsMobileDevice.js';
 import CustomSelect from '../components/CustomSelect.jsx';
 import CustomDateRangePicker from '../components/CustomDateRangePicker.jsx';
 
+/* ------------------------------------------------------------------ */
+/*  Animasi global (di-inject sekali)                                  */
+/* ------------------------------------------------------------------ */
+const DASHBOARD_CSS = `
+  /* ---------- Tombol umum ---------- */
+  .rw-btn-anim {
+    transition: transform 0.18s cubic-bezier(.34,1.56,.64,1), box-shadow 0.18s ease, background-color 0.2s ease;
+  }
+  .rw-btn-anim:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.14);
+  }
+  .rw-btn-anim:active:not(:disabled) {
+    transform: scale(0.94);
+    box-shadow: none;
+  }
+  .rw-btn-anim:focus-visible,
+  .rw-page-btn:focus-visible,
+  .rw-photo-nav:focus-visible {
+    outline: 2px solid #A42C2B;
+    outline-offset: 2px;
+  }
+
+  /* ---------- Hero ---------- */
+  @keyframes rw-hero-in {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes rw-hero-icon-in {
+    from { opacity: 0; transform: translateX(-24px) rotate(-4deg); }
+    to   { opacity: 1; transform: translateX(0) rotate(0); }
+  }
+  @keyframes rw-float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-8px); }
+  }
+  .rw-hero { animation: rw-hero-in 0.55s cubic-bezier(.22,1,.36,1) both; }
+  .rw-hero-icon {
+    animation:
+      rw-hero-icon-in 0.7s cubic-bezier(.22,1,.36,1) 0.15s both,
+      rw-float 5s ease-in-out 1s infinite;
+  }
+  .rw-hero-text > * { animation: rw-hero-in 0.55s cubic-bezier(.22,1,.36,1) both; }
+  .rw-hero-text > *:nth-child(1) { animation-delay: 0.10s; }
+  .rw-hero-text > *:nth-child(2) { animation-delay: 0.20s; }
+  .rw-hero-text > *:nth-child(3) { animation-delay: 0.30s; }
+
+  .rw-hero-cta {
+    transition: transform 0.18s cubic-bezier(.34,1.56,.64,1), box-shadow 0.18s ease, background-color 0.2s ease;
+  }
+  .rw-hero-cta:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.22);
+    background-color: #fff5f5;
+  }
+  .rw-hero-cta:active { transform: scale(0.95); box-shadow: none; }
+  .rw-hero-cta .rw-cta-arrow { display: inline-block; transition: transform 0.2s ease; margin-left: 4px; }
+  .rw-hero-cta:hover .rw-cta-arrow { transform: translateX(4px); }
+
+  /* ---------- Tombol cari ---------- */
+  .rw-search-btn svg { transition: transform 0.25s cubic-bezier(.34,1.56,.64,1); }
+  .rw-search-btn:hover svg { transform: scale(1.18) rotate(-12deg); }
+  .rw-search-btn:active svg { transform: scale(0.9); }
+
+  /* ---------- Kartu laporan ---------- */
+  @keyframes rw-card-in {
+    from { opacity: 0; transform: translateY(18px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .rw-card {
+    animation: rw-card-in 0.45s cubic-bezier(.22,1,.36,1) both;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .rw-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+  }
+
+  /* ---------- Foto ---------- */
+  @keyframes rw-photo-fade {
+    from { opacity: 0; transform: scale(1.04); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  .rw-photo-fade { width: 100%; height: 100%; animation: rw-photo-fade 0.35s ease both; }
+  .rw-photo-nav {
+    opacity: 0;
+    transition: opacity 0.2s ease, background-color 0.2s ease, transform 0.18s cubic-bezier(.34,1.56,.64,1);
+  }
+  .rw-photo-wrap:hover .rw-photo-nav,
+  .rw-photo-nav:focus-visible { opacity: 1; }
+  .rw-photo-nav:hover { background-color: rgba(0,0,0,0.65) !important; transform: translateY(-50%) scale(1.12) !important; }
+  .rw-photo-nav:active { transform: translateY(-50%) scale(0.92) !important; }
+  @media (hover: none) { .rw-photo-nav { opacity: 1; } }
+
+  @keyframes rw-badge-pop {
+    from { opacity: 0; transform: translateY(-4px) scale(0.9); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .rw-photo-badge { animation: rw-badge-pop 0.3s ease both; }
+
+  /* ---------- Ikon ---------- */
+  .rw-pin { transform-origin: 50% 100%; }
+  .rw-card:hover .rw-pin { animation: rw-pin-bounce 0.6s ease 1; }
+  @keyframes rw-pin-bounce {
+    0%   { transform: translateY(0); }
+    35%  { transform: translateY(-3px); }
+    60%  { transform: translateY(0); }
+    80%  { transform: translateY(-1px); }
+    100% { transform: translateY(0); }
+  }
+
+  .rw-reporter { transition: background-color 0.2s ease, transform 0.18s ease; }
+  .rw-reporter:hover { background-color: #e9ecef !important; transform: translateY(-1px); }
+  .rw-reporter:hover svg { animation: rw-wiggle 0.5s ease 1; }
+  @keyframes rw-wiggle {
+    0%, 100% { transform: rotate(0); }
+    25% { transform: rotate(-12deg); }
+    75% { transform: rotate(12deg); }
+  }
+
+  /* Jempol */
+  .rw-thumb { transition: transform 0.2s cubic-bezier(.34,1.56,.64,1), fill 0.2s ease; transform-origin: 30% 80%; }
+  .rw-dukung:not(:disabled):hover .rw-thumb { transform: rotate(-14deg) scale(1.15); }
+  .rw-dukung:not(:disabled):active .rw-thumb { transform: rotate(-24deg) scale(0.9); }
+  @keyframes rw-thumb-pop {
+    0%   { transform: scale(1) rotate(0); }
+    30%  { transform: scale(1.6) rotate(-20deg); }
+    60%  { transform: scale(0.9) rotate(8deg); }
+    100% { transform: scale(1) rotate(0); }
+  }
+  .rw-thumb-pop { animation: rw-thumb-pop 0.55s cubic-bezier(.34,1.56,.64,1) 1; }
+  @keyframes rw-count-bump {
+    0%   { transform: translateY(0); }
+    40%  { transform: translateY(-5px); color: #A42C2B; }
+    100% { transform: translateY(0); }
+  }
+  .rw-count-bump { display: inline-block; animation: rw-count-bump 0.4s ease 1; }
+  @keyframes rw-spin { to { transform: rotate(360deg); } }
+  .rw-spinner {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid rgba(166,30,77,0.25); border-top-color: #a61e4d;
+    animation: rw-spin 0.7s linear infinite;
+  }
+
+  /* Ikon komentar (membungkus CommentSection) */
+  .rw-comment-wrap { display: inline-flex; align-items: center; }
+  .rw-comment-wrap button { transition: transform 0.18s cubic-bezier(.34,1.56,.64,1), background-color 0.2s ease, box-shadow 0.18s ease; }
+  .rw-comment-wrap button:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 3px 8px rgba(0,0,0,0.12); }
+  .rw-comment-wrap button:active { transform: scale(0.94); box-shadow: none; }
+  .rw-comment-wrap button svg { transition: transform 0.25s cubic-bezier(.34,1.56,.64,1); transform-origin: 50% 70%; }
+  .rw-comment-wrap button:hover svg { transform: scale(1.15) rotate(-8deg); }
+  .rw-comment-icon-bubble { transition: transform 0.25s cubic-bezier(.34,1.56,.64,1); transform-origin: 50% 70%; }
+
+  /* Status */
+  @keyframes rw-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(153,106,0,0.5); }
+    70%  { box-shadow: 0 0 0 6px rgba(153,106,0,0); }
+    100% { box-shadow: 0 0 0 0 rgba(153,106,0,0); }
+  }
+  .rw-status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; margin-right: 6px; flex-shrink: 0; }
+  .rw-status-dot.pulse { animation: rw-pulse 1.8s ease-out infinite; }
+
+  @keyframes rw-slide-down {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .rw-reject { animation: rw-slide-down 0.3s ease both; }
+
+  /* ---------- Skeleton ---------- */
+  @keyframes rw-shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+  }
+  .rw-skel {
+    background: linear-gradient(90deg, #e9ecef 25%, #f4f5f7 37%, #e9ecef 63%);
+    background-size: 800px 100%;
+    animation: rw-shimmer 1.4s linear infinite;
+    border-radius: 6px;
+  }
+
+  /* ---------- Paginasi ---------- */
+  .rw-page-btn {
+    transition: transform 0.18s cubic-bezier(.34,1.56,.64,1), background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+  }
+  .rw-page-btn:hover:not(:disabled) { background-color: #FDECEE !important; border-color: #A42C2B !important; transform: scale(1.12); }
+  .rw-page-btn:active:not(:disabled) { transform: scale(0.9); }
+  @keyframes rw-page-num {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .rw-page-num { display: inline-block; animation: rw-page-num 0.25s ease both; }
+
+  /* ---------- Empty / error ---------- */
+  .rw-fade-in { animation: rw-slide-down 0.35s ease both; }
+
+  /* ---------- Hormati preferensi pengguna ---------- */
+  @media (prefers-reduced-motion: reduce) {
+    .rw-hero, .rw-hero-icon, .rw-hero-text > *, .rw-card, .rw-photo-fade, .rw-photo-badge,
+    .rw-thumb-pop, .rw-count-bump, .rw-reject, .rw-page-num, .rw-fade-in,
+    .rw-status-dot.pulse, .rw-skel, .rw-pin, .rw-reporter svg {
+      animation: none !important;
+    }
+    .rw-btn-anim, .rw-card, .rw-hero-cta, .rw-photo-nav, .rw-page-btn, .rw-thumb {
+      transition: none !important;
+    }
+  }
+`;
+
 export default function DashboardPage() {
   useEffect(() => {
     const style = document.createElement('style');
-    style.textContent = `
-      .rw-btn-anim {
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-      }
-      .rw-btn-anim:hover:not(:disabled) {
-        transform: translateY(-2px) scale(1.04);
-        box-shadow: 0 3px 8px rgba(0,0,0,0.12);
-      }
-      .rw-btn-anim:active:not(:disabled) {
-        transform: scale(0.96);
-      }
-    `;
+    style.setAttribute('data-rw-dashboard', '');
+    style.textContent = DASHBOARD_CSS;
     document.head.appendChild(style);
-    return () => document.head.removeChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
   }, []);
 
   const [reports, setReports] = useState([]);
@@ -116,6 +316,7 @@ export default function DashboardPage() {
     <div style={{ backgroundColor: 'var(--color-bg, #f8f9fa)', minHeight: '100vh' }}>
       {/* Hero Banner Red Header */}
       <section
+        className="rw-hero"
         style={{
           ...heroCardStyle,
           flexDirection: isMobileDevice ? 'column' : 'row',
@@ -129,11 +330,13 @@ export default function DashboardPage() {
           <img
             src={roadIcon}
             alt="Jalan"
+            className="rw-hero-icon"
             style={heroIconStyle}
             onError={(e) => (e.target.style.display = 'none')}
           />
         )}
         <div
+          className="rw-hero-text"
           style={{
             color: '#ffffff',
             marginLeft: isMobileDevice ? 0 : 350,
@@ -147,15 +350,21 @@ export default function DashboardPage() {
             Temu masalah infrastruktur? Laporkan lewat Jasida, biar langsung ditindaklanjuti oleh
             pihak berwenang.
           </p>
-          <button style={btnHeroStyle} onClick={() => navigate('/lapor')}>
-            Mulai Buat Laporan
-          </button>
+          <div>
+            <button className="rw-hero-cta" style={btnHeroStyle} onClick={() => navigate('/lapor')}>
+              Mulai Buat Laporan
+              <span className="rw-cta-arrow" aria-hidden="true">
+                ›
+              </span>
+            </button>
+          </div>
         </div>
       </section>
 
       {/* Main Container */}
       <main style={{ width: '100%', padding: '0 5% 40px', boxSizing: 'border-box' }}>
         <h2
+          className="rw-fade-in"
           style={{
             textAlign: 'center',
             fontSize: 22,
@@ -197,7 +406,7 @@ export default function DashboardPage() {
 
           <button
             onClick={handleSearch}
-            className="rw-btn-anim"
+            className="rw-btn-anim rw-search-btn"
             style={searchBtnStyle}
             aria-label="Cari"
           >
@@ -216,10 +425,16 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {loading && <p style={{ textAlign: 'center', margin: '40px 0' }}>Memuat…</p>}
-        {error && <p style={{ textAlign: 'center', color: '#e03131' }}>{error}</p>}
+        {error && (
+          <p className="rw-fade-in" style={{ textAlign: 'center', color: '#e03131' }}>
+            {error}
+          </p>
+        )}
         {!loading && !error && filteredReports.length === 0 && (
-          <p style={{ textAlign: 'center', color: '#868e96', margin: '40px 0' }}>
+          <p
+            className="rw-fade-in"
+            style={{ textAlign: 'center', color: '#868e96', margin: '40px 0' }}
+          >
             {reports.length === 0
               ? 'Belum ada laporan.'
               : 'Tidak ada laporan yang cocok dengan filter.'}
@@ -228,15 +443,20 @@ export default function DashboardPage() {
 
         {/* 3-Column Grid Layout */}
         <div style={gridStyle}>
-          {pagedReports.map((r) => (
-            <ReportCard
-              key={r.id}
-              report={r}
-              isOwner={user?.id === r.user_id}
-              alreadySupported={mySupports.includes(r.id)}
-              onSupported={() => markSupported(r.id)}
-            />
-          ))}
+          {loading &&
+            Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`skel-${i}`} />)}
+
+          {!loading &&
+            pagedReports.map((r, i) => (
+              <ReportCard
+                key={r.id}
+                index={i}
+                report={r}
+                isOwner={user?.id === r.user_id}
+                alreadySupported={mySupports.includes(r.id)}
+                onSupported={() => markSupported(r.id)}
+              />
+            ))}
         </div>
 
         {/* Pagination Arrows */}
@@ -251,6 +471,7 @@ export default function DashboardPage() {
           }}
         >
           <button
+            className="rw-page-btn"
             style={{
               ...pageArrowStyle,
               opacity: page === 0 ? 0.4 : 1,
@@ -258,13 +479,17 @@ export default function DashboardPage() {
             }}
             onClick={goPrevPage}
             disabled={page === 0}
+            aria-label="Halaman sebelumnya"
           >
-            ‹
+            <ChevronIcon direction="left" color="#a61e4d" size={16} />
           </button>
           <span style={{ fontSize: 13, color: '#868e96', minWidth: 60, textAlign: 'center' }}>
-            {page + 1} / {totalPages}
+            <span key={page} className="rw-page-num">
+              {page + 1} / {totalPages}
+            </span>
           </span>
           <button
+            className="rw-page-btn"
             style={{
               ...pageArrowStyle,
               opacity: page >= totalPages - 1 ? 0.4 : 1,
@@ -272,43 +497,53 @@ export default function DashboardPage() {
             }}
             onClick={goNextPage}
             disabled={page >= totalPages - 1}
+            aria-label="Halaman berikutnya"
           >
-            ›
+            <ChevronIcon direction="right" color="#a61e4d" size={16} />
           </button>
         </div>
       </main>
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Ikon                                                               */
+/* ------------------------------------------------------------------ */
 function PinIcon() {
   return (
     <svg
-      width="12"
-      height="12"
+      className="rw-pin"
+      width="13"
+      height="13"
       viewBox="0 0 24 24"
-      fill="none"
+      fill="#FDECEE"
       stroke="#A61C24"
       strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       style={{ flexShrink: 0 }}
+      aria-hidden="true"
     >
       <path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z" />
-      <circle cx="12" cy="9" r="2.3" />
+      <circle cx="12" cy="9" r="2.3" fill="#A61C24" stroke="none" />
     </svg>
   );
 }
 
-function ChevronIcon({ direction }) {
+function ChevronIcon({ direction, color = '#fff', size = 16 }) {
   const points = direction === 'left' ? '15 18 9 12 15 6' : '9 18 15 12 9 6';
   return (
     <svg
-      width="16"
-      height="16"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
-      stroke="#fff"
+      stroke={color}
       strokeWidth="2.4"
       strokeLinecap="round"
       strokeLinejoin="round"
+      aria-hidden="true"
     >
       <polyline points={points} />
     </svg>
@@ -318,8 +553,8 @@ function ChevronIcon({ direction }) {
 function ReporterIcon() {
   return (
     <svg
-      width="13"
-      height="13"
+      width="14"
+      height="14"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -327,6 +562,7 @@ function ReporterIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
       style={{ flexShrink: 0, display: 'block' }}
+      aria-hidden="true"
     >
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
       <circle cx="9" cy="7" r="4" />
@@ -336,18 +572,20 @@ function ReporterIcon() {
   );
 }
 
-function ThumbsUpIcon() {
+function ThumbsUpIcon({ filled = false, pop = false }) {
   return (
     <svg
-      width="13"
-      height="13"
+      className={`rw-thumb${pop ? ' rw-thumb-pop' : ''}`}
+      width="14"
+      height="14"
       viewBox="0 0 24 24"
-      fill="none"
+      fill={filled ? 'currentColor' : 'none'}
       stroke="currentColor"
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
       style={{ flexShrink: 0 }}
+      aria-hidden="true"
     >
       <path d="M7 10v11" />
       <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h2.76a2 2 0 0 0 1.79-1.11L12 3a1.5 1.5 0 0 1 3 1.5v1.38z" />
@@ -355,6 +593,38 @@ function ThumbsUpIcon() {
   );
 }
 
+/**
+ * Ikon komentar (gelembung chat dengan tiga titik).
+ * Dipakai di CommentSection.jsx supaya konsisten, contoh:
+ *   import { CommentIcon } from '../pages/DashboardPage.jsx';
+ * atau salin komponen ini ke file ikon bersama.
+ */
+export function CommentIcon({ size = 14 }) {
+  return (
+    <svg
+      className="rw-comment-icon-bubble"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flexShrink: 0 }}
+      aria-hidden="true"
+    >
+      <path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6A8.4 8.4 0 0 1 12.5 3H13a8.5 8.5 0 0 1 8 8v.5z" />
+      <circle cx="8.5" cy="11.5" r="0.6" fill="currentColor" />
+      <circle cx="12" cy="11.5" r="0.6" fill="currentColor" />
+      <circle cx="15.5" cy="11.5" r="0.6" fill="currentColor" />
+    </svg>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Status                                                             */
+/* ------------------------------------------------------------------ */
 const DASHBOARD_STATUS_INFO = {
   open: { label: 'Menunggu Verifikasi', bg: '#f1f3f5', color: '#868e96' },
   accepted: { label: 'Diterima', bg: '#E7F1FF', color: '#1c5dcf' },
@@ -367,13 +637,40 @@ function reportStatusInfo(status) {
   return DASHBOARD_STATUS_INFO[status] ?? DASHBOARD_STATUS_INFO.open;
 }
 
-function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
+/* ------------------------------------------------------------------ */
+/*  Skeleton                                                           */
+/* ------------------------------------------------------------------ */
+function SkeletonCard() {
+  return (
+    <div style={{ ...cardStyle, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }} aria-hidden="true">
+      <div className="rw-skel" style={{ height: 220, borderRadius: 0 }} />
+      <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+          <div className="rw-skel" style={{ height: 12, width: '55%' }} />
+          <div className="rw-skel" style={{ height: 12, width: '25%' }} />
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div className="rw-skel" style={{ height: 24, width: 80, borderRadius: 20 }} />
+          <div className="rw-skel" style={{ height: 24, width: 80, borderRadius: 20 }} />
+          <div className="rw-skel" style={{ height: 24, width: 60, borderRadius: 20 }} />
+        </div>
+        <div className="rw-skel" style={{ height: 70, borderRadius: 8 }} />
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Kartu laporan                                                      */
+/* ------------------------------------------------------------------ */
+function ReportCard({ report, isOwner, alreadySupported, onSupported, index = 0 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [supporting, setSupporting] = useState(false);
+  const [justSupported, setJustSupported] = useState(false);
   const [address, setAddress] = useState(null);
   const [photos, setPhotos] = useState([]);
-  const [index, setIndex] = useState(0);
+  const [photoIndex, setPhotoIndex] = useState(0);
 
   useEffect(() => {
     if (report.lat == null || report.lng == null) return;
@@ -387,6 +684,7 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
       ? [{ id: 'original', url: report.imageUrl, photo_type: 'original' }]
       : [];
     setPhotos(originalPhoto);
+    setPhotoIndex(0);
     getReportPhotos(report.id)
       .then((extra) => setPhotos([...originalPhoto, ...extra]))
       .catch((err) => console.warn('[report-photos]', err.message));
@@ -398,7 +696,9 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
     setSupporting(true);
     try {
       await supportReport(report.id);
+      setJustSupported(true);
       onSupported();
+      setTimeout(() => setJustSupported(false), 700);
     } catch (err) {
       console.warn('[support]', err.message);
     } finally {
@@ -406,16 +706,16 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
     }
   }
 
-  const currentPhoto = photos[index];
+  const currentPhoto = photos[photoIndex];
 
   function goPrev(e) {
     e.stopPropagation();
-    setIndex((i) => (i - 1 + photos.length) % photos.length);
+    setPhotoIndex((i) => (i - 1 + photos.length) % photos.length);
   }
 
   function goNext(e) {
     e.stopPropagation();
-    setIndex((i) => (i + 1) % photos.length);
+    setPhotoIndex((i) => (i + 1) % photos.length);
   }
 
   const PHOTO_TYPE_LABEL = {
@@ -429,11 +729,16 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
   const supportCount = report.support_count ?? 0;
   const reporterCount = report.reporter_count ?? 1;
   const statusInfo = reportStatusInfo(report.status);
+  const supportDisabled = alreadySupported || isOwner;
 
   return (
-    <article style={cardStyle}>
+    <article
+      className="rw-card"
+      style={{ ...cardStyle, animationDelay: `${Math.min(index, 8) * 60}ms` }}
+    >
       {/* Top Image Preview & Severity */}
       <div
+        className="rw-photo-wrap"
         style={{
           position: 'relative',
           height: 220,
@@ -442,11 +747,13 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
         }}
       >
         {currentPhoto?.url ? (
-          <ZoomableImage
-            src={currentPhoto.url}
-            alt="Kerusakan"
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
+          <div key={currentPhoto.url} className="rw-photo-fade">
+            <ZoomableImage
+              src={currentPhoto.url}
+              alt="Kerusakan"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          </div>
         ) : (
           <div
             style={{
@@ -465,7 +772,7 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
         </div>
 
         {currentPhoto?.photo_type && photos.length > 1 && (
-          <span style={photoTypeBadge}>
+          <span key={currentPhoto.photo_type + photoIndex} className="rw-photo-badge" style={photoTypeBadge}>
             {PHOTO_TYPE_LABEL[currentPhoto.photo_type] ?? currentPhoto.photo_type}
           </span>
         )}
@@ -474,6 +781,7 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
           <>
             <button
               type="button"
+              className="rw-photo-nav"
               onClick={goPrev}
               style={{ ...photoNavBtn, left: 8 }}
               aria-label="Foto sebelumnya"
@@ -482,6 +790,7 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
             </button>
             <button
               type="button"
+              className="rw-photo-nav"
               onClick={goNext}
               style={{ ...photoNavBtn, right: 8 }}
               aria-label="Foto berikutnya"
@@ -495,8 +804,8 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
                   key={p.id ?? i}
                   style={{
                     ...photoDot,
-                    opacity: i === index ? 1 : 0.4,
-                    transform: i === index ? 'scale(1.2)' : 'scale(1)',
+                    opacity: i === photoIndex ? 1 : 0.4,
+                    transform: i === photoIndex ? 'scale(1.3)' : 'scale(1)',
                   }}
                 />
               ))}
@@ -506,7 +815,7 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
       </div>
 
       {/* Details Section */}
-      <div style={{ padding: 12, flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: 12, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
         >
@@ -532,32 +841,50 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
           </div>
         </div>
 
-        {/* Dukung + Komentar + Status — dikasih jarak dari baris di atasnya */}
+        {/* Dukung + Komentar + Status */}
         <div
           style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 12 }}
         >
-          <span style={reporterBadge}>
+          <span className="rw-reporter" style={reporterBadge}>
             <ReporterIcon /> {reporterCount} Pelapor
           </span>
 
           <button
             onClick={handleSupport}
-            disabled={supporting || alreadySupported || isOwner}
-            className="rw-btn-anim"
-            style={alreadySupported || isOwner ? dukungBadgeDisabled : dukungBadge}
+            disabled={supporting || supportDisabled}
+            className="rw-btn-anim rw-dukung"
+            style={supportDisabled ? dukungBadgeDisabled : dukungBadge}
+            aria-pressed={alreadySupported}
+            title={isOwner ? 'Kamu tidak bisa mendukung laporanmu sendiri' : undefined}
           >
-            <ThumbsUpIcon /> Dukung {supportCount}+
+            {supporting ? (
+              <span className="rw-spinner" aria-hidden="true" />
+            ) : (
+              <ThumbsUpIcon filled={alreadySupported} pop={justSupported} />
+            )}
+            Dukung{' '}
+            <span key={supportCount} className={justSupported ? 'rw-count-bump' : undefined}>
+              {supportCount}+
+            </span>
           </button>
 
-          <CommentSection reportId={report.id} photoUrl={currentPhoto?.url} />
+          <span className="rw-comment-wrap">
+            <CommentSection reportId={report.id} photoUrl={currentPhoto?.url} />
+          </span>
 
           <span style={{ ...statusBadge, backgroundColor: statusInfo.bg, color: statusInfo.color }}>
+            <span
+              className={`rw-status-dot${report.status === 'in_progress' ? ' pulse' : ''}`}
+              aria-hidden="true"
+            />
             {statusInfo.label}
           </span>
         </div>
 
         {report.status === 'rejected' && report.rejection_reason && (
-          <div style={rejectionReasonPill}>Alasan ditolak: {report.rejection_reason}</div>
+          <div className="rw-reject" style={rejectionReasonPill}>
+            Alasan ditolak: {report.rejection_reason}
+          </div>
         )}
 
         <div style={noteBox}>
@@ -580,6 +907,9 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Style                                                              */
+/* ------------------------------------------------------------------ */
 const heroCardStyle = {
   backgroundColor: '#A42C2B',
   borderRadius: 12,
@@ -698,7 +1028,7 @@ const photoDot = {
   height: 6,
   borderRadius: '50%',
   background: '#fff',
-  transition: 'transform 0.15s ease, opacity 0.15s ease',
+  transition: 'transform 0.2s ease, opacity 0.2s ease',
 };
 
 const posterBadge = {
@@ -750,7 +1080,7 @@ const reporterBadge = {
   whiteSpace: 'nowrap',
 };
 
-// Badge "👍 Dukung {n}+" — pengganti tombol "Kirim" yang dobel
+// Badge "👍 Dukung {n}+"
 const dukungBadge = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -781,6 +1111,7 @@ const statusBadge = {
   fontWeight: 700,
   fontSize: 11,
   whiteSpace: 'nowrap',
+  transition: 'background-color 0.3s ease, color 0.3s ease',
 };
 
 const rejectionReasonPill = {
@@ -800,11 +1131,9 @@ const pageArrowStyle = {
   borderRadius: '50%',
   border: '1px solid #dee2e6',
   backgroundColor: '#ffffff',
-  color: '#a61e4d',
-  fontWeight: 'bold',
-  fontSize: 16,
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+  padding: 0,
 };
