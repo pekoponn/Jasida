@@ -163,6 +163,7 @@ export async function completeReportWithActuals(
   reportId,
   {
     file,
+    files,
     actualMaterials,
     actualMaterialsJson,
     actualCost,
@@ -171,8 +172,11 @@ export async function completeReportWithActuals(
     fallbackEstimatedMaterialsJson,
   }
 ) {
-  if (!file) throw new Error('Foto bukti perbaikan wajib diunggah.');
-  await addReportPhoto(reportId, file, 'resolution');
+  const proofFiles = (files?.length ? files : [file]).filter(Boolean).slice(0, 5);
+  if (!proofFiles.length) throw new Error('Foto bukti perbaikan wajib diunggah.');
+  for (const proof of proofFiles) {
+    await addReportPhoto(reportId, proof, 'resolution');
+  }
 
   const updatePayload = {
     status: 'resolved',
