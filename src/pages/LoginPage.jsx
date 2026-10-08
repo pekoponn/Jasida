@@ -151,40 +151,6 @@ export default function LoginPage() {
               </div>
             ) : (
               <div key={mode} className="lg-swap">
-                {/* Jalur utama: Google (masuk sekaligus daftar) */}
-                <button
-                  type="button"
-                  onClick={handleGoogle}
-                  disabled={googleLoading || loading}
-                  className="lg-google"
-                  style={{ ...googleBtn, marginTop: 20 }}
-                >
-                  {googleLoading ? (
-                    <span className="lg-spinner" aria-hidden="true" />
-                  ) : (
-                    <GoogleLogo />
-                  )}
-                  {googleLoading ? 'Mengarahkan…' : 'Masuk / Daftar dengan Google'}
-                </button>
-
-                <p className="lg-hint" style={hintText}>
-                  Pendaftaran akun baru hanya lewat Google.
-                </p>
-
-                {error && (
-                  <p
-                    key={error}
-                    role="alert"
-                    className="lg-error"
-                    style={{ color: '#ffb3b3', fontSize: 13, margin: '12px 0 0' }}
-                  >
-                    {error}
-                  </p>
-                )}
-
-                <div className="lg-divider" aria-hidden="true">
-                  <span>atau masuk dengan email</span>
-                </div>
 
                 <form
                   onSubmit={handleSubmit}
@@ -247,6 +213,17 @@ export default function LoginPage() {
                     Lupa Sandi?
                   </button>
 
+                  {error && (
+                    <p
+                      key={error}
+                      role="alert"
+                      className="lg-error"
+                      style={{ color: '#ffb3b3', fontSize: 13, margin: 0 }}
+                    >
+                      {error}
+                    </p>
+                  )}
+
                   <button
                     type="submit"
                     disabled={loading || googleLoading}
@@ -257,6 +234,29 @@ export default function LoginPage() {
                     {loading ? 'Memproses…' : 'Masuk Sekarang'}
                   </button>
                 </form>
+
+                <div className="lg-divider" aria-hidden="true">
+                  <span>atau</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGoogle}
+                  disabled={googleLoading || loading}
+                  className="lg-google"
+                  style={googleBtn}
+                >
+                  {googleLoading ? (
+                    <span className="lg-spinner" aria-hidden="true" />
+                  ) : (
+                    <GoogleLogo />
+                  )}
+                  {googleLoading ? 'Mengarahkan…' : 'Masuk / Daftar dengan Google'}
+                </button>
+
+                <p className="lg-hint" style={hintText}>
+                  Pendaftaran akun baru hanya lewat Google.
+                </p>
               </div>
             )}
           </div>
