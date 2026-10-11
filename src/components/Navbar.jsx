@@ -4,6 +4,24 @@ import { useAuth } from '../lib/AuthContext.jsx';
 import brandLogo from '../assets/brand-logo.png';
 import { useIsMobileDevice } from '../lib/useIsMobileDevice.js';
 
+function DashedLine() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: 4,
+        pointerEvents: 'none',
+        backgroundImage:
+          'repeating-linear-gradient(90deg, #bfc1c2 0, #b1b1b1 10px, transparent 6px, transparent 16px)',
+      }}
+    />
+  );
+}
+
 export default function Navbar() {
   const { user, profile, signOut } = useAuth();
   const isAdmin = profile?.role === 'admin';
@@ -29,7 +47,14 @@ export default function Navbar() {
           <header
             ref={headerRef}
             className="rw-header-desktop"
-            style={{ ...styles.header, position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000 }}
+            style={{
+              ...styles.header,
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 1000,
+            }}
           >
             <div style={styles.brand}>
               <img src={brandLogo} alt="Jasida" style={{ height: 50 }} />
@@ -67,6 +92,7 @@ export default function Navbar() {
                 </NavLink>
               )}
             </nav>
+            <DashedLine />
           </header>
           <div style={{ height: headerHeight }} />
         </>
@@ -88,6 +114,7 @@ export default function Navbar() {
             }}
           >
             <img src={brandLogo} alt="Jasida" style={{ height: 40 }} />
+            <DashedLine />
           </header>
           <div style={{ height: headerHeight }} />
         </>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { listReportsFeed, supportReport, getMySupports, getReportPhotos } from '../lib/reports.js';
 import SeverityBadge from '../components/SeverityBadge.jsx';
 import { useAuth } from '../lib/AuthContext.jsx';
@@ -30,7 +30,9 @@ const DASHBOARD_CSS = `
   }
   .rw-btn-anim:focus-visible,
   .rw-page-btn:focus-visible,
-  .rw-photo-nav:focus-visible {
+  .rw-photo-nav:focus-visible,
+  .rw-tab:focus-visible,
+  .rw-dot:focus-visible {
     outline: 2px solid #A42C2B;
     outline-offset: 2px;
   }
@@ -90,12 +92,34 @@ const DASHBOARD_CSS = `
     box-shadow: 0 12px 28px rgba(0,0,0,0.12);
   }
 
-  /* ---------- Foto ---------- */
+  /* ---------- Galeri foto (geser) ---------- */
+  .rw-track {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .rw-track::-webkit-scrollbar { display: none; }
+  .rw-slide {
+    position: relative;
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
   @keyframes rw-photo-fade {
-    from { opacity: 0; transform: scale(1.04); }
+    from { opacity: 0; transform: scale(1.03); }
     to   { opacity: 1; transform: scale(1); }
   }
-  .rw-photo-fade { width: 100%; height: 100%; animation: rw-photo-fade 0.35s ease both; }
+  .rw-gallery-in { width: 100%; height: 100%; animation: rw-photo-fade 0.35s ease both; }
+
   .rw-photo-nav {
     opacity: 0;
     transition: opacity 0.2s ease, background-color 0.2s ease, transform 0.18s cubic-bezier(.34,1.56,.64,1);
@@ -104,7 +128,43 @@ const DASHBOARD_CSS = `
   .rw-photo-nav:focus-visible { opacity: 1; }
   .rw-photo-nav:hover { background-color: rgba(0,0,0,0.65) !important; transform: translateY(-50%) scale(1.12) !important; }
   .rw-photo-nav:active { transform: translateY(-50%) scale(0.92) !important; }
-  @media (hover: none) { .rw-photo-nav { opacity: 1; } }
+  @media (hover: none) { .rw-photo-nav { opacity: 0; } }
+
+  /* Tab Sebelum / Sesudah */
+  .rw-tabs {
+    display: inline-flex;
+    padding: 3px;
+    gap: 2px;
+    border-radius: 999px;
+    background: rgba(20,20,20,0.55);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+  .rw-tab {
+    border: none;
+    cursor: pointer;
+    padding: 5px 11px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: inherit;
+    color: rgba(255,255,255,0.85);
+    background: transparent;
+    white-space: nowrap;
+    transition: background-color 0.22s ease, color 0.22s ease, transform 0.18s cubic-bezier(.34,1.56,.64,1);
+  }
+  .rw-tab:hover { transform: scale(1.05); }
+  .rw-tab:active { transform: scale(0.95); }
+  .rw-tab.active-before { background: #ffffff; color: #212529; }
+  .rw-tab.active-after { background: #2f9e44; color: #ffffff; }
+
+  /* Titik navigasi */
+  .rw-dot {
+    width: 6px; height: 6px; padding: 0; border: none; border-radius: 999px;
+    background: #fff; cursor: pointer; opacity: 0.5;
+    transition: width 0.25s ease, opacity 0.25s ease;
+  }
+  .rw-dot.on { width: 16px; opacity: 1; }
 
   @keyframes rw-badge-pop {
     from { opacity: 0; transform: translateY(-4px) scale(0.9); }
@@ -209,16 +269,30 @@ const DASHBOARD_CSS = `
 
   /* ---------- Hormati preferensi pengguna ---------- */
   @media (prefers-reduced-motion: reduce) {
-    .rw-hero, .rw-hero-icon, .rw-hero-text > *, .rw-card, .rw-photo-fade, .rw-photo-badge,
+    .rw-hero, .rw-hero-icon, .rw-hero-text > *, .rw-card, .rw-gallery-in, .rw-photo-badge,
     .rw-thumb-pop, .rw-count-bump, .rw-reject, .rw-page-num, .rw-fade-in,
     .rw-status-dot.pulse, .rw-skel, .rw-pin, .rw-reporter svg {
       animation: none !important;
     }
-    .rw-btn-anim, .rw-card, .rw-hero-cta, .rw-photo-nav, .rw-page-btn, .rw-thumb {
+    .rw-btn-anim, .rw-card, .rw-hero-cta, .rw-photo-nav, .rw-page-btn, .rw-thumb,
+    .rw-tab, .rw-dot {
       transition: none !important;
     }
   }
 `;
+
+const SEVERITY_OPTIONS = [
+  { value: '', label: 'Semua Tingkat' },
+  { value: 'darurat', label: 'Darurat' },
+  { value: 'sedang', label: 'Sedang' },
+  { value: 'aman', label: 'Aman' },
+];
+
+const SEVERITY_ALIAS = { medium: 'sedang', emergency: 'darurat', low: 'aman', safe: 'aman' };
+
+function normalizeSeverity(severity) {
+  return SEVERITY_ALIAS[severity] ?? severity;
+}
 
 export default function DashboardPage() {
   useEffect(() => {
@@ -240,9 +314,15 @@ export default function DashboardPage() {
   const navigate = useNavigate();
 
   const [kecamatanFilter, setKecamatanFilter] = useState('');
+  const [severityFilter, setSeverityFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [appliedFilters, setAppliedFilters] = useState({ kecamatan: '', from: '', to: '' });
+  const [appliedFilters, setAppliedFilters] = useState({
+    kecamatan: '',
+    severity: '',
+    from: '',
+    to: '',
+  });
   const [page, setPage] = useState(0);
   const REPORTS_PER_PAGE = 9;
 
@@ -270,11 +350,18 @@ export default function DashboardPage() {
   }
 
   function handleSearch() {
-    setAppliedFilters({ kecamatan: kecamatanFilter, from: dateFrom, to: dateTo });
+    setAppliedFilters({
+      kecamatan: kecamatanFilter,
+      severity: severityFilter,
+      from: dateFrom,
+      to: dateTo,
+    });
   }
 
   const filteredReports = useMemo(() => {
     return reports.filter((r) => {
+      if (appliedFilters.severity && normalizeSeverity(r.severity) !== appliedFilters.severity)
+        return false;
       if (appliedFilters.kecamatan) {
         const nama =
           typeof r.lat === 'number' && typeof r.lng === 'number'
@@ -388,6 +475,13 @@ export default function DashboardPage() {
             alignItems: 'center',
           }}
         >
+          <CustomSelect
+            value={severityFilter}
+            onChange={setSeverityFilter}
+            options={SEVERITY_OPTIONS}
+            placeholder="Semua Tingkat"
+          />
+
           <CustomSelect
             value={kecamatanFilter}
             onChange={setKecamatanFilter}
@@ -593,6 +687,24 @@ function ThumbsUpIcon({ filled = false, pop = false }) {
   );
 }
 
+function CheckIcon({ size = 11 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
 /**
  * Ikon komentar (gelembung chat dengan tiga titik).
  * Dipakai di CommentSection.jsx supaya konsisten, contoh:
@@ -661,16 +773,196 @@ function SkeletonCard() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Galeri foto: tab Sebelum / Sesudah + geser                         */
+/* ------------------------------------------------------------------ */
+function PhotoGallery({ before, after, severity, score }) {
+  const [tab, setTab] = useState('before'); // 'before' | 'after'
+  const [index, setIndex] = useState(0);
+  const trackRef = useRef(null);
+
+  const hasAfter = after.length > 0;
+  const activeTab = tab === 'after' && hasAfter ? 'after' : 'before';
+  const list = activeTab === 'after' ? after : before;
+  const safeIndex = Math.min(index, Math.max(0, list.length - 1));
+  const current = list[safeIndex];
+
+  function switchTab(next) {
+    if (next === activeTab) return;
+    setTab(next);
+    setIndex(0);
+  }
+
+  function handleScroll(e) {
+    const el = e.currentTarget;
+    if (!el.clientWidth) return;
+    const i = Math.round(el.scrollLeft / el.clientWidth);
+    if (i !== index) setIndex(i);
+  }
+
+  function goTo(i) {
+    const el = trackRef.current;
+    if (!el) return;
+    const target = (i + list.length) % list.length;
+    el.scrollTo({ left: target * el.clientWidth, behavior: 'smooth' });
+  }
+
+  const TYPE_LABEL = { support: 'Foto dukungan' };
+  const typeLabel = current?.photo_type ? TYPE_LABEL[current.photo_type] : null;
+
+  return (
+    <div
+      className="rw-photo-wrap"
+      style={{
+        position: 'relative',
+        height: 220,
+        backgroundColor: '#e9ecef',
+        overflow: 'hidden',
+      }}
+    >
+      {list.length > 0 ? (
+        <div key={activeTab} className="rw-gallery-in">
+          <div ref={trackRef} className="rw-track" onScroll={handleScroll}>
+            {list.map((p, i) => (
+              <div key={p.id ?? p.url ?? i} className="rw-slide">
+                <ZoomableImage
+                  src={p.url}
+                  alt={`${activeTab === 'after' ? 'Sesudah perbaikan' : 'Kerusakan'} ${i + 1}`}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div
+          style={{
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#adb5bd',
+          }}
+        >
+          No Image
+        </div>
+      )}
+
+      {/* Kiri atas: tingkat kerusakan */}
+      <div style={{ position: 'absolute', top: 8, left: 8, pointerEvents: 'none' }}>
+        <SeverityBadge severity={severity} score={score} />
+      </div>
+
+      {/* Kanan atas: tab Sebelum / Sesudah */}
+      {hasAfter && (
+        <div style={{ position: 'absolute', top: 10, right: 10 }}>
+          <div className="rw-tabs" role="tablist" aria-label="Pilih foto">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'before'}
+              className={`rw-tab${activeTab === 'before' ? ' active-before' : ''}`}
+              onClick={() => switchTab('before')}
+            >
+              Sebelum
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'after'}
+              className={`rw-tab${activeTab === 'after' ? ' active-after' : ''}`}
+              onClick={() => switchTab('after')}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <CheckIcon /> Sesudah
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Kanan atas (jika belum ada foto sesudah): lencana "Sebelum" */}
+      {!hasAfter && list.length > 0 && (
+        <span style={{ ...labelChip, top: 10, right: 10 }}>Sebelum perbaikan</span>
+      )}
+
+      {/* Kiri bawah: label jenis foto khusus */}
+      {typeLabel && (
+        <span key={current?.url} className="rw-photo-badge" style={{ ...labelChip, left: 10, bottom: 10 }}>
+          {typeLabel}
+        </span>
+      )}
+
+      {/* Kanan bawah: penghitung */}
+      {list.length > 1 && (
+        <span style={{ ...labelChip, right: 10, bottom: 10, fontVariantNumeric: 'tabular-nums' }}>
+          {safeIndex + 1}/{list.length}
+        </span>
+      )}
+
+      {/* Panah + titik */}
+      {list.length > 1 && (
+        <>
+          <button
+            type="button"
+            className="rw-photo-nav"
+            onClick={(e) => {
+              e.stopPropagation();
+              goTo(safeIndex - 1);
+            }}
+            style={{ ...photoNavBtn, left: 8 }}
+            aria-label="Foto sebelumnya"
+          >
+            <ChevronIcon direction="left" />
+          </button>
+          <button
+            type="button"
+            className="rw-photo-nav"
+            onClick={(e) => {
+              e.stopPropagation();
+              goTo(safeIndex + 1);
+            }}
+            style={{ ...photoNavBtn, right: 8 }}
+            aria-label="Foto berikutnya"
+          >
+            <ChevronIcon direction="right" />
+          </button>
+
+          <div style={photoDotsRow}>
+            {list.map((p, i) => (
+              <button
+                key={p.id ?? p.url ?? i}
+                type="button"
+                className={`rw-dot${i === safeIndex ? ' on' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goTo(i);
+                }}
+                aria-label={`Foto ${i + 1}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Kartu laporan                                                      */
 /* ------------------------------------------------------------------ */
+function cleanNote(note) {
+  if (!note) return '';
+  // buang bagian otomatis "Bukti N foto. ..." sampai akhir
+  return note.split(/\n?Bukti \d+ foto\./)[0].trim();
+}
+
 function ReportCard({ report, isOwner, alreadySupported, onSupported, index = 0 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [supporting, setSupporting] = useState(false);
   const [justSupported, setJustSupported] = useState(false);
   const [address, setAddress] = useState(null);
-  const [photos, setPhotos] = useState([]);
-  const [photoIndex, setPhotoIndex] = useState(0);
+  const [extraPhotos, setExtraPhotos] = useState([]);
 
   useEffect(() => {
     if (report.lat == null || report.lng == null) return;
@@ -680,15 +972,31 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported, index = 0 
   }, [report.lat, report.lng]);
 
   useEffect(() => {
-    const originalPhoto = report.imageUrl
+    setExtraPhotos([]);
+    getReportPhotos(report.id)
+      .then((extra) => setExtraPhotos(extra ?? []))
+      .catch((err) => console.warn('[report-photos]', err.message));
+  }, [report.id]);
+
+  // Pisahkan foto: Sebelum (laporan + dukungan) dan Sesudah (hasil perbaikan)
+  const { before, after } = useMemo(() => {
+    const seen = new Set();
+    const unique = (arr) =>
+      arr.filter((p) => {
+        if (!p?.url || seen.has(p.url)) return false;
+        seen.add(p.url);
+        return true;
+      });
+    const original = report.imageUrl
       ? [{ id: 'original', url: report.imageUrl, photo_type: 'original' }]
       : [];
-    setPhotos(originalPhoto);
-    setPhotoIndex(0);
-    getReportPhotos(report.id)
-      .then((extra) => setPhotos([...originalPhoto, ...extra]))
-      .catch((err) => console.warn('[report-photos]', err.message));
-  }, [report.id, report.imageUrl]);
+    const resolution = unique(extraPhotos.filter((p) => p.photo_type === 'resolution'));
+    const beforeList = unique([
+      ...original,
+      ...extraPhotos.filter((p) => p.photo_type !== 'resolution'),
+    ]);
+    return { before: beforeList, after: resolution };
+  }, [report.imageUrl, extraPhotos]);
 
   async function handleSupport() {
     if (!user) return navigate('/login');
@@ -706,113 +1014,33 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported, index = 0 
     }
   }
 
-  const currentPhoto = photos[photoIndex];
-
-  function goPrev(e) {
-    e.stopPropagation();
-    setPhotoIndex((i) => (i - 1 + photos.length) % photos.length);
-  }
-
-  function goNext(e) {
-    e.stopPropagation();
-    setPhotoIndex((i) => (i + 1) % photos.length);
-  }
-
-  const PHOTO_TYPE_LABEL = {
-    original: 'Sebelum',
-    resolution: 'Sesudah',
-    support: 'Dukungan',
-  };
-
   const posterName = report.profile?.username?.trim() || 'Anonim';
   const posterInitial = posterName[0]?.toUpperCase() ?? 'A';
   const supportCount = report.support_count ?? 0;
   const reporterCount = report.reporter_count ?? 1;
   const statusInfo = reportStatusInfo(report.status);
+  const noteText = cleanNote(report.note);
   const supportDisabled = alreadySupported || isOwner;
+  const resolvedDate =
+    report.status === 'resolved' && report.resolved_at
+      ? new Date(report.resolved_at).toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        })
+      : null;
 
   return (
     <article
       className="rw-card"
       style={{ ...cardStyle, animationDelay: `${Math.min(index, 8) * 60}ms` }}
     >
-      {/* Top Image Preview & Severity */}
-      <div
-        className="rw-photo-wrap"
-        style={{
-          position: 'relative',
-          height: 220,
-          backgroundColor: '#e9ecef',
-          overflow: 'hidden',
-        }}
-      >
-        {currentPhoto?.url ? (
-          <div key={currentPhoto.url} className="rw-photo-fade">
-            <ZoomableImage
-              src={currentPhoto.url}
-              alt="Kerusakan"
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          </div>
-        ) : (
-          <div
-            style={{
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#adb5bd',
-            }}
-          >
-            No Image
-          </div>
-        )}
-        <div style={{ position: 'absolute', top: 8, left: 8 }}>
-          <SeverityBadge severity={report.severity} score={report.hazard_score} />
-        </div>
-
-        {currentPhoto?.photo_type && photos.length > 1 && (
-          <span key={currentPhoto.photo_type + photoIndex} className="rw-photo-badge" style={photoTypeBadge}>
-            {PHOTO_TYPE_LABEL[currentPhoto.photo_type] ?? currentPhoto.photo_type}
-          </span>
-        )}
-
-        {photos.length > 1 && (
-          <>
-            <button
-              type="button"
-              className="rw-photo-nav"
-              onClick={goPrev}
-              style={{ ...photoNavBtn, left: 8 }}
-              aria-label="Foto sebelumnya"
-            >
-              <ChevronIcon direction="left" />
-            </button>
-            <button
-              type="button"
-              className="rw-photo-nav"
-              onClick={goNext}
-              style={{ ...photoNavBtn, right: 8 }}
-              aria-label="Foto berikutnya"
-            >
-              <ChevronIcon direction="right" />
-            </button>
-
-            <div style={photoDotsRow}>
-              {photos.map((p, i) => (
-                <span
-                  key={p.id ?? i}
-                  style={{
-                    ...photoDot,
-                    opacity: i === photoIndex ? 1 : 0.4,
-                    transform: i === photoIndex ? 'scale(1.3)' : 'scale(1)',
-                  }}
-                />
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+      <PhotoGallery
+        before={before}
+        after={after}
+        severity={report.severity}
+        score={report.hazard_score}
+      />
 
       {/* Details Section */}
       <div style={{ padding: 12, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -826,9 +1054,13 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported, index = 0 
               display: 'flex',
               alignItems: 'center',
               gap: 4,
+              minWidth: 0,
             }}
           >
-            <PinIcon /> {address || 'Sekardangan, Sidoarjo, Jawa Timur'}
+            <PinIcon />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {address || 'Sekardangan, Sidoarjo, Jawa Timur'}
+            </span>
           </span>
 
           <div style={posterBadge}>
@@ -869,9 +1101,12 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported, index = 0 
           </button>
 
           <span className="rw-comment-wrap">
-            <CommentSection reportId={report.id} photoUrl={currentPhoto?.url} />
+            <CommentSection reportId={report.id} photoUrl={before[0]?.url} />
           </span>
+        </div>
 
+        {/* Status */}
+        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ ...statusBadge, backgroundColor: statusInfo.bg, color: statusInfo.color }}>
             <span
               className={`rw-status-dot${report.status === 'in_progress' ? ' pulse' : ''}`}
@@ -879,6 +1114,11 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported, index = 0 
             />
             {statusInfo.label}
           </span>
+          {resolvedDate && (
+            <span style={{ fontSize: 11, color: '#2b8a3e', fontWeight: 600 }}>
+              Selesai {resolvedDate}
+            </span>
+          )}
         </div>
 
         {report.status === 'rejected' && report.rejection_reason && (
@@ -888,9 +1128,9 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported, index = 0 
         )}
 
         <div style={noteBox}>
-          {report.note ? (
+          {noteText ? (
             <p style={{ fontSize: 12, color: '#495057', margin: 0, lineHeight: 1.4 }}>
-              {report.note}
+              {noteText}
             </p>
           ) : (
             <p style={{ fontSize: 12, color: '#adb5bd', margin: 0, fontStyle: 'italic' }}>
@@ -964,12 +1204,12 @@ const gridStyle = {
 
 const cardStyle = {
   backgroundColor: '#ffffff',
-  borderRadius: 12,
+  borderRadius: 14,
   overflow: 'hidden',
   boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
   display: 'flex',
   flexDirection: 'column',
-  height: 500,
+  height: 520,
 };
 
 const noteBox = {
@@ -987,16 +1227,18 @@ const reportDateText = {
   margin: '8px 0 0',
 };
 
-const photoTypeBadge = {
+const labelChip = {
   position: 'absolute',
-  top: 8,
-  right: 8,
-  background: 'rgba(0,0,0,0.6)',
+  background: 'rgba(20,20,20,0.55)',
+  WebkitBackdropFilter: 'blur(6px)',
+  backdropFilter: 'blur(6px)',
   color: '#fff',
   fontSize: 10.5,
   fontWeight: 700,
   padding: '4px 10px',
   borderRadius: 999,
+  pointerEvents: 'none',
+  whiteSpace: 'nowrap',
 };
 
 const photoNavBtn = {
@@ -1016,19 +1258,12 @@ const photoNavBtn = {
 
 const photoDotsRow = {
   position: 'absolute',
-  bottom: 8,
+  bottom: 12,
   left: '50%',
   transform: 'translateX(-50%)',
   display: 'flex',
+  alignItems: 'center',
   gap: 5,
-};
-
-const photoDot = {
-  width: 6,
-  height: 6,
-  borderRadius: '50%',
-  background: '#fff',
-  transition: 'transform 0.2s ease, opacity 0.2s ease',
 };
 
 const posterBadge = {

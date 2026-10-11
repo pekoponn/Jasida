@@ -182,7 +182,7 @@ const copyrightText = {
   textAlign: 'center',
   marginTop: 32,
   paddingTop: 18,
-  borderTop: '1.5px dashed #E5A3A3',
+  borderTop: '1.5px #E5A3A3',
   fontSize: 13,
   color: '#A61C24',
   fontFamily: 'Poppins, Inter, sans-serif',

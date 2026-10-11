@@ -82,7 +82,7 @@ const markerCss = `
     width: 40px;
     height: 40px;
     transform: translate(-50%, 0);
-    border: 2px dashed #A61C24;
+    border: 2px #A61C24;
     border-radius: 50%;
     background: rgba(166, 28, 36, 0.08);
   }

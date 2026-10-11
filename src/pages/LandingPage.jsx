@@ -574,7 +574,7 @@ const mapBox = {
   height: 460,
   borderRadius: 16,
   overflow: 'hidden',
-  border: '2px dashed #A61C24',
+  border: '2px #A61C24',
   position: 'relative',
   isolation: 'isolate',
 };

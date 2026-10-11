@@ -224,6 +224,7 @@ export default function ReportPage() {
   const [addressLoading, setAddressLoading] = useState(false);
   const [hazard, setHazard] = useState(null);
   const [duplicate, setDuplicate] = useState(null);
+  const [duplicatePrompt, setDuplicatePrompt] = useState(false);
   const [duplicateUnavailable, setDuplicateUnavailable] = useState(false);
   const [duplicateCheckFailed, setDuplicateCheckFailed] = useState(false);
   const [locatingSelf, setLocatingSelf] = useState(false);
@@ -252,6 +253,7 @@ export default function ReportPage() {
     setTestingMode(testing);
     setError(position ? validateReportLocation(position, testing) : null);
     setDuplicate(null);
+    setDuplicatePrompt(false);
   }
 
   useEffect(
@@ -275,6 +277,7 @@ export default function ReportPage() {
     setPreviewUrl(null);
     setHazard(null);
     setDuplicate(null);
+    setDuplicatePrompt(false);
     setDuplicateUnavailable(false);
     setDuplicateCheckFailed(false);
   }
@@ -438,21 +441,7 @@ export default function ReportPage() {
   }
 
   function evidenceNote() {
-    const summary = analysisSummary.results
-      .map((result, index) => {
-        const source = photos[index].source === 'gallery' ? 'galeri' : 'kamera';
-        const types = [
-          ...new Set(result.detections.map((d) => damageTypeDisplayLabel(d.damage_type))),
-        ].join(', ');
-        return `Foto ${index + 1} (${source}): ${types ? `${types}; skor ${result.hazard.total}` : 'kerusakan tidak terdeteksi'}`;
-      })
-      .join('\n');
-    return [
-      testingMode ? '[UJI COBA LOMBA — BEBAS LOKASI]' : '',
-      note.trim(),
-      `Bukti ${photos.length} foto. Foto utama: ${analysisSummary.representativeIndex + 1}. Skor gabungan memakai median foto dengan deteksi, bukan jaminan akurasi.`,
-      summary,
-    ]
+    return [testingMode ? '[UJI COBA LOMBA — BEBAS LOKASI]' : '', note.trim()]
       .filter(Boolean)
       .join('\n');
   }
@@ -499,8 +488,14 @@ export default function ReportPage() {
   }
 
   async function handleSubmitNewReport() {
-    if (submitting.current || step !== 'analyzed' || !hazard || !file || locatingSelf || duplicate)
+    if (submitting.current || step !== 'analyzed' || !hazard || !file || locatingSelf) return;
+
+    if (duplicate) {
+      setError(null);
+      setDuplicatePrompt(true);
       return;
+    }
+
     const locationError = validateReportLocation(position, testingMode);
     if (locationError) {
       setError(locationError);
@@ -562,6 +557,7 @@ export default function ReportPage() {
       submitting.current = false;
     }
     setDuplicate(null);
+    setDuplicatePrompt(false);
     setStep('done');
   }
 
@@ -621,6 +617,7 @@ export default function ReportPage() {
     setLocatingSelf(true);
     setError(null);
     setDuplicate(null);
+    setDuplicatePrompt(false);
     try {
       const gps = await getCurrentPosition();
       const locationError = validateReportLocation(gps, testingMode);
@@ -657,8 +654,9 @@ export default function ReportPage() {
     setAnalysisSummary(null);
     uploadProgress.current.clear();
     pendingReport.current = null;
-    setCameraBusy(false);
-    setFile(null);
+    setDuplicate(null);
+    setDuplicatePrompt(false);
+    setStep('disputed');
     setPreviewUrl(null);
     setNote('');
     setStep('idle');
@@ -671,6 +669,7 @@ export default function ReportPage() {
     setDuplicateUnavailable(false);
     setDuplicateCheckFailed(false);
     setDuplicate(null);
+    setDuplicatePrompt(false);
     setError(null);
   }
 
@@ -869,7 +868,7 @@ export default function ReportPage() {
                 onSelect={handlePhotoSelection}
                 onRemove={removePhoto}
                 onBusyChange={setCameraBusy}
-                disabled={busy || locatingSelf || !!pendingReport.current || !!duplicate}
+                disabled={busy || locatingSelf || !!pendingReport.current || duplicatePrompt}
               />
               {photos.length > 0 && ['preview', 'idle'].includes(step) && (
                 <button
@@ -989,7 +988,7 @@ export default function ReportPage() {
             </div>
 
             {/* Peta ditampilkan dulu, alamat teks di bawahnya */}
-            {position && !duplicate && (
+            {position && (
               <div
                 className="rpa-fade"
                 style={{
@@ -1050,7 +1049,7 @@ export default function ReportPage() {
         {step === 'checking-duplicate' && (
           <StatusLine text="Memeriksa laporan serupa di sekitar…" indeterminate />
         )}
-        {error && !duplicate && (
+        {error && !duplicatePrompt && (
           <p key={error} role="alert" className="rpa-shake" style={errorStyle}>
             {error}
           </p>
@@ -1063,9 +1062,16 @@ export default function ReportPage() {
         )}
 
         {/* DESKRIPSI (FULL WIDTH) */}
-        {step === 'analyzed' && hazardVisible && !duplicate && (
+        {step === 'analyzed' && hazardVisible && (
           <div className="rp-desc-section rpa-enter" style={rpDescSection}>
             <SectionHeading icon={<NoteIcon />} title="Deskripsi" />
+            {duplicate && (
+              <p role="status" className="rpa-slide-down" style={noteStyle}>
+                Sistem menemukan laporan serupa di sekitar lokasi ini. Kamu tetap bisa melengkapi
+                deskripsi dulu. Saat menekan kirim, kamu akan diminta memastikan apakah ini
+                kerusakan yang sama atau berbeda.
+              </p>
+            )}
             <textarea
               className="rpa-textarea"
               value={note}
@@ -1076,7 +1082,7 @@ export default function ReportPage() {
               style={noteInput}
             />
             <button
-              disabled={locatingSelf || !!duplicate}
+              disabled={locatingSelf}
               className="rpa-btn rpa-btn-solid rpa-submit"
               style={submitBtn}
               onClick={handleSubmitNewReport}
@@ -1090,12 +1096,12 @@ export default function ReportPage() {
       </div>
 
       <DuplicateModal
-        candidate={duplicate}
+        candidate={duplicatePrompt ? duplicate : null}
         position={position}
         onSupport={handleSupportExisting}
         onDispute={handleDisputeDuplicate}
         onClose={() => {
-          if (!pendingReport.current) setDuplicate(null);
+          if (!pendingReport.current) setDuplicatePrompt(false);
         }}
         busy={step === 'submitting'}
         pendingAction={

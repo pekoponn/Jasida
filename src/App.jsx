@@ -161,8 +161,6 @@ function AppContent() {
       {/* NAVBAR KOMPONEN BARU */}
       <Navbar />
 
-      <div style={dashedDivider()} />
-
       <main
         style={{
           flex: 1,
@@ -188,13 +186,4 @@ function AppContent() {
       {!isMobileDevice && <Footer />}
     </div>
   );
-}
-
-function dashedDivider() {
-  const color = '#C9C9C9';
-  return {
-    height: 3,
-    width: '100%',
-    backgroundImage: `repeating-linear-gradient(90deg, ${color} 0, ${color} 10px, transparent 10px, transparent 18px)`,
-  };
 }

@@ -248,7 +248,7 @@ const photoStyle = {
 };
 const placeholderBox = {
   background: '#f8f9fa',
-  border: '1px dashed #dee2e6',
+  border: '1px #dee2e6',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
