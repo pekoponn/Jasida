@@ -3,6 +3,8 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext.jsx';
 import brandLogo from '../assets/brand-logo.png';
 import { useIsMobileDevice } from '../lib/useIsMobileDevice.js';
+import { useNotifications } from '../lib/useNotifications.js';
+import NotificationPanel from './NotificationPanel.jsx';
 
 function DashedLine() {
   return (
@@ -85,7 +87,7 @@ export default function Navbar() {
               )}
 
               {user ? (
-                <ProfileDropdown profile={profile} signOut={signOut} />
+                <ProfileDropdown user={user} profile={profile} signOut={signOut} />
               ) : (
                 <NavLink to="/login" style={ctaPill}>
                   Masuk / Daftar
@@ -193,16 +195,18 @@ export default function Navbar() {
   );
 }
 
-/** Dropdown nama user di navbar desktop: Profil, Riwayat, Keluar */
-function ProfileDropdown({ profile, signOut }) {
+function ProfileDropdown({ user, profile, signOut }) {
   const [open, setOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const wrapperRef = useRef(null);
   const navigate = useNavigate();
+  const { items, unread, read, readAll } = useNotifications(user?.id);
 
   useEffect(() => {
     function handleClickOutside(e) {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
         setOpen(false);
+        setNotifOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -212,6 +216,12 @@ function ProfileDropdown({ profile, signOut }) {
   function go(path) {
     setOpen(false);
     navigate(path);
+  }
+
+  function handleNotifItem(n) {
+    setNotifOpen(false);
+    if (!n.read_at) read(n.id);
+    if (n.link) navigate(n.link);
   }
 
   async function handleSignOut() {
@@ -225,11 +235,17 @@ function ProfileDropdown({ profile, signOut }) {
       <style>{profileTriggerHoverCss}</style>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          setNotifOpen(false);
+          setOpen((v) => !v);
+        }}
         className="rw-profile-trigger"
         style={profileTrigger}
       >
-        <UserIcon />
+        <span style={{ position: 'relative', display: 'inline-flex' }}>
+          <UserIcon />
+          {unread > 0 && <span style={triggerDot} />}
+        </span>
         {profile?.username ?? 'Akun'}
         <ChevronIcon open={open} />
       </button>
@@ -242,6 +258,17 @@ function ProfileDropdown({ profile, signOut }) {
           <button type="button" style={dropdownItem} onClick={() => go('/riwayat')}>
             <HistoryIcon /> Riwayat
           </button>
+          <button
+            type="button"
+            style={dropdownItem}
+            onClick={() => {
+              setOpen(false);
+              setNotifOpen(true);
+            }}
+          >
+            <BellIcon /> Notifikasi
+            {unread > 0 && <span style={countBadge}>{unread > 99 ? '99+' : unread}</span>}
+          </button>
           <div style={dropdownDivider} />
           <button
             type="button"
@@ -251,6 +278,16 @@ function ProfileDropdown({ profile, signOut }) {
             <LogoutIcon /> Keluar
           </button>
         </div>
+      )}
+
+      {notifOpen && (
+        <NotificationPanel
+          items={items}
+          unread={unread}
+          onItemClick={handleNotifItem}
+          onReadAll={readAll}
+          style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 50 }}
+        />
       )}
     </div>
   );
@@ -269,6 +306,26 @@ function UserIcon({ small }) {
     >
       <circle cx="12" cy="8" r="4" />
       <path d="M4 20c0-3.5 3.5-6 8-6s8 2.5 8 6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function BellIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path
+        d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M13.7 21a2 2 0 0 1-3.4 0" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -415,4 +472,27 @@ const styles = {
     background: '#ffffff',
   },
   brand: { display: 'flex', alignItems: 'center' },
+};
+
+const triggerDot = {
+  position: 'absolute',
+  top: -2,
+  right: -2,
+  width: 9,
+  height: 9,
+  borderRadius: '50%',
+  background: '#A61C24',
+  border: '2px solid #fff',
+};
+
+const countBadge = {
+  marginLeft: 'auto',
+  minWidth: 20,
+  padding: '1px 7px',
+  borderRadius: 999,
+  background: '#A61C24',
+  color: '#fff',
+  fontSize: 11,
+  fontWeight: 700,
+  textAlign: 'center',
 };

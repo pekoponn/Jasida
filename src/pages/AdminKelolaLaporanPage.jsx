@@ -457,7 +457,7 @@ export default function AdminKelolaLaporanPage() {
           document.body
         )}
 
-=      {completeTarget &&
+      {completeTarget &&
         createPortal(
           <CompleteModal
             report={completeTarget}

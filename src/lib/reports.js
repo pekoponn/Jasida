@@ -3,6 +3,19 @@ import { withResolvedAvatar } from './profileAvatar.js';
 import { prepareUploadPhoto } from './imageUpload.js';
 import { distanceMeters, validateReportLocation } from './reportLocation.js';
 
+async function heldReportIds() {
+  const { data, error } = await supabase
+    .from('reports')
+    .select('id')
+    .eq('location_status', 'pending');
+  if (error) throw error;
+  return (data ?? []).map((r) => r.id);
+}
+
+function excludeIds(query, ids) {
+  return ids.length ? query.not('id', 'in', `(${ids.join(',')})`) : query;
+}
+
 export async function findSimilarReports({ lat, lng, damageType, embedding, radiusMeters = 50 }) {
   if (!embedding) {
     if (validateReportLocation({ lat, lng }, true))
@@ -104,7 +117,7 @@ export async function uploadReportEvidence(photos, reportId, progress, primary =
             report_id: reportId,
             image_path: entry.path,
             user_id: user.id,
-            photo_type: 'support',
+            photo_type: item.photoType ?? 'support',
           });
           if (error) throw error;
         }
@@ -126,10 +139,18 @@ export async function createReport({
   note,
   bboxAreaPct,
   address,
+  locationSource,
+  roadDistanceM,
+  locationFlags,
+  locationStatus,
 }) {
   const { data, error } = await supabase
     .from('reports')
     .insert({
+      location_source: locationSource ?? null,
+      road_distance_m: roadDistanceM ?? null,
+      location_flags: locationFlags ?? [],
+      location_status: locationStatus ?? 'trusted',
       damage_type: damageType,
       confidence,
       hazard_score: hazardScore,
@@ -270,20 +291,24 @@ export async function getMySupports(reportIds) {
 }
 
 export async function listOpenReports() {
-  const { data, error } = await supabase
-    .from('reports_with_coords')
-    .select('*')
-    .in('status', ['open', 'accepted', 'in_progress'])
-    .order('created_at', { ascending: false });
+  const held = await heldReportIds();
+  const { data, error } = await excludeIds(
+    supabase
+      .from('reports_with_coords')
+      .select('*')
+      .in('status', ['open', 'accepted', 'in_progress']),
+    held
+  ).order('created_at', { ascending: false });
   if (error) throw error;
   return data ?? [];
 }
 
 export async function listReportsFeed() {
-  const { data: reports, error } = await supabase
-    .from('reports_with_coords')
-    .select('*')
-    .neq('status', 'pending_duplicate_review')
+  const held = await heldReportIds();
+  const { data: reports, error } = await excludeIds(
+    supabase.from('reports_with_coords').select('*').neq('status', 'pending_duplicate_review'),
+    held
+  )
     .order('created_at', { ascending: false })
     .limit(50);
   if (error) throw error;
@@ -418,10 +443,11 @@ export async function getReportCountsByUser() {
 }
 
 export async function fetchAllReportsForAdmin({ statusFilter } = {}) {
-  let query = supabase
-    .from('reports_with_coords')
-    .select('*')
-    .order('created_at', { ascending: false });
+  const held = await heldReportIds();
+  let query = excludeIds(supabase.from('reports_with_coords').select('*'), held).order(
+    'created_at',
+    { ascending: false }
+  );
 
   if (statusFilter && statusFilter !== 'all') {
     query = query.eq('status', statusFilter);
@@ -531,6 +557,10 @@ export async function createDisputedReport({
   candidateId,
   similarity,
   distanceM,
+  locationSource,
+  roadDistanceM,
+  locationFlags,
+  locationStatus,
 }) {
   const { data, error } = await supabase.rpc('create_disputed_report', {
     p_damage_type: damageType,
@@ -549,6 +579,17 @@ export async function createDisputedReport({
     p_distance_m: distanceM ?? null,
   });
   if (error) throw error;
+
+  const newId = data?.id ?? (typeof data === 'string' ? data : null);
+  if (newId && locationSource) {
+    const { error: metaError } = await supabase.rpc('set_report_location_meta', {
+      p_report_id: newId,
+      p_source: locationSource,
+      p_road_distance_m: roadDistanceM ?? null,
+      p_flags: locationFlags ?? [],
+    });
+    if (metaError) console.warn('[disputed-location-meta]', metaError.message);
+  }
   return data;
 }
 
@@ -608,4 +649,97 @@ export async function resolveDuplicateReview(reportId, aiCorrect) {
     p_ai_correct: aiCorrect,
   });
   if (error) throw error;
+}
+
+export async function fetchLocationReviews() {
+  const { data: rows, error } = await supabase
+    .from('reports')
+    .select('*')
+    .in('location_status', ['pending', 'auto_ok'])
+    .neq('status', 'rejected')
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  if (!rows.length) return [];
+
+  const ids = rows.map((r) => r.id);
+
+  const { data: coords, error: coordError } = await supabase
+    .from('reports_with_coords')
+    .select('id, lat, lng')
+    .in('id', ids);
+  if (coordError) throw coordError;
+  const coordsById = Object.fromEntries((coords ?? []).map((c) => [c.id, c]));
+
+  const { data: contextRows, error: contextError } = await supabase
+    .from('report_photos')
+    .select('*')
+    .in('report_id', ids)
+    .eq('photo_type', 'context');
+  if (contextError) throw contextError;
+  const contextByReport = {};
+  (contextRows ?? []).forEach((p) => {
+    if (!contextByReport[p.report_id]) {
+      contextByReport[p.report_id] = { ...p, url: reportImageUrl(p.image_path) };
+    }
+  });
+
+  const userIds = [...new Set(rows.map((r) => r.user_id).filter(Boolean))];
+  let profilesById = {};
+  if (userIds.length) {
+    const { data: profiles, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url')
+      .in('id', userIds);
+    if (profileError) throw profileError;
+    profilesById = Object.fromEntries(profiles.map((p) => [p.id, withResolvedAvatar(p)]));
+  }
+
+  return rows
+    .map((r) => ({
+      ...r,
+      lat: coordsById[r.id]?.lat ?? null,
+      lng: coordsById[r.id]?.lng ?? null,
+      profile: profilesById[r.user_id] ?? null,
+      contextPhoto: contextByReport[r.id] ?? null,
+      imageUrl: reportImageUrl(r.image_path),
+    }))
+    .sort((a, b) => (a.location_status === 'pending' ? 0 : 1) - (b.location_status === 'pending' ? 0 : 1));
+}
+
+export async function reviewLocation(reportId, decision, reason) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const base = {
+    location_reviewed_by: user?.id ?? null,
+    location_reviewed_at: new Date().toISOString(),
+  };
+  const patch =
+    decision === 'verify'
+      ? { ...base, location_status: 'verified' }
+      : {
+          ...base,
+          location_status: 'rejected',
+          status: 'rejected',
+          rejection_reason: reason,
+          rejected_at: new Date().toISOString(),
+        };
+  const { error } = await supabase.from('reports').update(patch).eq('id', reportId);
+  if (error) throw error;
+}
+
+export async function countPendingReviews() {
+  const [dup, loc] = await Promise.all([
+    supabase
+      .from('reports')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending_duplicate_review'),
+    supabase
+      .from('reports')
+      .select('id', { count: 'exact', head: true })
+      .eq('location_status', 'pending')
+      .neq('status', 'rejected'),
+  ]);
+  return { duplicate: dup.count ?? 0, location: loc.count ?? 0 };
 }

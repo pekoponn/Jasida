@@ -993,7 +993,7 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported, index = 0 
     const resolution = unique(extraPhotos.filter((p) => p.photo_type === 'resolution'));
     const beforeList = unique([
       ...original,
-      ...extraPhotos.filter((p) => p.photo_type !== 'resolution'),
+      ...extraPhotos.filter((p) => p.photo_type !== 'resolution' && p.photo_type !== 'context'),
     ]);
     return { before: beforeList, after: resolution };
   }, [report.imageUrl, extraPhotos]);

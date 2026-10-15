@@ -1,18 +1,34 @@
-import { useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, Map, BarChart3, Users, X, GitCompare } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  ClipboardList,
+  Map,
+  BarChart3,
+  Users,
+  X,
+  ShieldCheck,
+} from 'lucide-react';
 import jasidaLogo from '../assets/jasida-logo-white.png';
+import { countPendingReviews } from '../lib/reports.js';
+import { useAuth } from '../lib/AuthContext.jsx';
+import { subscribeNotifications } from '../lib/notifications.js';
 
 const MENU = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/laporan', label: 'Kelola Laporan', icon: ClipboardList },
-  { to: '/admin/double-check', label: 'Double Check', icon: GitCompare },
+  { to: '/admin/verifikasi', label: 'Verifikasi Laporan', icon: ShieldCheck, badge: true },
   { to: '/admin/peta', label: 'Peta Laporan', icon: Map },
   { to: '/admin/statistik', label: 'Statistik', icon: BarChart3 },
   { to: '/admin/pengguna', label: 'Pengguna', icon: Users },
 ];
 
+const REFRESH_MS = 30000;
+
 export default function AdminSidebar({ mobileOpen = false, onClose }) {
+  const location = useLocation();
+  const [pendingTotal, setPendingTotal] = useState(0);
+
   useEffect(() => {
     if (mobileOpen) {
       document.body.style.overflow = 'hidden';
@@ -21,6 +37,28 @@ export default function AdminSidebar({ mobileOpen = false, onClose }) {
       };
     }
   }, [mobileOpen]);
+
+  // Jumlah yang harus diverifikasi: double check + lokasi yang ditahan.
+  // Diperbarui saat pindah halaman, tiap 30 detik, saat tab kembali aktif,
+  // dan saat admin selesai memproses satu item ('reviews-changed').
+  useEffect(() => {
+    let active = true;
+    const refresh = () =>
+      countPendingReviews()
+        .then((c) => active && setPendingTotal(c.duplicate + c.location))
+        .catch((err) => console.warn('[sidebar-badge]', err.message));
+
+    refresh();
+    const timer = setInterval(refresh, REFRESH_MS);
+    window.addEventListener('reviews-changed', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      window.removeEventListener('reviews-changed', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [location.pathname]);
 
   return (
     <>
@@ -43,7 +81,7 @@ export default function AdminSidebar({ mobileOpen = false, onClose }) {
         </div>
 
         <nav style={{ marginTop: 28, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {MENU.map(({ to, label, icon: Icon, end }) => (
+          {MENU.map(({ to, label, icon: Icon, end, badge }) => (
             <NavLink
               key={to}
               to={to}
@@ -51,8 +89,21 @@ export default function AdminSidebar({ mobileOpen = false, onClose }) {
               onClick={onClose}
               style={({ isActive }) => itemStyle(isActive)}
             >
-              <Icon size={18} />
-              <span>{label}</span>
+              {({ isActive }) => (
+                <>
+                  <Icon size={18} />
+                  <span>{label}</span>
+                  {badge && pendingTotal > 0 && (
+                    <span
+                      className="admin-badge"
+                      style={isActive ? badgeActive : badgeInactive}
+                      aria-label={`${pendingTotal} laporan menunggu verifikasi`}
+                    >
+                      {pendingTotal > 99 ? '99+' : pendingTotal}
+                    </span>
+                  )}
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -64,6 +115,16 @@ export default function AdminSidebar({ mobileOpen = false, onClose }) {
 const sidebarCss = `
   .admin-sidebar-close { display: none; }
   .admin-sidebar-backdrop { display: none; }
+
+  @keyframes admin-badge-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.6); }
+    70%  { box-shadow: 0 0 0 7px rgba(255, 77, 79, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 77, 79, 0); }
+  }
+  .admin-badge { animation: admin-badge-pulse 1.8s ease-out infinite; }
+  @media (prefers-reduced-motion: reduce) {
+    .admin-badge { animation: none; }
+  }
 
   @media (max-width: 900px) {
     .admin-sidebar {
@@ -134,3 +195,21 @@ const itemStyle = (active) => ({
   fontSize: 14,
   fontWeight: 500,
 });
+
+// Menu tidak aktif: lencana merah terang. Menu aktif (latar merah): lencana putih berangka merah.
+const badgeBase = {
+  marginLeft: 'auto',
+  minWidth: 22,
+  height: 22,
+  padding: '0 7px',
+  borderRadius: 999,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 12,
+  fontWeight: 700,
+  lineHeight: 1,
+  boxSizing: 'border-box',
+};
+const badgeInactive = { ...badgeBase, background: '#FF4D4F', color: '#fff' };
+const badgeActive = { ...badgeBase, background: '#fff', color: '#A61C24' };

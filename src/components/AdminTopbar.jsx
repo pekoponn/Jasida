@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, LogOut, Menu, User } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Menu, User } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext.jsx';
+import { useNotifications } from '../lib/useNotifications.js';
+import NotificationPanel from './NotificationPanel.jsx';
 
 export default function AdminTopbar({ onMenuClick }) {
-  const { profile, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const { items, unread, read, readAll } = useNotifications(user?.id);
   const wrapperRef = useRef(null);
 
   const name = profile?.username || profile?.full_name || 'Admin';
@@ -16,11 +20,18 @@ export default function AdminTopbar({ onMenuClick }) {
     function handleClickOutside(e) {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
         setOpen(false);
+        setNotifOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  function handleNotifItem(n) {
+    setNotifOpen(false);
+    if (!n.read_at) read(n.id);
+    if (n.link) navigate(n.link);
+  }
 
   async function handleSignOut() {
     setOpen(false);
@@ -44,17 +55,26 @@ export default function AdminTopbar({ onMenuClick }) {
       <div style={{ flex: 1 }} />
 
       <div ref={wrapperRef} style={{ position: 'relative' }}>
-        <button style={profileBtn} onClick={() => setOpen((v) => !v)}>
-          <div style={avatar}>
-            {profile?.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt={name}
-                style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
-              />
-            ) : (
-              <User size={18} color="#868e96" />
-            )}
+        <button
+          style={profileBtn}
+          onClick={() => {
+            setNotifOpen(false);
+            setOpen((v) => !v);
+          }}
+        >
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            {unread > 0 && <span style={avatarDot} />}
+            <div style={avatar}>
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={name}
+                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : (
+                <User size={18} color="#868e96" />
+              )}
+            </div>
           </div>
 
           {/* Disembunyikan lewat CSS di layar sempit, bukan di-unmount, supaya tidak perlu JS resize listener */}
@@ -86,10 +106,30 @@ export default function AdminTopbar({ onMenuClick }) {
             >
               <User size={16} /> Profil Saya
             </button>
+            <button
+              style={dropdownItem}
+              onClick={() => {
+                setOpen(false);
+                setNotifOpen(true);
+              }}
+            >
+              <Bell size={16} /> Notifikasi
+              {unread > 0 && <span style={countBadge}>{unread > 99 ? '99+' : unread}</span>}
+            </button>
             <button style={{ ...dropdownItem, color: '#e03131' }} onClick={handleSignOut}>
               <LogOut size={16} /> Keluar
             </button>
           </div>
+        )}
+
+        {notifOpen && (
+          <NotificationPanel
+            items={items}
+            unread={unread}
+            onItemClick={handleNotifItem}
+            onReadAll={readAll}
+            style={{ position: 'absolute', top: '110%', right: 0, zIndex: 20 }}
+          />
         )}
       </div>
     </header>
@@ -187,4 +227,28 @@ const dropdownItem = {
   color: '#1a1a1a',
   cursor: 'pointer',
   textAlign: 'left',
+};
+
+const avatarDot = {
+  position: 'absolute',
+  top: -1,
+  right: -1,
+  width: 11,
+  height: 11,
+  borderRadius: '50%',
+  background: '#A61C24',
+  border: '2px solid #fff',
+  zIndex: 1,
+};
+
+const countBadge = {
+  marginLeft: 'auto',
+  minWidth: 20,
+  padding: '1px 7px',
+  borderRadius: 999,
+  background: '#A61C24',
+  color: '#fff',
+  fontSize: 11,
+  fontWeight: 700,
+  textAlign: 'center',
 };

@@ -20,6 +20,9 @@ import { reverseGeocode, getCurrentPosition } from '../lib/geolocation.js';
 import { readPhotoGpsLocation } from '../lib/exifLocation.js';
 import MapPreview from '../components/MapPreview.jsx';
 import LocationPicker from '../components/LocationPicker.jsx';
+import ContextPhotoField from '../features/report-upload/ContextPhotoField.jsx';
+import { assessLocation } from '../lib/locationTrust.js';
+import { streetViewUrl } from '../lib/mapLinks.js';
 import { useAuth } from '../lib/AuthContext.jsx';
 import { validateReportLocation } from '../lib/reportLocation.js';
 import { useNavigate } from 'react-router-dom';
@@ -220,6 +223,9 @@ export default function ReportPage() {
   const [embedding, setEmbedding] = useState(null);
   const [position, setPosition] = useState(null);
   const [capturedAt, setCapturedAt] = useState(null);
+  const [locationSource, setLocationSource] = useState(null);
+  const [contextPhoto, setContextPhoto] = useState(null);
+  const lastLocationMeta = useRef(null);
   const [address, setAddress] = useState(null);
   const [addressLoading, setAddressLoading] = useState(false);
   const [hazard, setHazard] = useState(null);
@@ -301,12 +307,13 @@ export default function ReportPage() {
     setError(null);
     setStep('preparing');
 
-    // Lokasi yang sudah ada (foto sebelumnya) selalu diprioritaskan agar tetap konsisten.
     let resolvedGps = position || gps || null;
+    let locSource = position ? locationSource : gps ? 'camera_gps' : null;
 
     // Foto dari galeri tidak membawa GPS perangkat — coba baca dari EXIF foto itu sendiri.
     if (!resolvedGps && source === 'gallery') {
       resolvedGps = await readPhotoGpsLocation(files[0]).catch(() => null);
+      if (resolvedGps) locSource = 'exif';
     }
 
     // EXIF tidak ada sama sekali: minta user pilih titik lokasi manual, dibatasi wilayah Sidoarjo.
@@ -318,10 +325,10 @@ export default function ReportPage() {
       return false;
     }
 
-    return finalizeSelection({ files, source, replaceId, resolvedGps, time });
+    return finalizeSelection({ files, source, replaceId, resolvedGps, time, locSource });
   }
 
-  async function finalizeSelection({ files, source, replaceId, resolvedGps, time }) {
+  async function finalizeSelection({ files, source, replaceId, resolvedGps, time, locSource }) {
     selecting.current = true;
     try {
       const locationError = resolvedGps && validateReportLocation(resolvedGps, testingMode);
@@ -342,6 +349,7 @@ export default function ReportPage() {
           : [...prev, ...additions]
       );
       setPosition(resolvedGps);
+      setLocationSource(locSource ?? locationSource);
       setCapturedAt(time || new Date().toISOString());
       clearAnalysis();
       setStep('preview');
@@ -360,7 +368,46 @@ export default function ReportPage() {
     pendingSelection.current = null;
     setLocationPickerOpen(false);
     if (!pending) return;
-    finalizeSelection({ ...pending, resolvedGps: point });
+    if (pending.repick) {
+      applyRepickedLocation(point);
+      return;
+    }
+    finalizeSelection({ ...pending, resolvedGps: point, locSource: 'manual' });
+  }
+
+  function handleRepickLocation() {
+    if (busy || locatingSelf || pendingReport.current || submitting.current) return;
+    setError(null);
+    pendingSelection.current = { repick: true };
+    setLocationPickerOpen(true);
+  }
+
+  async function applyRepickedLocation(point) {
+    const locationError = validateReportLocation(point, testingMode);
+    if (locationError) {
+      setError(locationError);
+      return;
+    }
+    setError(null);
+    setDuplicate(null);
+    setDuplicatePrompt(false);
+    setPosition(point);
+    setLocationSource('manual');
+    setAddressLoading(true);
+    reverseGeocode(point.lat, point.lng)
+      .then(setAddress)
+      .catch((err) => {
+        console.warn('[geocode]', err.message);
+        setAddress(`${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}`);
+      })
+      .finally(() => setAddressLoading(false));
+    if (hazard && step === 'analyzed') {
+      await checkDuplicates({
+        gps: point,
+        damageType: hazard.dominant?.damage_type ?? null,
+        embedding,
+      });
+    }
   }
 
   function handleLocationPickerCancel() {
@@ -448,11 +495,23 @@ export default function ReportPage() {
 
   async function saveEvidence(reportId) {
     const primary = photos[analysisSummary.representativeIndex];
-    await uploadReportEvidence(
-      [primary, ...photos.filter((photo) => photo.id !== primary.id)],
-      reportId,
-      uploadProgress.current
-    );
+    const items = [primary, ...photos.filter((photo) => photo.id !== primary.id)];
+    if (locationSource === 'manual' && contextPhoto) {
+      items.push({ id: contextPhoto.id, file: contextPhoto.file, photoType: 'context' });
+    }
+    await uploadReportEvidence(items, reportId, uploadProgress.current);
+  }
+
+  async function locationMeta() {
+    const meta = await assessLocation({
+      position,
+      source: locationSource,
+      embedding,
+      damageType: hazard?.dominant?.damage_type ?? null,
+      hasContextPhoto: !!contextPhoto,
+    });
+    lastLocationMeta.current = meta;
+    return meta;
   }
 
   async function runEmbedding(selectedFile) {
@@ -508,6 +567,7 @@ export default function ReportPage() {
       const report =
         pendingReport.current ??
         (await createReport({
+          ...(await locationMeta()),
           damageType: hazard.dominant?.damage_type ?? 'other_corruption',
           confidence: hazard.dominant?.confidence ?? 0,
           hazardScore: hazard.total,
@@ -583,6 +643,7 @@ export default function ReportPage() {
       const report =
         pendingReport.current ??
         (await createDisputedReport({
+          ...(await locationMeta()),
           damageType: hazard.dominant?.damage_type ?? 'other_corruption',
           confidence: hazard.dominant?.confidence ?? 0,
           hazardScore: hazard.total,
@@ -602,6 +663,7 @@ export default function ReportPage() {
       await saveEvidence(report.id);
       pendingReport.current = null;
       setDuplicate(null);
+      setDuplicatePrompt(false);
       setStep('disputed');
     } catch (err) {
       console.error(err);
@@ -627,6 +689,7 @@ export default function ReportPage() {
         return;
       }
       setPosition(gps);
+      setLocationSource('device_gps');
       setAddressLoading(true);
       reverseGeocode(gps.lat, gps.lng)
         .then(setAddress)
@@ -654,9 +717,8 @@ export default function ReportPage() {
     setAnalysisSummary(null);
     uploadProgress.current.clear();
     pendingReport.current = null;
-    setDuplicate(null);
-    setDuplicatePrompt(false);
-    setStep('disputed');
+    setCameraBusy(false);
+    setFile(null);
     setPreviewUrl(null);
     setNote('');
     setStep('idle');
@@ -665,6 +727,9 @@ export default function ReportPage() {
     setEmbedding(null);
     setPosition(null);
     setCapturedAt(null);
+    setLocationSource(null);
+    setContextPhoto(null);
+    lastLocationMeta.current = null;
     setHazard(null);
     setDuplicateUnavailable(false);
     setDuplicateCheckFailed(false);
@@ -757,6 +822,8 @@ export default function ReportPage() {
           style={{ color: 'var(--color-ink-soft)', animationDelay: '0.3s' }}
         >
           Terima kasih sudah membantu memantau infrastruktur kota.
+          {lastLocationMeta.current?.locationStatus === 'pending' &&
+            ' Lokasi laporanmu perlu diverifikasi admin dulu sebelum tampil di daftar laporan.'}
         </p>
         <button
           className="rpa-btn rpa-btn-solid rpa-enter"
@@ -1011,6 +1078,37 @@ export default function ReportPage() {
               {addressLoading ? 'Mendeteksi lokasi…' : address || 'Lokasi tidak tersedia'}
             </p>
 
+            {locationSource === 'manual' && position && (
+              <div style={locationActionRow}>
+                <button
+                  type="button"
+                  className="rpa-btn rpa-btn-outline"
+                  style={locationActionBtn}
+                  disabled={busy || locatingSelf || !!pendingReport.current}
+                  onClick={handleRepickLocation}
+                >
+                  Pilih Lokasi Ulang
+                </button>
+                <a
+                  href={streetViewUrl(position.lat, position.lng)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rpa-btn rpa-btn-outline"
+                  style={locationActionBtn}
+                >
+                  Cek di Street View ↗
+                </a>
+              </div>
+            )}
+
+            {locationSource === 'manual' && (
+              <ContextPhotoField
+                photo={contextPhoto}
+                onChange={setContextPhoto}
+                disabled={busy || !!pendingReport.current}
+              />
+            )}
+
             <div style={{ marginTop: 24 }}>
               <SectionHeading icon={<WarningIcon />} title="Tingkat Kerusakan" />
               <div style={{ marginTop: 12 }}>
@@ -1113,6 +1211,10 @@ export default function ReportPage() {
       {locationPickerOpen && (
         <LocationPicker
           testingMode={testingMode}
+          initialPoint={pendingSelection.current?.repick ? position : null}
+          intro={
+            pendingSelection.current?.repick ? 'Pilih ulang titik lokasi kerusakan.' : undefined
+          }
           onConfirm={handleLocationPicked}
           onCancel={handleLocationPickerCancel}
         />
@@ -1569,6 +1671,25 @@ const rejectedPanel = {
   textAlign: 'center',
   boxShadow: 'var(--shadow-card)',
 };
+
+const locationActionRow = { display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 };
+const locationActionBtn = {
+  flex: '1 1 150px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  boxSizing: 'border-box',
+  padding: '10px 14px',
+  borderRadius: 10,
+  border: '1.5px solid #A61C24',
+  background: '#fff',
+  color: '#A61C24',
+  fontWeight: 700,
+  fontSize: 13,
+  textDecoration: 'none',
+  cursor: 'pointer',
+};
+
 const locationLine = {
   fontSize: 13,
   color: 'var(--color-ink-soft)',
