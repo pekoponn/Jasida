@@ -27,7 +27,7 @@ export default defineConfig({
     { name: 'dev', use: { baseURL: 'http://127.0.0.1:5175' } },
     {
       name: 'preview',
-      testMatch: /(flows|multi-photo|material-pricing)\.spec\.js/,
+      testMatch: /(flows|multi-photo|material-pricing|profile-security)\.spec\.js/,
       use: { baseURL: 'http://127.0.0.1:4175' },
     },
   ],

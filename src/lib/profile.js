@@ -10,12 +10,10 @@ export async function listAllUsers() {
 }
 
 export async function updateUserRole(userId, role) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({ role })
-    .eq('id', userId)
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc('jasida_set_user_role', {
+    p_user_id: userId,
+    p_role: role,
+  });
   if (error) throw error;
   return data;
 }

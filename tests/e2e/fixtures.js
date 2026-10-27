@@ -25,6 +25,9 @@ export const test = base.extend({
   backend: async ({ page }, runFixture) => {
     const state = {
       role: 'user',
+      additionalProfiles: [],
+      roleChangeFailure: false,
+      notifications: [],
       priceReferences: [],
       failCatalog: false,
       username: 'Juri',
@@ -120,7 +123,11 @@ export const test = base.extend({
             await new Promise((resolve) => setTimeout(resolve, state.profileDelay));
           if (state.failProfile) return json({ message: 'Profile temporarily unavailable' }, 503);
           const profile = { ...user, username: state.username, role: state.role, avatar_url: null };
-          return json(request.headers().accept?.includes('object') ? profile : [profile]);
+          return json(
+            request.headers().accept?.includes('object')
+              ? profile
+              : [profile, ...state.additionalProfiles]
+          );
         }
         if (table === 'reports' && request.method() === 'POST') {
           const data = request.postDataJSON();
@@ -159,7 +166,24 @@ export const test = base.extend({
             )
           );
         }
-        if (table === 'notifications') return json([]);
+        if (table === 'notifications') {
+          if (request.method() === 'PATCH') {
+            const patch = request.postDataJSON();
+            state.writes.push({ type: 'notification-read', data: patch });
+            state.notifications = state.notifications.map((n) => ({ ...n, ...patch }));
+            return json(null);
+          }
+          return json(state.notifications);
+        }
+        if (table === 'rpc/jasida_set_user_role') {
+          const args = request.postDataJSON();
+          state.writes.push({ type: 'role-rpc', data: args });
+          if (state.roleChangeFailure)
+            return json({ message: 'Role change rejected by server' }, 403);
+          const target = state.additionalProfiles.find((p) => p.id === args.p_user_id);
+          if (target) target.role = args.p_role;
+          return json({ id: args.p_user_id, role: args.p_role });
+        }
         if (table === 'material_price_references') {
           if (state.failCatalog) return json({ message: 'Katalog belum tersedia' }, 503);
           if (request.method() === 'POST') {

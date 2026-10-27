@@ -42,8 +42,8 @@ export default function AdminPenggunaPage() {
   async function handleRoleChange(userId, newRole) {
     setBusyId(userId);
     try {
-      await updateUserRole(userId, newRole);
-      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
+      const saved = await updateUserRole(userId, newRole);
+      setUsers((prev) => prev.map((u) => (u.id === saved.id ? { ...u, role: saved.role } : u)));
     } catch (err) {
       alert('Gagal mengubah role: ' + err.message);
     } finally {
