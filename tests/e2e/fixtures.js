@@ -25,6 +25,8 @@ export const test = base.extend({
   backend: async ({ page }, runFixture) => {
     const state = {
       role: 'user',
+      priceReferences: [],
+      failCatalog: false,
       username: 'Juri',
       writes: [],
       reports: [],
@@ -156,6 +158,16 @@ export const test = base.extend({
                   `eq.${photo.image_path}` === url.searchParams.get('image_path'))
             )
           );
+        }
+        if (table === 'notifications') return json([]);
+        if (table === 'material_price_references') {
+          if (state.failCatalog) return json({ message: 'Katalog belum tersedia' }, 503);
+          if (request.method() === 'POST') {
+            const rows = request.postDataJSON();
+            state.priceReferences = rows;
+            state.writes.push({ type: 'catalog', data: rows });
+          }
+          return json(state.priceReferences);
         }
         if (['report_supports', 'comments'].includes(table)) return json([]);
         if (table?.startsWith('rpc/')) {

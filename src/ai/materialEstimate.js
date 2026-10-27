@@ -1,96 +1,125 @@
-import { getCostHistory } from '../lib/reports.js';
-
-const MIN_SAMPLES = 3;
-
-const MATERIAL_TABLE = {
-  pothole: [
-    { name: 'Aspal hotmix', unit: 'kg', basePricePerUnit: 1300, baseQuantity: 60 },
-    { name: 'Agregat batu pecah', unit: 'kg', basePricePerUnit: 1200, baseQuantity: 40 },
-    { name: 'Tack coat (aspal cair)', unit: 'liter', basePricePerUnit: 6000, baseQuantity: 5 },
-  ],
-  crack: [
-    { name: 'Sealant aspal', unit: 'kg', basePricePerUnit: 35000, baseQuantity: 4 },
-    { name: 'Pasir halus', unit: 'kg', basePricePerUnit: 300, baseQuantity: 10 },
-    { name: 'Semen', unit: 'kg', basePricePerUnit: 1700, baseQuantity: 8 },
-  ],
-  other_corruption: [
-    { name: 'Material tambal sulam umum', unit: 'kg', basePricePerUnit: 1300, baseQuantity: 30 },
-    { name: 'Pasir', unit: 'kg', basePricePerUnit: 300, baseQuantity: 10 },
-    { name: 'Semen', unit: 'kg', basePricePerUnit: 1700, baseQuantity: 8 },
-  ],
+// AI suggests a repair family only; photo pixels are never converted to metres.
+export const REPAIR_METHODS = {
+  patch: { label: 'Tambal lubang lokal', basis: 'm3', materials: ['Aspal hotmix', 'Tack coat'] },
+  structural: {
+    label: 'Perbaikan lapisan / retak buaya',
+    basis: 'm3',
+    materials: ['Aspal hotmix', 'Agregat', 'Tack coat'],
+  },
+  longitudinal: { label: 'Penutupan retak memanjang', basis: 'm', materials: ['Sealant aspal'] },
+  transverse: { label: 'Penutupan retak melintang', basis: 'm', materials: ['Sealant aspal'] },
+  manual: { label: 'Metode hasil pemeriksaan lapangan', basis: 'm2', materials: [] },
 };
-
-function fitLinearRegression(points) {
-  const n = points.length;
-  const sumX = points.reduce((s, p) => s + p.x, 0);
-  const sumY = points.reduce((s, p) => s + p.y, 0);
-  const sumXY = points.reduce((s, p) => s + p.x * p.y, 0);
-  const sumXX = points.reduce((s, p) => s + p.x * p.x, 0);
-  const denom = n * sumXX - sumX * sumX;
-  const b = denom !== 0 ? (n * sumXY - sumX * sumY) / denom : 0;
-  const a = (sumY - b * sumX) / n;
-  return { a, b };
-}
-
-function buildItems(entries, severityMultiplier, scaleFactor = 1) {
-  return entries.map((e) => {
-    const quantity = Math.max(1, Math.round(e.baseQuantity * severityMultiplier * scaleFactor));
-    const unitPrice = e.basePricePerUnit;
-    return { name: e.name, unit: e.unit, quantity, unitPrice, lineTotal: quantity * unitPrice };
-  });
-}
-
-function sumItems(items) {
-  return items.reduce((s, i) => s + i.lineTotal, 0);
-}
-
-export async function estimateMaterialsAndCost({ damageType, hazardScore, areaPct }) {
-  const entries = MATERIAL_TABLE[damageType] ?? MATERIAL_TABLE.other_corruption;
-  const severityMultiplier = 1 + Math.min(hazardScore ?? 0, 100) / 100;
-
-  const heuristicItems = buildItems(entries, severityMultiplier);
-  const heuristicTotal = sumItems(heuristicItems);
-
-  let history = [];
-  try {
-    history = await getCostHistory(damageType);
-  } catch (err) {
-    console.warn('[material-estimate] gagal ambil data historis:', err.message);
-  }
-
-  const usable = history
-    .filter((h) => typeof h.bbox_area_pct === 'number' && typeof h.actual_cost === 'number')
-    .map((h) => ({ x: h.bbox_area_pct, y: h.actual_cost }));
-
-  if (usable.length >= MIN_SAMPLES) {
-    const { a, b } = fitLinearRegression(usable);
-    const learnedTotal = Math.max(a + b * (areaPct ?? 0), 0);
-    const scaleFactor = heuristicTotal > 0 ? learnedTotal / heuristicTotal : 1;
-    const items = buildItems(entries, severityMultiplier, scaleFactor);
-    return {
-      items,
-      totalCost: sumItems(items),
-      isLearned: true,
-      sampleSize: usable.length,
-      confidenceNote: `Total biaya disesuaikan berdasarkan ${usable.length} data pengerjaan nyata sebelumnya untuk jenis kerusakan ini. Rincian per-material tetap perkiraan awal — cek dan sesuaikan.`,
-    };
-  }
-
+export const DAMAGE_METHOD = {
+  pothole: 'patch',
+  alligator_crack: 'structural',
+  longitudinal_crack: 'longitudinal',
+  transverse_crack: 'transverse',
+};
+export const AHSP_URL =
+  'https://binakonstruksi.pu.go.id/sdm_downloads/lampiran-v-se-djbk-no-47-se-dk-2026/';
+export function newMaterial(name = '') {
   return {
-    items: heuristicItems,
-    totalCost: heuristicTotal,
-    isLearned: false,
-    sampleSize: usable.length,
-    confidenceNote: `Estimasi awal (heuristik) — akan makin akurat setelah ada ${MIN_SAMPLES - usable.length} lagi data pengerjaan nyata.`,
+    name,
+    specification: '',
+    unit: 'kg',
+    category: 'material',
+    quantity: '',
+    unitPrice: '',
+    lineTotal: 0,
+    tax_inclusion: 'unknown',
+    price_origin: 'manual',
   };
 }
-
-export function formatMaterialItems(items) {
-  const lines = items.map(
-    (i) =>
-      `${i.name}: ${i.quantity} ${i.unit} x Rp${i.unitPrice.toLocaleString('id-ID')} = Rp${i.lineTotal.toLocaleString('id-ID')}`
+export function suggestEstimate(damageType) {
+  const method = DAMAGE_METHOD[damageType] ?? 'manual';
+  return {
+    method,
+    items: REPAIR_METHODS[method].materials.map(newMaterial),
+    confidenceNote:
+      'Saran awal berdasarkan kelas kerusakan AI. Metode, dimensi, jumlah, dan harga wajib diverifikasi di lapangan. Skor bahaya dan bounding box bukan ukuran fisik.',
+  };
+}
+export async function estimateMaterialsAndCost({ damageType }) {
+  return suggestEstimate(damageType);
+}
+export const validNumber = (n) => typeof n === 'number' && Number.isFinite(n) && n >= 0;
+export function validItems(items) {
+  return (
+    Array.isArray(items) &&
+    items.length > 0 &&
+    Number.isFinite(totalItems(items)) &&
+    items.every(
+      (i) =>
+        i.name?.trim() &&
+        i.unit?.trim() &&
+        ['material', 'labor', 'equipment', 'other'].includes(i.category) &&
+        validNumber(i.quantity) &&
+        i.quantity > 0 &&
+        validNumber(i.unitPrice)
+    )
   );
-  const total = items.reduce((s, i) => s + i.lineTotal, 0);
-  lines.push(`Total: Rp${total.toLocaleString('id-ID')}`);
-  return lines.join('\n');
+}
+export function totalItems(items) {
+  return items.reduce(
+    (sum, i) =>
+      sum + (validNumber(i.quantity) && validNumber(i.unitPrice) ? i.quantity * i.unitPrice : 0),
+    0
+  );
+}
+export function measureWork({ basis, length, width, depth, area }) {
+  const positive = (n) => validNumber(n) && n > 0;
+  if (basis === 'm') {
+    if (!positive(length)) throw new Error('Panjang harus positif.');
+    return length;
+  }
+  const a = positive(area) ? area : positive(length) && positive(width) ? length * width : null;
+  if (!positive(a)) throw new Error('Isi luas atau panjang dan lebar yang positif.');
+  if (basis === 'm2') return a;
+  if (basis !== 'm3' || !positive(depth)) throw new Error('Ketebalan (m) harus positif.');
+  if (!Number.isFinite(a * depth)) throw new Error('Volume terlalu besar.');
+  return a * depth;
+}
+export function applyCoefficients(items, measurement) {
+  const volume = measureWork(measurement);
+  let url;
+  try {
+    url = new URL(measurement.source_url);
+  } catch {
+    throw new Error('Isi URL sumber koefisien AHSP.');
+  }
+  if (
+    url.protocol !== 'https:' ||
+    !(url.hostname === 'pu.go.id' || url.hostname.endsWith('.pu.go.id')) ||
+    !measurement.reference_code?.trim()
+  )
+    throw new Error('Isi sumber resmi PU dan kode analisis/halaman koefisien.');
+  return items.map((item) => {
+    if (!validNumber(item.coefficient) || item.coefficient <= 0)
+      throw new Error(`Isi koefisien positif untuk ${item.name}.`);
+    const quantity = Number((volume * item.coefficient).toFixed(6));
+    if (!Number.isFinite(quantity) || quantity <= 0)
+      throw new Error('Jumlah hasil perhitungan tidak valid.');
+    return {
+      ...item,
+      quantity,
+      lineTotal: quantity * (item.unitPrice || 0),
+      calculation: {
+        ...measurement,
+        volume,
+        coefficient: item.coefficient,
+        formula: 'volume pekerjaan × koefisien per satuan pekerjaan',
+        verified_by: 'admin',
+      },
+    };
+  });
+}
+export function formatMaterialItems(items) {
+  return [
+    ...items.map(
+      (i) =>
+        `${i.name} (${i.category}): ${i.quantity} ${i.unit} × Rp${Number(i.unitPrice).toLocaleString('id-ID')} = Rp${(i.quantity * i.unitPrice).toLocaleString('id-ID')}`
+    ),
+    `Total: Rp${totalItems(items).toLocaleString('id-ID')}`,
+  ].join('\n');
 }

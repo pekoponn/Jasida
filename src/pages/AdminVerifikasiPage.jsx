@@ -85,7 +85,12 @@ const tabBase = {
   color: '#495057',
 };
 
-const tabActive = { ...tabBase, border: '1.5px solid #A61C24', background: '#A61C24', color: '#fff' };
+const tabActive = {
+  ...tabBase,
+  border: '1.5px solid #A61C24',
+  background: '#A61C24',
+  color: '#fff',
+};
 const tabInactive = { ...tabBase };
 
 const badgeBase = {

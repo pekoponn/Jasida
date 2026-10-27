@@ -1,0 +1,30 @@
+[
+  {
+    "material_name": "Semen Portland",
+    "specification": "SNI",
+    "unit": "kg",
+    "reference_price": 1960,
+    "reference_code": "1.1.12.01.01.0001.00191",
+    "source_name": "Perbup Sidoarjo 27/2025, Lampiran I, halaman PDF 8; Pasal 3 (sebelum PPN)",
+    "source_url": "https://adminweb.sidoarjokab.go.id/upload/files/1751631865-Peraturan%20Bupati%20Nomor%2027%20Tahun%202025.pdf",
+    "effective_year": 2026,
+    "verified_at": "2026-10-26T00:00:00+07:00",
+    "price_type": "SSH",
+    "tax_inclusion": "excluded",
+    "verification_status": "verified"
+  },
+  {
+    "material_name": "Agregat Halus / Pasir Beton",
+    "specification": "sesuai SNI, Lolos ayakan No. 4",
+    "unit": "m3",
+    "reference_price": 347600,
+    "reference_code": "1.1.12.01.01.0001.00174",
+    "source_name": "Perbup Sidoarjo 27/2025, Lampiran I, halaman PDF 8; Pasal 3 (sebelum PPN)",
+    "source_url": "https://adminweb.sidoarjokab.go.id/upload/files/1751631865-Peraturan%20Bupati%20Nomor%2027%20Tahun%202025.pdf",
+    "effective_year": 2026,
+    "verified_at": "2026-10-26T00:00:00+07:00",
+    "price_type": "SSH",
+    "tax_inclusion": "excluded",
+    "verification_status": "verified"
+  }
+]

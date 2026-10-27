@@ -1,10 +1,6 @@
 import { test, expect, login, capture, recoveryUrl } from './fixtures.js';
 
-test('login and registration passwords support visibility and copy-paste', async ({
-  page,
-  context,
-  backend,
-}) => {
+test('login password supports visibility and copy-paste', async ({ page, context, backend }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.goto('/login');
 
@@ -15,16 +11,11 @@ test('login and registration passwords support visibility and copy-paste', async
   await loginPassword.selectText();
   await loginPassword.press('ControlOrMeta+C');
 
-  await page.getByRole('button', { name: 'Daftar di sini' }).click();
-  const registrationPassword = page.getByLabel('Password', { exact: true });
-  await expect(registrationPassword).toHaveAttribute('type', 'password');
-  await registrationPassword.fill('');
-  await registrationPassword.press('ControlOrMeta+V');
-  await expect(registrationPassword).toHaveValue('password-untuk-disalin');
-  await page.getByRole('button', { name: 'Tampilkan password' }).click();
-  await expect(registrationPassword).toHaveAttribute('type', 'text');
+  await loginPassword.fill('');
+  await loginPassword.press('ControlOrMeta+V');
+  await expect(loginPassword).toHaveValue('password-untuk-disalin');
   await page.getByRole('button', { name: 'Sembunyikan password' }).click();
-  await expect(registrationPassword).toHaveAttribute('type', 'password');
+  await expect(loginPassword).toHaveAttribute('type', 'password');
   expect(backend.writes).toEqual([]);
 });
 
@@ -313,14 +304,14 @@ test('profile read failure shows retry instead of an empty redirect page', async
   await expect(page.getByRole('heading', { name: 'Buat Laporan Kerusakan Jalan' })).toBeVisible();
 });
 
-test('registration requiring confirmation shows instructions', async ({ page, backend }) => {
+test('registration directs new users to Google without a legacy signup form', async ({
+  page,
+  backend,
+}) => {
   await page.goto('/login');
-  await page.getByRole('button', { name: 'Daftar di sini' }).click();
-  await page.getByLabel('Username', { exact: true }).fill('Juri');
-  await page.getByLabel('Email', { exact: true }).fill('judge@example.test');
-  await page.getByLabel('Password', { exact: true }).fill('local-password');
-  await page.getByRole('button', { name: 'Daftar Sekarang' }).click();
-  await expect(page.getByText('Pendaftaran diterima.', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Masuk / Daftar dengan Google' })).toBeVisible();
+  await expect(page.getByText('Pendaftaran akun baru hanya lewat Google.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Daftar di sini' })).toHaveCount(0);
   expect(backend.writes).toEqual([]);
 });
 

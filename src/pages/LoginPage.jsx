@@ -151,7 +151,6 @@ export default function LoginPage() {
               </div>
             ) : (
               <div key={mode} className="lg-swap">
-
                 <form
                   onSubmit={handleSubmit}
                   className="lg-stagger"

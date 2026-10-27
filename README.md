@@ -152,3 +152,24 @@ dan tetap memerlukan keputusan pengguna.
 
 Panduan environment variable, deployment Vercel, dan konfigurasi penyimpanan ada
 di [DEPLOYMENT.md](DEPLOYMENT.md).
+
+## Harga acuan dan evaluasi biaya admin
+
+Halaman **Statistik** menyediakan perbandingan harga satuan material dengan acuan resmi,
+deviasi harga, evaluasi estimasi vs realisasi (WAPE/MAE), dan komposisi biaya material.
+Harga tanpa kecocokan sumber, spesifikasi, satuan, tahun dan dasar pajak tidak diberi skor.
+
+Pada **Mulai Pengerjaan**, verifikasi metode dan ukuran lapangan, masukkan koefisien
+beserta sumber AHSP atau catatan koreksi manual, lalu lengkapi rincian biaya. Kebutuhan
+material tidak dihitung dari ukuran bounding box foto. Pada **Tandai Selesai**, isi
+jumlah/harga aktual dari bukti pengerjaan; estimasi historis tetap tersimpan terpisah.
+
+Fitur penyimpanan baru memerlukan migration manual
+[`20261026_material_pricing.sql`](supabase/migrations/20261026_material_pricing.sql).
+Jangan menjalankan ulang skema awal database. Katalog acuan hanya dapat dikelola admin;
+dua referensi Perbup yang tersedia dapat ditinjau lalu diimport melalui halaman Statistik.
+
+Panduan lengkap, sumber harga, rumus, perubahan dan batasan ada pada
+[catatan implementasi material pricing](docs/material-pricing-refinement.md).
+`npm run test:database` menguji migration dan RLS di PostgreSQL WASM terisolasi (PGlite),
+tanpa koneksi ke Supabase production. Perintah ini juga termasuk dalam `npm run check`.

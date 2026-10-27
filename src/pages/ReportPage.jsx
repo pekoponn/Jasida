@@ -817,10 +817,7 @@ export default function ReportPage() {
         >
           Laporan terkirim
         </h2>
-        <p
-          className="rpa-enter"
-          style={{ color: 'var(--color-ink-soft)', animationDelay: '0.3s' }}
-        >
+        <p className="rpa-enter" style={{ color: 'var(--color-ink-soft)', animationDelay: '0.3s' }}>
           Terima kasih sudah membantu memantau infrastruktur kota.
           {lastLocationMeta.current?.locationStatus === 'pending' &&
             ' Lokasi laporanmu perlu diverifikasi admin dulu sebelum tampil di daftar laporan.'}
@@ -1050,7 +1047,8 @@ export default function ReportPage() {
                 disabled={locatingSelf || busy || !!pendingReport.current}
                 style={useLocationBtn}
               >
-                <TargetIcon spinning={locatingSelf} /> {locatingSelf ? 'Mencari…' : 'Lokasi saat ini'}
+                <TargetIcon spinning={locatingSelf} />{' '}
+                {locatingSelf ? 'Mencari…' : 'Lokasi saat ini'}
               </button>
             </div>
 
@@ -1137,7 +1135,9 @@ export default function ReportPage() {
           </div>
         </div>
 
-        {step === 'preparing' && <StatusLine text="Menyiapkan dan mengecilkan foto…" indeterminate />}
+        {step === 'preparing' && (
+          <StatusLine text="Menyiapkan dan mengecilkan foto…" indeterminate />
+        )}
         {step === 'analyzing' && (
           <StatusLine
             text={`Menganalisis foto dengan AI… ${analysisProgress}/${photos.length}`}

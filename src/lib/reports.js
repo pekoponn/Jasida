@@ -1,3 +1,4 @@
+import { validItems, totalItems } from '../ai/materialEstimate.js';
 import { supabase } from './supabaseClient';
 import { withResolvedAvatar } from './profileAvatar.js';
 import { prepareUploadPhoto } from './imageUpload.js';
@@ -188,11 +189,17 @@ export async function completeReportWithActuals(
     actualMaterials,
     actualMaterialsJson,
     actualCost,
-    fallbackEstimatedCost,
-    fallbackEstimatedMaterials,
-    fallbackEstimatedMaterialsJson,
+    actualCostVerified,
+    actualCostEvidence,
   }
 ) {
+  if (
+    !validItems(actualMaterialsJson) ||
+    totalItems(actualMaterialsJson) !== actualCost ||
+    !actualCostVerified ||
+    !actualCostEvidence?.trim()
+  )
+    throw new Error('Isi realisasi valid dan referensi bukti independen.');
   const proofFiles = (files?.length ? files : [file]).filter(Boolean).slice(0, 5);
   if (!proofFiles.length) throw new Error('Foto bukti perbaikan wajib diunggah.');
   for (const proof of proofFiles) {
@@ -201,17 +208,12 @@ export async function completeReportWithActuals(
 
   const updatePayload = {
     status: 'resolved',
-    resolved_at: new Date().toISOString(),
     actual_materials: actualMaterials,
     actual_materials_json: actualMaterialsJson,
     actual_cost: actualCost,
+    actual_cost_verified: actualCostVerified,
+    actual_cost_evidence: actualCostEvidence,
   };
-
-  if (fallbackEstimatedCost != null) {
-    updatePayload.estimated_cost = fallbackEstimatedCost;
-    updatePayload.estimated_materials = fallbackEstimatedMaterials;
-    updatePayload.estimated_materials_json = fallbackEstimatedMaterialsJson;
-  }
 
   const { data, error } = await supabase
     .from('reports')
@@ -460,9 +462,7 @@ export async function fetchAllReportsForAdmin({ statusFilter } = {}) {
   if (!reports.length) return [];
   const { data: details, error: detailsError } = await supabase
     .from('reports')
-    .select(
-      'id, bbox_area_pct, address, rejection_reason, accepted_at, estimated_completion_date, estimated_materials, estimated_materials_json, estimated_cost, actual_materials, actual_materials_json, actual_cost'
-    )
+    .select('*')
     .in(
       'id',
       reports.map((r) => r.id)
@@ -494,7 +494,7 @@ export async function fetchAllReportsForAdmin({ statusFilter } = {}) {
 export async function rejectReport(reportId, reason) {
   const { data, error } = await supabase
     .from('reports')
-    .update({ status: 'rejected', rejection_reason: reason, rejected_at: new Date().toISOString() })
+    .update({ status: 'rejected', rejection_reason: reason })
     .eq('id', reportId)
     .select()
     .single();
@@ -505,7 +505,7 @@ export async function rejectReport(reportId, reason) {
 export async function acceptReport(reportId) {
   const { data, error } = await supabase
     .from('reports')
-    .update({ status: 'accepted', accepted_at: new Date().toISOString() })
+    .update({ status: 'accepted' })
     .eq('id', reportId)
     .select()
     .single();
@@ -513,16 +513,26 @@ export async function acceptReport(reportId) {
   return data;
 }
 
-export async function startProgress(reportId, { estimatedDate, materials, materialsJson, cost }) {
+export async function startProgress(
+  reportId,
+  { estimatedDate, materials, materialsJson, cost, details }
+) {
+  if (
+    !validItems(materialsJson) ||
+    totalItems(materialsJson) !== cost ||
+    !details?.field_verified ||
+    !estimatedDate
+  )
+    throw new Error('Estimasi dan verifikasi lapangan wajib lengkap.');
   const { data, error } = await supabase
     .from('reports')
     .update({
       status: 'in_progress',
-      started_at: new Date().toISOString(),
       estimated_completion_date: estimatedDate,
       estimated_materials: materials,
       estimated_materials_json: materialsJson,
       estimated_cost: cost,
+      estimate_details: details,
     })
     .eq('id', reportId)
     .select()
@@ -704,7 +714,10 @@ export async function fetchLocationReviews() {
       contextPhoto: contextByReport[r.id] ?? null,
       imageUrl: reportImageUrl(r.image_path),
     }))
-    .sort((a, b) => (a.location_status === 'pending' ? 0 : 1) - (b.location_status === 'pending' ? 0 : 1));
+    .sort(
+      (a, b) =>
+        (a.location_status === 'pending' ? 0 : 1) - (b.location_status === 'pending' ? 0 : 1)
+    );
 }
 
 export async function reviewLocation(reportId, decision, reason) {
@@ -723,7 +736,6 @@ export async function reviewLocation(reportId, decision, reason) {
           location_status: 'rejected',
           status: 'rejected',
           rejection_reason: reason,
-          rejected_at: new Date().toISOString(),
         };
   const { error } = await supabase.from('reports').update(patch).eq('id', reportId);
   if (error) throw error;

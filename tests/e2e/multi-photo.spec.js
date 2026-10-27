@@ -5,6 +5,7 @@ async function selectPhotos(page, count) {
   const buffer = await readFile(
     new URL('../../src/assets/worker-illustration.png', import.meta.url)
   );
+  const previous = Number((await page.getByText(/\d\/5 foto dipilih/).textContent()).split('/')[0]);
   await page.getByLabel('Pilih foto dari galeri').setInputFiles(
     Array.from({ length: count }, (_, index) => ({
       name: `sudut-${index}.png`,
@@ -12,6 +13,13 @@ async function selectPhotos(page, count) {
       buffer,
     }))
   );
+  if (previous + count <= 5) {
+    const picker = page.getByRole('dialog', { name: 'Pilih Lokasi Kerusakan' });
+    await expect(picker).toBeVisible();
+    await picker.locator('.leaflet-container').click();
+    await picker.getByRole('button', { name: 'Konfirmasi Lokasi' }).click();
+    await expect(picker).not.toBeVisible();
+  }
 }
 
 test('camera preview and retake never start AI before confirmation', async ({ page, backend }) => {
@@ -67,8 +75,11 @@ test('gallery works with camera denied and saves all angles', async ({
   expect(backend.writes.filter((entry) => entry.type === 'report')).toHaveLength(1);
   expect(backend.writes.filter((entry) => entry.type === 'storage')).toHaveLength(2);
   expect(backend.photos).toHaveLength(1);
-  expect(backend.writes.find((entry) => entry.type === 'report').data.note).toContain(
-    'Bukti 2 foto'
+  expect(backend.writes.find((entry) => entry.type === 'report').data.location_source).toBe(
+    'manual'
+  );
+  expect(backend.writes.find((entry) => entry.type === 'report').data.location_status).toBe(
+    'pending'
   );
 });
 
@@ -165,6 +176,7 @@ for (const action of ['support', 'dispute']) {
     await login(page);
     await selectPhotos(page, 2);
     await page.getByRole('button', { name: 'Analisis Foto', exact: true }).click();
+    await page.getByRole('button', { name: 'Kirim Laporan', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Laporan serupa ditemukan' })).toBeVisible();
     backend.failPhotoInsert = true;
     const choice = page.getByRole('button', {
@@ -218,7 +230,7 @@ for (const role of ['user', 'admin']) {
     await page.goto(role === 'admin' ? '/admin/laporan' : '/riwayat');
     await page
       .getByRole('button', {
-        name: role === 'admin' ? 'Lihat Semua Foto' : 'Lihat Detail',
+        name: role === 'admin' ? 'Semua Foto' : 'Lihat Detail',
         exact: true,
       })
       .click();

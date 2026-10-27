@@ -1,3 +1,6 @@
+import MaterialCostAnalysis from '../components/MaterialCostAnalysis.jsx';
+import { evaluateCosts, isEvaluationPair } from '../lib/materialPricing.js';
+import { validNumber } from '../ai/materialEstimate.js';
 import { useEffect, useMemo, useState } from 'react';
 import {
   LineChart,
@@ -131,30 +134,22 @@ export default function AdminStatistikPage() {
 
   const SEVERITY_DONUT_COLORS = ['#2f9e44', '#f5c518', '#e03131'];
 
-  // Ringkasan biaya: total estimasi vs total aktual
+  const evaluation = useMemo(() => evaluateCosts(reports), [reports]);
   const costSummary = useMemo(() => {
-    let totalEstimasi = 0;
-    let totalAktual = 0;
-    let countEstimasi = 0;
-    let countAktual = 0;
-
-    reports.forEach((r) => {
-      if (r.estimated_cost != null) {
-        totalEstimasi += r.estimated_cost;
-        countEstimasi++;
-      }
-      if (r.actual_cost != null) {
-        totalAktual += r.actual_cost;
-        countAktual++;
-      }
-    });
-
+    const { estimated: totalEstimasi, actual: totalAktual, n } = evaluation;
     const selisih = totalAktual - totalEstimasi;
-    const selisihPct = totalEstimasi ? Math.round((selisih / totalEstimasi) * 100) : null;
-
-    return { totalEstimasi, totalAktual, selisih, selisihPct, countEstimasi, countAktual };
-  }, [reports]);
-
+    return {
+      totalEstimasi,
+      totalAktual,
+      selisih,
+      selisihPct: totalEstimasi > 0 ? Math.round((selisih / totalEstimasi) * 100) : null,
+      countEstimasi: n,
+      countAktual: n,
+    };
+  }, [evaluation]);
+  const outstandingEstimate = reports
+    .filter((r) => r.status !== 'resolved' && validNumber(r.estimated_cost))
+    .reduce((s, r) => s + r.estimated_cost, 0);
   // Tren jumlah laporan & biaya per bulan
   const monthlyTrend = useMemo(() => {
     const byMonth = {};
@@ -167,9 +162,22 @@ export default function AdminStatistikPage() {
       byMonth[sortKey].masuk++;
       if (r.status === 'resolved') {
         byMonth[sortKey].selesai++;
-        byMonth[sortKey].estimasi += r.estimated_cost ?? 0;
-        byMonth[sortKey].aktual += r.actual_cost ?? 0;
       }
+    });
+    evaluation.pairs.forEach((r) => {
+      const date = new Date(r.resolved_at);
+      const sortKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      if (!byMonth[sortKey])
+        byMonth[sortKey] = {
+          sortKey,
+          label: date.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }),
+          masuk: 0,
+          selesai: 0,
+          estimasi: 0,
+          aktual: 0,
+        };
+      byMonth[sortKey].estimasi += r.estimated_cost;
+      byMonth[sortKey].aktual += r.actual_cost;
     });
     return Object.values(byMonth)
       .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
@@ -188,8 +196,11 @@ export default function AdminStatistikPage() {
       const key = r.damage_type ?? 'lainnya';
       if (!raw[key]) raw[key] = { damage_type: key, count: 0, estimasi: 0, aktual: 0 };
       raw[key].count++;
-      raw[key].estimasi += r.estimated_cost ?? 0;
-      raw[key].aktual += r.actual_cost ?? 0;
+      if (isEvaluationPair(r)) {
+        raw[key].estimasi += r.estimated_cost;
+        raw[key].aktual += r.actual_cost;
+        raw[key].pairCount = (raw[key].pairCount ?? 0) + 1;
+      }
     });
     return Object.values(raw)
       .map((d) => ({ ...d, label: damageTypeDisplayLabel(d.damage_type) }))
@@ -217,7 +228,7 @@ export default function AdminStatistikPage() {
       {error && <p style={{ color: 'var(--sev-emergency)', marginTop: 12 }}>{error}</p>}
       {loading && <p style={{ marginTop: 12 }}>Memuat statistik…</p>}
 
-      {!loading && (
+      {!loading && !error && (
         <>
           {/* RINGKASAN BIAYA */}
           <div style={summaryGrid}>
@@ -230,14 +241,14 @@ export default function AdminStatistikPage() {
             <SummaryCard
               icon={<Wallet size={22} color="#f08c00" />}
               iconBg="#FDF1DE"
-              label="Total Estimasi Biaya"
+              label="Estimasi Pasangan Evaluasi"
               value={formatRupiah(costSummary.totalEstimasi)}
               sub={`${costSummary.countEstimasi} laporan`}
             />
             <SummaryCard
               icon={<Wallet size={22} color="#2f9e44" />}
               iconBg="#E7F6EC"
-              label="Total Biaya Aktual"
+              label="Realisasi Pasangan Evaluasi"
               value={formatRupiah(costSummary.totalAktual)}
               sub={`${costSummary.countAktual} laporan`}
             />
@@ -250,8 +261,12 @@ export default function AdminStatistikPage() {
                 )
               }
               iconBg={costSummary.selisih > 0 ? '#FBE3E3' : '#E7F6EC'}
-              label="Selisih Biaya"
-              value={`${costSummary.selisih > 0 ? '+' : ''}${formatRupiah(costSummary.selisih)}`}
+              label="Selisih Pasangan Evaluasi"
+              value={
+                evaluation.n
+                  ? `${costSummary.selisih > 0 ? '+' : ''}${formatRupiah(costSummary.selisih)}`
+                  : '—'
+              }
               sub={
                 costSummary.selisihPct != null
                   ? `${costSummary.selisihPct > 0 ? '+' : ''}${costSummary.selisihPct}% dari estimasi`
@@ -261,6 +276,11 @@ export default function AdminStatistikPage() {
             />
           </div>
 
+          <p className="pricing-note">
+            Estimasi laporan belum selesai: <strong>{formatRupiah(outstandingEstimate)}</strong>.
+            Terpisah dari {evaluation.n} pasangan evaluasi biaya.
+          </p>
+          <MaterialCostAnalysis reports={reports} />
           {/* RINGKASAN STATUS (sama seperti di Dashboard) */}
           <div style={{ ...summaryGrid, marginTop: 12 }}>
             <SummaryCard
@@ -382,8 +402,8 @@ export default function AdminStatistikPage() {
 
           {/* ESTIMASI VS AKTUAL PER BULAN */}
           <div style={panelCard}>
-            <h3 style={panelTitle}>Estimasi vs Aktual Biaya per Bulan</h3>
-            {monthlyTrend.some((m) => m.estimasi > 0 || m.aktual > 0) ? (
+            <h3 style={panelTitle}>Estimasi vs Aktual per Bulan Penyelesaian (Pasangan Valid)</h3>
+            {evaluation.n > 0 ? (
               <div style={{ height: 260, marginTop: 10 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={monthlyTrend}>
@@ -399,7 +419,7 @@ export default function AdminStatistikPage() {
               </div>
             ) : (
               <p style={{ color: 'var(--color-ink-soft)', fontSize: 13, marginTop: 10 }}>
-                Belum ada laporan selesai dengan data biaya.
+                Belum ada pasangan biaya terverifikasi untuk evaluasi.
               </p>
             )}
           </div>
@@ -491,16 +511,18 @@ export default function AdminStatistikPage() {
                   <tbody>
                     {damageTypeStats.map((d) => {
                       const selisih = d.aktual - d.estimasi;
-                      const hasBoth = d.estimasi > 0 && d.aktual > 0;
+                      const hasBoth = d.pairCount > 0;
                       return (
                         <tr
                           key={d.damage_type}
                           style={{ borderBottom: '1px solid var(--color-border)' }}
                         >
                           <td style={td}>{d.label}</td>
-                          <td style={td}>{d.count}</td>
-                          <td style={td}>{d.estimasi > 0 ? formatRupiah(d.estimasi) : '-'}</td>
-                          <td style={td}>{d.aktual > 0 ? formatRupiah(d.aktual) : '-'}</td>
+                          <td style={td}>
+                            {d.pairCount ?? 0} pasangan / {d.count} laporan
+                          </td>
+                          <td style={td}>{d.pairCount > 0 ? formatRupiah(d.estimasi) : '-'}</td>
+                          <td style={td}>{d.pairCount > 0 ? formatRupiah(d.aktual) : '-'}</td>
                           <td
                             style={{
                               ...td,
@@ -508,7 +530,9 @@ export default function AdminStatistikPage() {
                               color: hasBoth ? (selisih > 0 ? '#e03131' : '#2f9e44') : 'inherit',
                             }}
                           >
-                            {hasBoth ? `${selisih > 0 ? '+' : ''}${formatRupiah(selisih)}` : '-'}
+                            {hasBoth
+                              ? `${selisih > 0 ? '+' : ''}${formatRupiah(selisih)}`
+                              : 'Belum dapat dievaluasi'}
                           </td>
                         </tr>
                       );
@@ -540,14 +564,14 @@ export default function AdminStatistikPage() {
                   {resolvedWithCost.length === 0 && (
                     <tr>
                       <td style={td} colSpan={6}>
-                        Belum ada laporan selesai dengan data biaya.
+                        Belum ada pasangan biaya terverifikasi untuk evaluasi.
                       </td>
                     </tr>
                   )}
                   {resolvedWithCost.map((r) => {
                     const kode = r.code ?? `#${String(r.id).slice(0, 6).toUpperCase()}-JASIDA`;
                     const selisih = (r.actual_cost ?? 0) - (r.estimated_cost ?? 0);
-                    const hasBoth = r.estimated_cost != null && r.actual_cost != null;
+                    const hasBoth = isEvaluationPair(r);
                     return (
                       <tr key={r.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                         <td style={td}>{kode}</td>
@@ -566,7 +590,9 @@ export default function AdminStatistikPage() {
                             fontWeight: 700,
                           }}
                         >
-                          {hasBoth ? `${selisih > 0 ? '+' : ''}${formatRupiah(selisih)}` : '-'}
+                          {hasBoth
+                            ? `${selisih > 0 ? '+' : ''}${formatRupiah(selisih)}`
+                            : 'Belum dapat dievaluasi'}
                         </td>
                       </tr>
                     );
