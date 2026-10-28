@@ -15,7 +15,7 @@
     "test:preview": "playwright test --project=preview",
     "check": "npm run format:check && npm run lint && npm run build && npm run test:server && npm run test:database && npm test",
     "test:server": "node --test tests/server/*.test.js",
-    "test:database": "node tests/database/material-pricing.mjs && node tests/database/profile-role-security.mjs"
+    "test:database": "node tests/database/material-pricing.mjs && node tests/database/profile-role-security.mjs && node tests/database/reports-insert-security.mjs"
   },
   "engines": {
     "node": ">=22.12.0"

@@ -1,0 +1,167 @@
+-- Manual reviewed rollout only: requires audited RPC/notification hardening,
+-- INSERT boundary and the reviewed material-pricing guard first. No history repair.
+begin;
+set local search_path='';
+do $$
+begin
+ if pg_catalog.current_setting('server_version_num')::integer < 150000 then
+  raise exception 'PostgreSQL 15+ required for security_invoker view';
+ end if;
+ if not exists(select 1 from pg_catalog.pg_trigger where tgrelid='public.reports'::regclass
+   and tgfoid=pg_catalog.to_regprocedure('public.jasida_guard_cost_history()') and not tgisinternal and tgenabled='O') then
+  raise exception 'Reviewed material pricing guard must be installed first; do not auto-run pending migrations';
+ end if;
+ if not exists(select 1 from pg_catalog.pg_policies where schemaname='public' and tablename='reports'
+   and policyname='jasida_reports_insert_boundary' and permissive='RESTRICTIVE') then
+  raise exception 'Reviewed INSERT boundary required first';
+ end if;
+ if not exists(select 1 from storage.buckets where id='report-images') then
+  raise exception 'report-images bucket missing; inspect Storage configuration';
+ end if;
+end $$;
+
+-- Preserve the existing private view's columns; switch it to caller RLS.
+alter view public.reports_with_coords set (security_invoker=true);
+revoke all on public.reports_with_coords from public,anon;
+grant select on public.reports_with_coords to authenticated;
+-- Public presentation is explicitly separate from private/owner/admin report data.
+-- Derive lat/lng projection from the audited view, so no extension schema is guessed.
+create or replace view public.public_reports with (security_barrier=true) as
+ select r.id,r.damage_type,r.confidence,r.severity,r.hazard_score,r.support_count,
+   r.status,r.created_at,r.image_path,r.address,r.lat,r.lng,
+   coalesce(r.user_id=auth.uid(),false) as is_owner,
+   p.username as reporter_name,p.avatar_url as reporter_avatar_url
+ from public.reports_with_coords r
+ join public.reports base on base.id=r.id
+ left join public.profiles p on p.id=r.user_id
+ where r.status in ('open','accepted','in_progress','resolved')
+   and base.location_status is distinct from 'pending'
+   and base.location_status is distinct from 'rejected';
+-- The public projection intentionally executes as the trusted view owner. It has
+-- no finance, embedding, free-form note, rejection reason, user UUID or provenance.
+revoke all on public.public_reports from public,anon,authenticated,service_role;
+grant select on public.public_reports to anon,authenticated;
+create or replace view public.public_profiles with (security_barrier=true) as
+ select id,username,avatar_url from public.profiles;
+revoke all on public.public_profiles from public,anon,authenticated,service_role;
+grant select on public.public_profiles to anon,authenticated;
+
+drop policy if exists jasida_reports_read_boundary on public.reports;
+create policy jasida_reports_read_boundary on public.reports as restrictive for select to public
+ using (public.is_admin() or user_id=auth.uid());
+drop policy if exists jasida_reports_update_boundary on public.reports;
+create policy jasida_reports_update_boundary on public.reports as restrictive for update to public
+ using(public.is_admin()) with check(public.is_admin());
+drop policy if exists jasida_reports_delete_boundary on public.reports;
+create policy jasida_reports_delete_boundary on public.reports as restrictive for delete to public using(false);
+drop policy if exists jasida_profiles_read_boundary on public.profiles;
+create policy jasida_profiles_read_boundary on public.profiles as restrictive for select to public
+ using(public.is_admin() or id=auth.uid());
+
+-- Narrow boolean helpers for policies; no report payload returned to callers.
+create or replace function public.jasida_report_visible(p_report uuid) returns boolean
+language sql stable security definer set search_path='' as $$
+ select exists(select 1 from public.reports r where r.id=p_report and
+ (r.user_id=auth.uid() or public.is_admin() or
+  (r.status in ('open','accepted','in_progress','resolved') and r.location_status is distinct from 'pending'
+   and r.location_status is distinct from 'rejected')));
+$$;
+create or replace function public.jasida_report_upload_path(p_path text,p_report uuid default null) returns boolean
+language plpgsql stable security definer set search_path='' as $$
+declare target uuid;
+begin
+ if auth.uid() is null or p_path is null or p_path !~ '^[0-9a-f-]{36}/[0-9a-f-]{36}/[A-Za-z0-9_-]+[.]webp$'
+   or pg_catalog.split_part(p_path,'/',1)<>auth.uid()::text then return false; end if;
+ begin target:=pg_catalog.split_part(p_path,'/',2)::uuid; exception when invalid_text_representation then return false; end;
+ if p_report is not null and target<>p_report then return false; end if;
+ return exists(select 1 from public.reports r where r.id=target and r.status in ('open','pending_duplicate_review','accepted','in_progress')
+   and public.jasida_report_visible(r.id));
+end $$;
+create or replace function public.jasida_photo_link_allowed(p_report uuid,p_path text,p_type text) returns boolean
+language sql stable security definer set search_path='' as $$
+ select public.jasida_report_upload_path(p_path,p_report)
+ and exists(select 1 from storage.objects o where o.bucket_id='report-images' and o.name=p_path)
+ and exists(select 1 from public.reports r where r.id=p_report and
+   ((p_type='resolution' and public.is_admin() and r.status='in_progress')
+    or (p_type='context' and r.user_id=auth.uid()) or p_type='support'));
+$$;
+create or replace function public.jasida_set_report_image(p_report_id uuid,p_image_path text) returns uuid
+language plpgsql security definer set search_path='' as $$
+declare r public.reports;
+begin
+ if auth.uid() is null then raise exception 'Authentication required' using errcode='42501'; end if;
+ select * into r from public.reports where id=p_report_id for update;
+ if not found or r.user_id is distinct from auth.uid() or r.status not in ('open','pending_duplicate_review') then
+  raise exception 'Primary image link denied' using errcode='42501';
+ end if;
+ if not public.jasida_photo_link_allowed(p_report_id,p_image_path,'support') then
+  raise exception 'Uploaded object does not belong to this report and uploader' using errcode='42501';
+ end if;
+ if r.image_path is not null and r.image_path<>p_image_path then
+  raise exception 'Primary evidence cannot be replaced' using errcode='42501';
+ end if;
+ update public.reports set image_path=p_image_path where id=p_report_id;
+ return p_report_id;
+end $$;
+revoke all on function public.jasida_report_visible(uuid) from public,anon,authenticated,service_role;
+grant execute on function public.jasida_report_visible(uuid) to anon,authenticated;
+revoke all on function public.jasida_report_upload_path(text,uuid) from public,anon,authenticated,service_role;
+grant execute on function public.jasida_report_upload_path(text,uuid) to anon,authenticated;
+revoke all on function public.jasida_photo_link_allowed(uuid,text,text) from public,anon,authenticated,service_role;
+grant execute on function public.jasida_photo_link_allowed(uuid,text,text) to authenticated;
+revoke all on function public.jasida_set_report_image(uuid,text) from public,anon,authenticated,service_role;
+grant execute on function public.jasida_set_report_image(uuid,text) to authenticated;
+
+alter table public.report_photos enable row level security;
+drop policy if exists jasida_photos_read_boundary on public.report_photos;
+create policy jasida_photos_read_boundary on public.report_photos as restrictive for select to public
+ using(public.jasida_report_visible(report_id));
+drop policy if exists jasida_photos_insert_boundary on public.report_photos;
+create policy jasida_photos_insert_boundary on public.report_photos as restrictive for insert to authenticated
+ with check(user_id=auth.uid() and public.jasida_photo_link_allowed(report_id,image_path,photo_type));
+revoke insert,update,delete on public.report_photos from public,anon;
+-- No normal client can rewrite/delete linked evidence (including admins).
+revoke update,delete on public.report_photos from authenticated;
+drop policy if exists jasida_photos_update_boundary on public.report_photos;
+create policy jasida_photos_update_boundary on public.report_photos as restrictive for update to public using(false) with check(false);
+drop policy if exists jasida_photos_delete_boundary on public.report_photos;
+create policy jasida_photos_delete_boundary on public.report_photos as restrictive for delete to public using(false);
+-- Column-level SELECT prevents uploader identity from being listed with public photos.
+revoke select on public.report_photos from public,anon,authenticated;
+do $$ declare c record; begin
+ for c in select attname from pg_catalog.pg_attribute where attrelid='public.report_photos'::regclass and attnum>0 and not attisdropped loop
+  execute pg_catalog.format('revoke select (%I) on public.report_photos from public,anon,authenticated',c.attname);
+ end loop;
+end $$;
+grant select(id,report_id,image_path,photo_type,created_at) on public.report_photos to anon,authenticated;
+
+-- Bucket visibility and old object paths remain unchanged. These restrictions
+-- govern new uploads/metadata writes, not public URL downloads of old files.
+update storage.buckets set file_size_limit=99999,allowed_mime_types=array['image/webp'] where id='report-images';
+drop policy if exists jasida_report_objects_insert_boundary on storage.objects;
+create policy jasida_report_objects_insert_boundary on storage.objects as restrictive for insert to public
+ with check(bucket_id<>'report-images' or public.jasida_report_upload_path(name));
+drop policy if exists jasida_report_objects_update_boundary on storage.objects;
+create policy jasida_report_objects_update_boundary on storage.objects as restrictive for update to public
+ using(bucket_id<>'report-images') with check(bucket_id<>'report-images');
+drop policy if exists jasida_report_objects_delete_boundary on storage.objects;
+create policy jasida_report_objects_delete_boundary on storage.objects as restrictive for delete to public
+ using(bucket_id<>'report-images');
+drop policy if exists jasida_report_objects_read_boundary on storage.objects;
+create policy jasida_report_objects_read_boundary on storage.objects as restrictive for select to public
+ using(bucket_id<>'report-images' or public.is_admin() or pg_catalog.split_part(name,'/',1)=auth.uid()::text);
+
+-- Notifications are delivered by the trusted trigger, not client INSERT.
+revoke insert,update,delete on public.notifications from public,anon,authenticated;
+do $$ declare c record; begin
+ for c in select attname from pg_catalog.pg_attribute where attrelid='public.notifications'::regclass and attnum>0 and not attisdropped loop
+  execute pg_catalog.format('revoke insert (%I),update (%I) on public.notifications from public,anon,authenticated',c.attname,c.attname);
+ end loop;
+end $$;
+grant update(read_at) on public.notifications to authenticated;
+drop policy if exists jasida_notifications_read_boundary on public.notifications;
+create policy jasida_notifications_read_boundary on public.notifications as restrictive for select to public using(user_id=auth.uid());
+drop policy if exists jasida_notifications_update_boundary on public.notifications;
+create policy jasida_notifications_update_boundary on public.notifications as restrictive for update to public
+ using(user_id=auth.uid()) with check(user_id=auth.uid());
+commit;

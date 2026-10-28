@@ -1,0 +1,120 @@
+-- Derived from function bodies supplied in the production audit, 27 October 2026.
+-- Manual staging review first. No dependency on pending material pricing migration.
+begin;
+set local search_path = '';
+create or replace function public.is_admin() returns boolean language sql security definer
+set search_path='' as $$ select exists(select 1 from public.profiles where id=auth.uid() and role='admin'); $$;
+create or replace function public.is_admin(uid uuid) returns boolean language sql security definer
+set search_path='' as $$ select exists(select 1 from public.profiles where id=uid and role='admin'); $$;
+-- Existing PUBLIC profile policies call the no-argument helper even for anon.
+revoke all on function public.is_admin() from public,anon,authenticated,service_role;
+grant execute on function public.is_admin() to anon,authenticated;
+revoke all on function public.is_admin(uuid) from public,anon,authenticated,service_role;
+grant execute on function public.is_admin(uuid) to authenticated;
+create or replace function public.notify_admins(p_type text,p_title text,p_body text,p_report uuid,p_link text)
+returns void language sql security definer set search_path='' as $$
+ insert into public.notifications(user_id,type,title,body,report_id,link)
+ select p.id,p_type,p_title,p_body,p_report,p_link from public.profiles p where p.role='admin';
+$$;
+revoke all on function public.notify_admins(text,text,text,uuid,text) from public,anon,authenticated,service_role;
+create or replace function public.reports_hold_manual_location() returns trigger
+language plpgsql set search_path='' as $$
+begin
+ if new.location_source='manual' then new.location_status:='pending'; end if;
+ return new;
+end $$;
+revoke all on function public.reports_hold_manual_location() from public,anon,authenticated,service_role;
+create or replace function public.reports_notify() returns trigger
+language plpgsql security definer set search_path='' as $$
+declare kode text := '#' || pg_catalog.upper(pg_catalog.left(new.id::text,6)) || '-JASIDA';
+begin
+ if tg_op='INSERT' then
+  perform public.notify_admins('report_new','Laporan baru masuk','Laporan '||kode||' menunggu verifikasi.',new.id,'/admin/laporan');
+  if new.status='pending_duplicate_review' then
+   perform public.notify_admins('review_duplicate','Perlu validasi duplikat','Laporan '||kode||' terdeteksi mirip laporan lain.',new.id,'/admin/verifikasi?tab=duplikat');
+  end if;
+  if new.location_status='pending' then
+   perform public.notify_admins('review_location','Perlu verifikasi lokasi','Laporan '||kode||' memakai pin manual dan ditahan.',new.id,'/admin/verifikasi?tab=lokasi');
+  end if;
+  return new;
+ end if;
+ if new.status='pending_duplicate_review' and old.status is distinct from new.status then
+  perform public.notify_admins('review_duplicate','Perlu validasi duplikat','Laporan '||kode||' menunggu validasi admin.',new.id,'/admin/verifikasi?tab=duplikat');
+ end if;
+ if new.location_status='pending' and old.location_status is distinct from new.location_status then
+  perform public.notify_admins('review_location','Perlu verifikasi lokasi','Laporan '||kode||' menunggu verifikasi lokasi.',new.id,'/admin/verifikasi?tab=lokasi');
+ end if;
+ if old.status is distinct from new.status then
+  insert into public.notifications(user_id,type,title,body,report_id,link)
+  select new.user_id,'status_'||new.status,
+   case new.status when 'accepted' then 'Laporan diterima' when 'in_progress' then 'Laporan sedang dikerjakan'
+     when 'resolved' then 'Laporan selesai' when 'rejected' then 'Laporan ditolak' end,
+   case new.status when 'accepted' then 'Laporan '||kode||' sudah diverifikasi dan menunggu dikerjakan.'
+     when 'in_progress' then 'Laporan '||kode||' mulai dikerjakan.' when 'resolved' then 'Laporan '||kode||' sudah selesai diperbaiki.'
+     when 'rejected' then 'Laporan '||kode||' ditolak. Alasan: '||coalesce(new.rejection_reason,'-') end,
+   new.id,'/laporan/'||new.id
+  where new.status in ('accepted','in_progress','resolved','rejected');
+ end if;
+ if old.location_status is distinct from new.location_status and new.location_status in ('verified','rejected') then
+  insert into public.notifications(user_id,type,title,body,report_id,link)
+  values(new.user_id,'location_'||new.location_status,
+    case new.location_status when 'verified' then 'Lokasi laporan terverifikasi' else 'Lokasi laporan tidak sesuai' end,
+    'Laporan '||kode||case new.location_status when 'verified' then ' kini tampil publik.' else ' ditolak karena lokasi tidak sesuai.' end,
+    new.id,'/laporan/'||new.id);
+ end if;
+ return new;
+end $$;
+revoke all on function public.reports_notify() from public,anon,authenticated,service_role;
+-- Retain the audited existing trigger timing and bindings; do not create duplicates.
+do $$
+declare
+ fn oid; args text; geo text;
+begin
+ select p.oid into strict fn from pg_catalog.pg_proc p
+ join pg_catalog.pg_namespace n on n.oid=p.pronamespace
+ where n.nspname='public' and p.proname='create_disputed_report' and p.pronargs=14
+   and p.prorettype='public.reports'::regtype;
+ if (select proargnames from pg_catalog.pg_proc where oid=fn) is distinct from
+   array['p_damage_type','p_confidence','p_hazard_score','p_severity','p_lat','p_lng','p_embedding','p_captured_at','p_note','p_bbox_area_pct','p_address','p_candidate_id','p_similarity','p_distance_m']::text[] then
+   raise exception 'Unexpected disputed RPC signature; inspect schema before applying';
+ end if;
+ select n.nspname into strict geo from pg_catalog.pg_extension e
+ join pg_catalog.pg_namespace n on n.oid=e.extnamespace where e.extname='postgis';
+ if pg_catalog.to_regprocedure(pg_catalog.format('%I.st_makepoint(double precision,double precision)',geo)) is null
+ or pg_catalog.to_regprocedure(pg_catalog.format('%I.st_setsrid(%I.geometry,integer)',geo,geo)) is null
+ or pg_catalog.to_regtype(pg_catalog.format('%I.geography',geo)) is null then
+   raise exception 'PostGIS objects differ from extension metadata; inspect actual schemas';
+ end if;
+ -- Empty search_path makes pg_get_function_identity_arguments qualify extension
+ -- types (including vector) using their actual namespaces. No schema is guessed.
+ args:=pg_catalog.pg_get_function_identity_arguments(fn);
+ execute pg_catalog.format($ddl$
+ create or replace function public.create_disputed_report(%s) returns public.reports
+ language plpgsql security definer set search_path='' as $body$
+ declare new_report public.reports;
+ begin
+  if auth.uid() is null then raise exception 'Authentication required' using errcode='42501'; end if;
+  if p_lat is null or p_lng is null or not(p_lat between -90 and 90 and p_lng between -180 and 180) then
+   raise exception 'Invalid coordinates' using errcode='22023';
+  end if;
+  if p_damage_type is null or p_damage_type not in ('pothole','alligator_crack','longitudinal_crack','transverse_crack') then
+   raise exception 'Invalid damage type' using errcode='22023';
+  end if;
+  if not exists(select 1 from public.reports r where r.id=p_candidate_id and
+    (r.user_id=auth.uid() or public.is_admin() or
+      (r.status in ('open','accepted','in_progress','resolved') and r.location_status is distinct from 'pending'))) then
+   raise exception 'Candidate unavailable' using errcode='42501';
+  end if;
+  insert into public.reports(user_id,damage_type,confidence,hazard_score,severity,location,embedding,captured_at,note,bbox_area_pct,address,
+    status,duplicate_candidate_id,duplicate_similarity,duplicate_distance_m)
+  values(auth.uid(),p_damage_type,p_confidence,p_hazard_score,p_severity,
+    %I.st_setsrid(%I.st_makepoint(p_lng,p_lat),4326)::%I.geography,p_embedding,p_captured_at,p_note,p_bbox_area_pct,p_address,
+    'pending_duplicate_review',p_candidate_id,p_similarity,p_distance_m)
+  returning * into new_report;
+  return new_report;
+ end $body$;
+ $ddl$,args,geo,geo,geo);
+ execute pg_catalog.format('revoke all on function public.create_disputed_report(%s) from public,anon,authenticated,service_role',args);
+ execute pg_catalog.format('grant execute on function public.create_disputed_report(%s) to authenticated',args);
+end $$;
+commit;

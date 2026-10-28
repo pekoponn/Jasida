@@ -1,7 +1,12 @@
 import { readFile } from 'node:fs/promises';
 import { test, expect } from './fixtures.js';
 
-for (const script of ['admin-data.browser.js', 'image-upload.browser.js', 'ai-audit.browser.js']) {
+for (const script of [
+  'admin-data.browser.js',
+  'image-upload.browser.js',
+  'ai-audit.browser.js',
+  'report-create-security.browser.js',
+]) {
   test(script, async ({ page, backend }) => {
     await page.goto('/');
     const source = await readFile(new URL(`../${script}`, import.meta.url), 'utf8');

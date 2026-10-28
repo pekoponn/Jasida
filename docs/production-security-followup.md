@@ -1,6 +1,18 @@
 # Production security follow-up — 27 Oktober 2026
 
-## Status dan batasan
+## Status terkini — 28 Oktober 2026
+
+Pengguna sudah memberikan definisi `create_disputed_report`, kedua `is_admin`, `notify_admins`, kedua trigger reports, view `reports_with_coords`, dan policy tabel/Storage. Bagian di bawah mencatat progres sebelumnya; permintaan definisi tersebut sudah terpenuhi. Schema ekstensi, grants/view options, RPC dukungan/duplikat lainnya belum lengkap. Ledger `supabase_migrations.schema_migrations` dilaporkan tidak ada; ini tidak membuktikan migration belum pernah diterapkan manual.
+
+Pengguna kini mengizinkan penerapan migration yang diperlukan, merge dan deployment. Hambatan saat ini adalah akses database: CLI Supabase tidak tersedia, tidak ada koneksi database/operator di konfigurasi sesi, dan hanya kunci publik aplikasi tersedia. Tidak menjalankan SQL perubahan atau memodifikasi ledger. Migration pricing dan role harus tersedia sebelum frontend baru dirilis.
+
+Dua kandidat lanjutan dipertahankan di `supabase/drafts/*.sql.disabled`, di luar antrean migration. Kandidat akses Storage/view belum kompatibel dengan frontend saat ini dan belum diuji; jangan menerapkannya. Perubahan autentikasi createReport dan migration INSERT boundary memiliki tes tersendiri. Tidak ada data historis yang dikoreksi.
+
+Pemeriksaan kompatibilitas REST tanpa membaca baris pengguna pada 28 Oktober: `material_price_references?select=id&limit=0` mengembalikan HTTP 404/PGRST205 (tabel tidak ada di schema cache); `reports?select=estimate_recorded_at,estimate_details,actual_cost_verified,actual_cost_evidence&limit=0` mengembalikan HTTP 400/42703 (estimate_recorded_at tidak ada). Fitur pricing belum dapat dinyatakan aktif. Pengguna kemudian mengizinkan deployment aplikasi tetap dilanjutkan dengan keterbatasan database ini dinyatakan secara eksplisit; tidak ada izin untuk mengklaim fitur pricing sudah berfungsi. Halaman production `/` dan `/login` merespons HTTP 200; pemeriksaan ini bukan smoke test browser ataupun bukti deployment baru.
+
+Validasi lokal terbaru: `npm run check` selesai dengan exit 0 (format, lint, build, 15 tes server, suite SQL pricing/role/INSERT, 79 tes browser dev/preview). Draft `.sql.disabled` tidak termasuk cakupan tes. `git diff --check` bersih.
+
+## Status dan batasan (catatan sebelumnya)
 
 Pekerjaan dilanjutkan dari `cca17773a44e3a9a65dc7c23e547695a6d866e54` pada branch `feat/material-pricing-refinement`, sesudah fetch dan pull ff-only. PR #1 terverifikasi open dan Draft. Tidak ada perubahan ke database, migration runner, deployment, atau merge.
 
@@ -53,3 +65,27 @@ Pengguna melaporkan perbaikan manual `is_admin()`/`is_admin(uuid)` dan `notify_a
 ## File perubahan sesi ini
 
 `src/lib/profile.js`, `src/pages/AdminPenggunaPage.jsx`, migration role baru, SQL audit production baru, `tests/database/profile-role-security.mjs`, `tests/e2e/profile-security.spec.js`, fixture browser, `playwright.config.js`, `package.json`, dan dokumen ini. Tidak ada perubahan kebijakan production yang tersembunyi di tooling atau deployment.
+
+## Lanjutan berdasarkan ringkasan audit pengguna
+
+Pengguna kemudian mengonfirmasi telah menjalankan audit read-only production dan memverifikasi: kedua overload is_admin memakai search_path pg_catalog; pemanggilan langsung notify_admins ditolak untuk anon/authenticated/service_role; authenticated hanya dapat UPDATE username/full_name/avatar_url. Policy reports INSERT publik/UPDATE sendiri dan Storage upload masih terlalu permisif. Trigger reports yang dilaporkan adalah reports_hold_manual_location dan reports_notify. Ada satu laporan in_progress dengan started_at lebih awal daripada accepted_at. Fakta tersebut diterima sebagai bukti yang dilaporkan pengguna; definisi lengkap dan output mentah belum diterima pada tahap ini. Tidak dilakukan koreksi terhadap laporan historis tersebut.
+
+Perbaikan tambahan yang dapat ditinjau tanpa menebak body fungsi:
+
+- `src/lib/reports.js`: createReport memverifikasi sesi dengan getUser, berhenti sebelum INSERT jika gagal/anon, dan mengirim user_id dari identitas tersebut. Parameter bebas tidak dapat memasukkan owner/status/biaya palsu ke payload.
+- `20261027200000_reports_insert_boundary.sql`: migration baru dalam transaksi, dengan prasyarat user_id UUID dan status tersedia. Menambahkan **restrictive** INSERT policy untuk PUBLIC: JWT terautentikasi, user_id cocok, status open atau pending_duplicate_review sesuai alur aplikasi. Policy mengiriskan akses permissive yang sudah ada; tidak menambah grant atau allow-all baru. Dapat diterapkan ulang.
+- Migration tidak menghapus policy SELECT/UPDATE, mengubah trigger/RPC, visibilitas bucket, atau data laporan. Status awal yang dihasilkan trigger manual-location/sengketa nyata tetap harus diperiksa sebelum staging. Jika berbeda, hentikan penerapan dan selaraskan rancangan dari definisi aktual.
+- Policy ini **tidak** mengunci kolom biaya/provenance dan tidak menyelesaikan UPDATE/SELECT/Storage yang terlalu permisif. Owner tabel/BYPASSRLS/SECURITY DEFINER dapat melewati RLS: creation RPC tetap membutuhkan pemeriksaan internal sendiri. Guard biaya dari pricing tetap merupakan pekerjaan terpisah; jangan menyatakan policy INSERT ini telah menggantikannya.
+- Tes SQL membuktikan penolakan anon, JWT kosong, owner palsu/null, status tidak sah/null; INSERT own open/pending berhasil; tanpa permissive policy tetap ditolak. Tes juga memverifikasi SELECT/image-link UPDATE tidak diganti, owner bypass tetap mungkin, dan fixture historis yang waktunya bertentangan tetap identik. Ini pengujian scope/batasan, bukan dukungan terhadap policy legacy yang terlalu luas.
+- Tes browser module memverifikasi auth failure tidak menulis laporan, owner berasal dari sesi, dan field status/biaya yang tidak diterima tidak diteruskan.
+
+### Informasi yang masih harus diterima sebelum rilis
+
+1. Body lengkap, owner, SECURITY DEFINER/INVOKER, search_path dan ACL reports_hold_manual_location, reports_notify, notify_admins seluruh signature, is_admin kedua overload; urutan/timing/event trigger.
+2. Definisi creation/sengketa/support/location/duplicate-review RPC, termasuk cara menentukan user_id, status awal, mutasi report_photos, serta helper yang dipanggil dari trigger. Tidak cukup hanya nama RPC atau search_path.
+3. DDL/tipe/default/constraint reports, profiles, report_photos, report_supports; definisi reports_with_coords, owner dan opsi security_invoker. Ini menentukan apakah view membocorkan kolom privat melewati RLS.
+4. Semua policy permissive/restrictive dan table/column grants efektif, termasuk role inheritance, untuk reports/profiles/report_photos/notifications/storage.objects. Definisi policy UPDATE diperlukan sebelum membatasi image_path, lokasi, status, dan finansial tanpa memutus RPC sah.
+5. Konfigurasi bucket report-images, ownership kolom objek, kebutuhan foto dukungan lintas pemilik, keputusan publik/privat, dan kontrak path yang sudah dipakai. Existing URL memakai getPublicUrl; jangan menutup bucket atau memindahkan file tanpa rencana kompatibilitas.
+6. Versi migration setiap environment dan SQL manual yang sudah diterapkan; konfirmasi apakah pricing/role migration ada di ledger atau hanya pernah dijalankan manual. Jangan repair ledger atau backfill historis secara otomatis.
+
+Urutan rilis tetap diblokir hasil metadata di atas. INSERT boundary ini tidak bergantung pada pricing/role dan dapat diuji secara spesifik di staging **setelah** definisi trigger/RPC dan grants cocok. Jangan menjalankan runner yang ikut menerapkan pricing pending. Setelah remaining reports/Storage/notification hardening selesai dan smoke test Supabase nyata lulus, mintakan persetujuan production terpisah. Migration pricing/role lama tidak diubah oleh lanjutan ini.

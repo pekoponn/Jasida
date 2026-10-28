@@ -145,9 +145,13 @@ export async function createReport({
   locationFlags,
   locationStatus,
 }) {
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData?.user)
+    throw authError || new Error('Masuk kembali untuk membuat laporan.');
   const { data, error } = await supabase
     .from('reports')
     .insert({
+      user_id: authData.user.id,
       location_source: locationSource ?? null,
       road_distance_m: roadDistanceM ?? null,
       location_flags: locationFlags ?? [],
