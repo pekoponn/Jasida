@@ -14,7 +14,13 @@ const units = {
   m2: ['area', 1],
   m: ['length', 1],
   sak: ['sak', 1],
+  buah: ['buah', 1],
+  batang: ['batang', 1],
+  lembar: ['lembar', 1],
+  pak: ['pak', 1],
+  botol: ['botol', 1],
 };
+export const supportedPriceUnits = Object.keys(units);
 export function convertPrice(price, from, to) {
   const a = units[normalized(from)],
     b = units[normalized(to)];
@@ -37,7 +43,16 @@ export function validateReference(r) {
   const errors = [];
   for (const k of ['material_name', 'specification', 'unit', 'reference_code', 'source_name'])
     if (typeof r[k] !== 'string' || !r[k].trim()) errors.push(`${k} wajib diisi`);
-  if (!validNumber(r.reference_price) || r.reference_price <= 0)
+  if (!supportedPriceUnits.includes(normalized(r.unit))) errors.push('Satuan tidak didukung');
+  for (const [key, max] of [
+    ['material_name', 200],
+    ['specification', 500],
+    ['reference_code', 100],
+    ['source_name', 500],
+    ['source_url', 2048],
+  ])
+    if (typeof r[key] === 'string' && r[key].length > max) errors.push(`${key} terlalu panjang`);
+  if (!validNumber(r.reference_price) || r.reference_price <= 0 || r.reference_price >= 1e15)
     errors.push('Harga acuan harus positif');
   if (!officialUrl(r.source_url)) errors.push('URL harus HTTPS domain resmi Sidoarjo');
   if (!Number.isInteger(r.effective_year) || r.effective_year < 2000 || r.effective_year > 2100)
