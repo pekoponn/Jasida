@@ -98,13 +98,152 @@ test('empty catalog and no evaluation pairs show honest empty states', async ({
   await page
     .getByRole('button', { name: 'Pratinjau 2 referensi Perbup 27/2025 sebagai draft' })
     .click();
-  await page.getByRole('button', { name: 'Import 2 referensi sebagai draft' }).click();
-  await expect(page.getByRole('status')).toContainText('Referensi baru disimpan sebagai draft');
-  const saved = backend.writes.find((w) => w.type === 'catalog').data;
-  expect(saved).toHaveLength(2);
-  expect(saved.every((r) => r.verification_status === 'draft' && r.verified_at === null)).toBe(
+  await page.getByRole('button', { name: 'Import 2 referensi sebagai Draft' }).click();
+  await expect(page.getByRole('status')).toContainText('2 referensi baru tersimpan sebagai Draft');
+  const write = backend.writes.find((w) => w.type === 'catalog-rpc');
+  expect(write.data.p_mode).toBe('import');
+  expect(write.data.p_rows).toHaveLength(2);
+  expect(
+    backend.priceReferences.every(
+      (r) => r.verification_status === 'draft' && r.verified_at === null
+    )
+  ).toBe(true);
+});
+
+test('new form starts as editable example, opens invalid source details, then saves Draft', async ({
+  page,
+  backend,
+}) => {
+  backend.role = 'admin';
+  await login(page);
+  await page.goto('/admin/statistik');
+  await page.getByText('Katalog harga acuan resmi — input / import admin', { exact: true }).click();
+  await expect(page.getByLabel('Nama material', { exact: true })).toHaveValue('Semen Portland');
+  await expect(page.getByLabel('Spesifikasi', { exact: true })).toHaveValue('SNI');
+  await expect(page.getByRole('combobox', { name: 'Satuan', exact: true })).toHaveValue('kg');
+  await expect(page.getByLabel('Harga acuan (Rp)', { exact: true })).toHaveValue('1960');
+  const detail = page.locator('.pricing-source-details');
+  await expect(detail).not.toHaveAttribute('open', '');
+  expect(backend.writes.filter((w) => w.type === 'catalog-rpc')).toHaveLength(0);
+  await page.getByRole('button', { name: 'Simpan sebagai Draft' }).click();
+  await expect(detail).toHaveAttribute('open', '');
+  await expect(page.getByRole('alert')).toContainText('Kode referensi');
+  await detail.locator('summary').click();
+  await expect(detail).not.toHaveAttribute('open', '');
+  await detail.locator('summary').click();
+  await page.getByLabel('Kode referensi').fill('CONTOH-001');
+  await page.getByLabel('Nama dokumen sumber dan halaman').fill('Dokumen uji halaman 1');
+  await page.getByLabel('URL sumber resmi').fill('https://rds.sidoarjokab.go.id/');
+  await page.getByRole('button', { name: 'Simpan sebagai Draft' }).click();
+  await expect(page.getByRole('status')).toContainText('Referensi tersimpan sebagai Draft');
+  expect(backend.priceReferences[0]).toMatchObject({
+    material_name: 'Semen Portland',
+    reference_price: 1960,
+    verification_status: 'draft',
+    verified_at: null,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
     true
   );
+});
+
+test('manual code and year collision keeps Verified row unchanged', async ({ page, backend }) => {
+  backend.role = 'admin';
+  backend.priceReferences = [reference];
+  await login(page);
+  await page.goto('/admin/statistik');
+  await page.getByText('Katalog harga acuan resmi — input / import admin', { exact: true }).click();
+  await page.getByLabel('Nama material', { exact: true }).fill(reference.material_name);
+  await page.getByLabel('Spesifikasi', { exact: true }).fill(reference.specification);
+  await page.getByLabel('Harga acuan (Rp)', { exact: true }).fill('2500');
+  await page.locator('.pricing-source-details summary').click();
+  await page.getByLabel('Kode referensi').fill(` ${reference.reference_code} `);
+  await page.getByLabel('Nama dokumen sumber dan halaman').fill(reference.source_name);
+  await page.getByLabel('URL sumber resmi').fill(reference.source_url);
+  await page.getByRole('combobox', { name: 'PPN', exact: true }).selectOption('excluded');
+  await page.getByRole('button', { name: 'Simpan sebagai Draft' }).click();
+  await expect(page.getByRole('alert')).toContainText('kolom berbeda: reference_price');
+  expect(backend.priceReferences).toEqual([reference]);
+  expect(backend.writes.filter((w) => w.type === 'catalog-rpc')).toHaveLength(0);
+  await page.getByLabel('Harga acuan (Rp)', { exact: true }).fill('2000');
+  await page.getByRole('button', { name: 'Simpan sebagai Draft' }).click();
+  await expect(page.getByRole('status')).toContainText(
+    'Referensi sudah tersedia. Tidak ada perubahan yang dilakukan.'
+  );
+  expect(backend.priceReferences).toEqual([reference]);
+});
+
+test('one conflicting JSON row rejects the entire import without a partial write', async ({
+  page,
+  backend,
+}) => {
+  backend.role = 'admin';
+  backend.priceReferences = [reference];
+  await login(page);
+  await page.goto('/admin/statistik');
+  await page.getByText('Katalog harga acuan resmi — input / import admin', { exact: true }).click();
+  const picker = page.getByLabel('Import JSON (maks. 200 item, 1 MB)');
+  await picker.setInputFiles({
+    name: 'conflict.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(
+      JSON.stringify([
+        { ...reference, material_name: 'Pasir Beton', reference_code: 'NEW-ONE' },
+        { ...reference, reference_price: 3000 },
+      ])
+    ),
+  });
+  await page.getByRole('button', { name: 'Import 2 referensi sebagai Draft' }).click();
+  await expect(page.getByRole('alert')).toContainText('kolom berbeda: reference_price');
+  expect(backend.priceReferences).toEqual([reference]);
+  expect(backend.writes.filter((w) => w.type === 'catalog-rpc')).toHaveLength(0);
+  await picker.setInputFiles({
+    name: 'in-file-conflict.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify([reference, { ...reference, reference_price: 3000 }])),
+  });
+  await expect(page.getByRole('alert')).toContainText('Konflik baris 1 dan 2');
+  expect(backend.priceReferences).toEqual([reference]);
+});
+
+test('editing a Draft stays Draft; verification is a separate confirmed action', async ({
+  page,
+  backend,
+}) => {
+  backend.role = 'admin';
+  backend.priceReferences = [
+    { ...reference, id: 'draft-1', verification_status: 'draft', verified_at: null },
+  ];
+  await login(page);
+  await page.goto('/admin/statistik');
+  await page.getByText('Katalog harga acuan resmi — input / import admin', { exact: true }).click();
+  await page.getByRole('button', { name: 'Tinjau & verifikasi' }).click();
+  await expect(page.getByText('Meninjau Draft', { exact: false })).toBeVisible();
+  await page.getByLabel('Harga acuan (Rp)', { exact: true }).fill('2100');
+  await page.getByRole('button', { name: 'Simpan perubahan Draft' }).click();
+  await expect(page.getByText('Perubahan Draft disimpan.')).toBeVisible();
+  expect(backend.priceReferences[0].reference_price).toBe(2100);
+  expect(backend.priceReferences[0].verification_status).toBe('draft');
+});
+
+test('failed catalog save shows a conflict without success or an added row', async ({
+  page,
+  backend,
+}) => {
+  backend.role = 'admin';
+  backend.catalogSaveFailure = true;
+  await login(page);
+  await page.goto('/admin/statistik');
+  await page.getByText('Katalog harga acuan resmi — input / import admin', { exact: true }).click();
+  await page.locator('.pricing-source-details summary').click();
+  await page.getByLabel('Kode referensi').fill('NEW-FAILED');
+  await page.getByLabel('Nama dokumen sumber dan halaman').fill('Dokumen uji halaman 1');
+  await page.getByLabel('URL sumber resmi').fill('https://rds.sidoarjokab.go.id/');
+  await page.getByRole('button', { name: 'Simpan sebagai Draft' }).click();
+  await expect(page.getByRole('alert')).toContainText('Konflik referensi');
+  await expect(page.getByText('Referensi tersimpan sebagai Draft.')).toHaveCount(0);
+  expect(backend.priceReferences).toHaveLength(0);
 });
 
 test('JSON verification is ignored; duplicate import preserves existing verified prices', async ({
@@ -124,8 +263,14 @@ test('JSON verification is ignored; duplicate import preserves existing verified
     buffer: Buffer.from(JSON.stringify(rows)),
   });
   await expect(page.getByText('"verification_status": "draft"').first()).toBeVisible();
-  await page.getByRole('button', { name: 'Import 2 referensi sebagai draft' }).click();
-  await expect(page.getByRole('status')).toContainText('Import selesai');
+  await expect(page.getByText('Kemungkinan duplikat dalam impor.', { exact: false })).toBeVisible();
+  await page
+    .getByLabel('Alasan referensi memang berbeda')
+    .fill('Kode resmi berbeda untuk item uji yang sama.');
+  await page.getByRole('button', { name: 'Import 2 referensi sebagai Draft' }).click();
+  await expect(
+    page.getByText('1 referensi baru tersimpan sebagai Draft', { exact: false })
+  ).toBeVisible();
   expect(backend.priceReferences.find((r) => r.reference_code === 'TEST-ONLY')).toEqual(reference);
   expect(backend.priceReferences.find((r) => r.reference_code === 'NEW-DRAFT')).toMatchObject({
     verification_status: 'draft',
@@ -136,8 +281,8 @@ test('JSON verification is ignored; duplicate import preserves existing verified
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify([reference, reference])),
   });
-  await expect(page.getByRole('alert')).toContainText('Kode dan tahun duplikat');
-  await expect(page.getByRole('button', { name: 'Import 2 referensi sebagai draft' })).toHaveCount(
+  await expect(page.getByRole('alert')).toContainText('duplikat identik');
+  await expect(page.getByRole('button', { name: 'Import 2 referensi sebagai Draft' })).toHaveCount(
     0
   );
   await picker.setInputFiles({
@@ -147,11 +292,94 @@ test('JSON verification is ignored; duplicate import preserves existing verified
   });
   await expect(page.getByRole('alert')).toContainText('File maksimal 1 MB');
   await page.getByRole('button', { name: 'Tinjau & verifikasi' }).click();
-  await page.getByRole('button', { name: 'Simpan harga acuan' }).click();
+  await page.getByRole('button', { name: 'Verifikasi referensi' }).click();
   await expect(page.getByRole('alert')).toContainText('centang pernyataan verifikasi');
   expect(backend.priceReferences.find((r) => r.reference_code === 'NEW-DRAFT')).toMatchObject({
     verification_status: 'draft',
   });
+  await page
+    .getByRole('checkbox', { name: 'Saya telah mencocokkan nominal', exact: false })
+    .check();
+  await page.getByRole('button', { name: 'Verifikasi referensi' }).click();
+  await expect(page.getByRole('alert')).toContainText('alasan minimal 15 karakter');
+  expect(
+    backend.writes.filter((w) => w.type === 'catalog-rpc' && w.data.p_mode === 'verify')
+  ).toHaveLength(0);
+  await page.getByLabel('Alasan kedua referensi berbeda').fill('Terlalu pendek');
+  await page.getByRole('button', { name: 'Verifikasi referensi' }).click();
+  await expect(page.getByRole('alert')).toContainText('alasan minimal 15 karakter');
+  await page
+    .getByLabel('Alasan kedua referensi berbeda')
+    .fill('Kode resmi berbeda untuk item uji yang sama.');
+  backend.catalogReviewFailure = true;
+  await page.getByRole('button', { name: 'Verifikasi referensi' }).click();
+  await expect(page.getByRole('alert')).toContainText('Audit unavailable');
+  expect(
+    backend.priceReferences.find((r) => r.reference_code === 'NEW-DRAFT').verification_status
+  ).toBe('draft');
+  expect(backend.catalogReviews).toHaveLength(0);
+  backend.catalogReviewFailure = false;
+  await page.getByRole('button', { name: 'Verifikasi referensi' }).click();
+  await expect(page.getByText('Referensi berhasil diverifikasi oleh admin.')).toBeVisible();
+  expect(
+    backend.priceReferences.find((r) => r.reference_code === 'NEW-DRAFT').verification_status
+  ).toBe('verified');
+  expect(backend.writes.at(-1).data.p_review_reason).toBe(
+    'Kode resmi berbeda untuk item uji yang sama.'
+  );
+  expect(backend.catalogReviews).toEqual([
+    {
+      incoming: 'NEW-DRAFT',
+      compared: 'TEST-ONLY',
+      reason: 'Kode resmi berbeda untuk item uji yang sama.',
+      statusBeforeAudit: 'draft',
+    },
+  ]);
+});
+
+test('verification without a similar reference needs no reason or audit', async ({
+  page,
+  backend,
+}) => {
+  backend.role = 'admin';
+  backend.priceReferences = [
+    { ...reference, id: 'draft-unique', verification_status: 'draft', verified_at: null },
+  ];
+  await login(page);
+  await page.goto('/admin/statistik');
+  await page.getByText('Katalog harga acuan resmi — input / import admin', { exact: true }).click();
+  await page.getByRole('button', { name: 'Tinjau & verifikasi' }).click();
+  await page
+    .getByRole('checkbox', { name: 'Saya telah mencocokkan nominal', exact: false })
+    .check();
+  await page.getByRole('button', { name: 'Verifikasi referensi' }).click();
+  await expect(page.getByText('Referensi berhasil diverifikasi oleh admin.')).toBeVisible();
+  expect(backend.priceReferences[0].verification_status).toBe('verified');
+  expect(backend.catalogReviews).toHaveLength(0);
+  expect(backend.writes.at(-1).data.p_review_reason).toBe('');
+});
+
+test('source name with repeated spaces still warns about a possible duplicate', async ({
+  page,
+  backend,
+}) => {
+  backend.role = 'admin';
+  backend.priceReferences = [reference];
+  await login(page);
+  await page.goto('/admin/statistik');
+  await page.getByText('Katalog harga acuan resmi — input / import admin', { exact: true }).click();
+  await page.getByLabel('Nama material', { exact: true }).fill(reference.material_name);
+  await page.getByLabel('Spesifikasi', { exact: true }).fill(reference.specification);
+  await page.locator('.pricing-source-details summary').click();
+  await page.getByLabel('Kode referensi').fill('DIFFERENT-CODE');
+  await page.getByLabel('Nama dokumen sumber dan halaman').fill('Fixture   harga   uji');
+  await page.getByLabel('URL sumber resmi').fill(reference.source_url);
+  await expect(
+    page.getByText('Kemungkinan duplikat material. Tinjau kedua referensi sebelum melanjutkan.')
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Simpan sebagai Draft' }).click();
+  await expect(page.getByRole('alert')).toContainText('alasan minimal 15 karakter');
+  expect(backend.writes.filter((w) => w.type === 'catalog-rpc')).toHaveLength(0);
 });
 test('start work saves independently entered estimate; completion never overwrites estimate', async ({
   page,
