@@ -11,8 +11,6 @@ import {
 } from 'lucide-react';
 import jasidaLogo from '../assets/jasida-logo-white.png';
 import { countPendingReviews } from '../lib/reports.js';
-import { useAuth } from '../lib/AuthContext.jsx';
-import { subscribeNotifications } from '../lib/notifications.js';
 
 const MENU = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },

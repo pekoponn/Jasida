@@ -25,8 +25,8 @@ export default function ContextPhotoField({ photo, onChange, disabled }) {
       </div>
       <p style={hint}>
         Lokasi kamu dipilih manual di peta, jadi laporanmu akan diperiksa admin dulu. Satu foto
-        lebar yang memperlihatkan sekitar kerusakan (bangunan, papan nama, tikungan) membantu
-        admin memverifikasi lokasinya lebih cepat.
+        lebar yang memperlihatkan sekitar kerusakan (bangunan, papan nama, tikungan) membantu admin
+        memverifikasi lokasinya lebih cepat.
       </p>
 
       <input
@@ -57,12 +57,7 @@ export default function ContextPhotoField({ photo, onChange, disabled }) {
             >
               Ganti Foto
             </button>
-            <button
-              type="button"
-              style={btn}
-              disabled={disabled}
-              onClick={() => onChange(null)}
-            >
+            <button type="button" style={btn} disabled={disabled} onClick={() => onChange(null)}>
               Hapus
             </button>
           </div>

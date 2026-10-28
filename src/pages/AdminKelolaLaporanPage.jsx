@@ -8,7 +8,18 @@ import {
   completeReportWithActuals,
 } from '../lib/reports.js';
 import { damageTypeDisplayLabel, severityDisplayLabel } from '../ai/hazardScore.js';
-import { estimateMaterialsAndCost, formatMaterialItems } from '../ai/materialEstimate.js';
+import {
+  suggestEstimate,
+  formatMaterialItems,
+  validItems,
+  totalItems,
+  REPAIR_METHODS,
+} from '../ai/materialEstimate.js';
+import {
+  MaterialEditor,
+  MeasuredEstimate,
+  usePriceCatalog,
+} from '../components/MaterialEditor.jsx';
 import { findKecamatan, getKecamatanNames } from '../lib/kecamatanBoundaries.js';
 import { prepareUploadPhoto } from '../lib/imageUpload.js';
 import ZoomableImage from '../components/ZoomableImage.jsx';
@@ -118,8 +129,8 @@ export default function AdminKelolaLaporanPage() {
   async function handleAccept(report) {
     setBusyId(report.id);
     try {
-      await acceptReport(report.id);
-      patchLocal(report.id, { status: 'accepted' });
+      const saved = await acceptReport(report.id);
+      patchLocal(report.id, { status: 'accepted', accepted_at: saved.accepted_at });
     } catch (err) {
       alert('Gagal menerima laporan: ' + err.message);
     } finally {
@@ -130,11 +141,11 @@ export default function AdminKelolaLaporanPage() {
   async function handleReject(reportId, reason) {
     setBusyId(reportId);
     try {
-      await rejectReport(reportId, reason);
+      const saved = await rejectReport(reportId, reason);
       patchLocal(reportId, {
         status: 'rejected',
         rejection_reason: reason,
-        rejected_at: new Date().toISOString(),
+        rejected_at: saved.rejected_at,
       });
       setRejectTarget(null);
     } catch (err) {
@@ -144,13 +155,24 @@ export default function AdminKelolaLaporanPage() {
     }
   }
 
-  async function handleStartProgress(reportId, { estimatedDate, materials, materialsJson, cost }) {
+  async function handleStartProgress(
+    reportId,
+    { estimatedDate, materials, materialsJson, cost, details }
+  ) {
     setBusyId(reportId);
     try {
-      await startProgress(reportId, { estimatedDate, materials, materialsJson, cost });
+      const saved = await startProgress(reportId, {
+        estimatedDate,
+        materials,
+        materialsJson,
+        cost,
+        details,
+      });
       patchLocal(reportId, {
+        estimate_recorded_at: saved.estimate_recorded_at,
+        estimate_details: details,
         status: 'in_progress',
-        started_at: new Date().toISOString(),
+        started_at: saved.started_at,
         estimated_completion_date: estimatedDate,
         estimated_materials: materials,
         estimated_materials_json: materialsJson,
@@ -172,36 +194,29 @@ export default function AdminKelolaLaporanPage() {
       actualMaterials,
       actualMaterialsJson,
       actualCost,
-      fallbackEstimatedCost,
-      fallbackEstimatedMaterials,
-      fallbackEstimatedMaterialsJson,
+      actualCostVerified,
+      actualCostEvidence,
     }
   ) {
     setBusyId(reportId);
     try {
-      await completeReportWithActuals(reportId, {
+      const saved = await completeReportWithActuals(reportId, {
         file, // foto pertama (utama) — tetap dikirim agar kompatibel dengan kode lama
         files, // semua foto bukti (maks. 5)
         actualMaterials,
         actualMaterialsJson,
         actualCost,
-        fallbackEstimatedCost,
-        fallbackEstimatedMaterials,
-        fallbackEstimatedMaterialsJson,
+        actualCostVerified,
+        actualCostEvidence,
       });
       patchLocal(reportId, {
         status: 'resolved',
-        resolved_at: new Date().toISOString(),
+        resolved_at: saved.resolved_at,
         actual_materials: actualMaterials,
         actual_materials_json: actualMaterialsJson,
         actual_cost: actualCost,
-        ...(fallbackEstimatedCost != null
-          ? {
-              estimated_cost: fallbackEstimatedCost,
-              estimated_materials: fallbackEstimatedMaterials,
-              estimated_materials_json: fallbackEstimatedMaterialsJson,
-            }
-          : {}),
+        actual_cost_verified: actualCostVerified,
+        actual_cost_evidence: actualCostEvidence,
       });
       setCompleteTarget(null);
     } catch (err) {
@@ -270,7 +285,7 @@ export default function AdminKelolaLaporanPage() {
 
       {!loading && (
         <div style={panelCard}>
-                    <div className="report-toolbar" style={toolbarRow}>
+          <div className="report-toolbar" style={toolbarRow}>
             <input
               type="text"
               className="rf-search"
@@ -348,7 +363,10 @@ export default function AdminKelolaLaporanPage() {
           </div>
 
           <div className="report-table-wrap">
-            <table className="report-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <table
+              className="report-table"
+              style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}
+            >
               <thead>
                 <tr style={{ background: '#A61C24', color: '#fff', textAlign: 'left' }}>
                   <th style={th}>Kode</th>
@@ -358,7 +376,9 @@ export default function AdminKelolaLaporanPage() {
                   <th style={th}>Foto</th>
                   <th style={th}>Kondisi</th>
                   <th style={th}>Status</th>
-                  <th className="col-sticky-head" style={th}>Aksi</th>
+                  <th className="col-sticky-head" style={th}>
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -432,59 +452,59 @@ export default function AdminKelolaLaporanPage() {
 
       {createPortal(
         <>
-      {detailReport &&
-        createPortal(
-          <ReportDetailModal report={detailReport} onClose={() => setDetailReport(null)} />,
-          document.body
-        )}
-      {rejectTarget &&
-        createPortal(
-          <RejectModal
-            report={rejectTarget}
-            onCancel={() => setRejectTarget(null)}
-            onConfirm={(reason) => handleReject(rejectTarget.id, reason)}
-          />,
-          document.body
-        )}
+          {detailReport &&
+            createPortal(
+              <ReportDetailModal report={detailReport} onClose={() => setDetailReport(null)} />,
+              document.body
+            )}
+          {rejectTarget &&
+            createPortal(
+              <RejectModal
+                report={rejectTarget}
+                onCancel={() => setRejectTarget(null)}
+                onConfirm={(reason) => handleReject(rejectTarget.id, reason)}
+              />,
+              document.body
+            )}
 
-      {progressTarget &&
-        createPortal(
-          <ProgressModal
-            report={progressTarget}
-            onCancel={() => setProgressTarget(null)}
-            onConfirm={(payload) => handleStartProgress(progressTarget.id, payload)}
-          />,
-          document.body
-        )}
+          {progressTarget &&
+            createPortal(
+              <ProgressModal
+                report={progressTarget}
+                onCancel={() => setProgressTarget(null)}
+                onConfirm={(payload) => handleStartProgress(progressTarget.id, payload)}
+              />,
+              document.body
+            )}
 
-      {completeTarget &&
-        createPortal(
-          <CompleteModal
-            report={completeTarget}
-            onCancel={() => setCompleteTarget(null)}
-            onConfirm={(payload) => handleComplete(completeTarget.id, payload)}
-          />,
-          document.body
-        )}
+          {completeTarget &&
+            createPortal(
+              <CompleteModal
+                report={completeTarget}
+                onCancel={() => setCompleteTarget(null)}
+                onConfirm={(payload) => handleComplete(completeTarget.id, payload)}
+              />,
+              document.body
+            )}
 
-      {zoomImage && (
-        <div style={zoomOverlay} onClick={() => setZoomImage(null)}>
-          <img
-            src={zoomImage}
-            alt="Foto laporan diperbesar"
-            style={zoomImg}
-            onClick={(e) => e.stopPropagation()}
-          />
-          <button
-            type="button"
-            style={zoomCloseBtn}
-            onClick={() => setZoomImage(null)}
-            aria-label="Tutup"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+          {zoomImage && (
+            <div style={zoomOverlay} onClick={() => setZoomImage(null)}>
+              <img
+                src={zoomImage}
+                alt="Foto laporan diperbesar"
+                style={zoomImg}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <button
+                type="button"
+                style={zoomCloseBtn}
+                onClick={() => setZoomImage(null)}
+                aria-label="Tutup"
+              >
+                ✕
+              </button>
+            </div>
+          )}
         </>,
         document.body
       )}
@@ -699,7 +719,6 @@ function CameraCapture({ count, max, onCapture, onClose, onUnavailable }) {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facing]);
 
   function capture() {
@@ -798,14 +817,18 @@ function ProofPhotoPicker({ photos, setPhotos, onBusyChange }) {
     const images = incoming.filter((f) => f.type.startsWith('image/'));
     const room = MAX_PROOF_PHOTOS - photosRef.current.length;
     if (room <= 0) {
-      setPhotoError(`Maksimal ${MAX_PROOF_PHOTOS} foto. Hapus salah satu untuk menambah foto baru.`);
+      setPhotoError(
+        `Maksimal ${MAX_PROOF_PHOTOS} foto. Hapus salah satu untuk menambah foto baru.`
+      );
       return;
     }
     const accepted = images.slice(0, room);
     if (images.length < incoming.length) {
       setPhotoError('Hanya file gambar (JPG, PNG, WebP) yang bisa diunggah.');
     } else if (images.length > room) {
-      setPhotoError(`Hanya ${room} foto yang ditambahkan, batas maksimal ${MAX_PROOF_PHOTOS} foto.`);
+      setPhotoError(
+        `Hanya ${room} foto yang ditambahkan, batas maksimal ${MAX_PROOF_PHOTOS} foto.`
+      );
     }
 
     setPreparing(true);
@@ -988,120 +1011,91 @@ function UploadSvg() {
 }
 
 function CompleteModal({ report, onCancel, onConfirm }) {
-  const initialItems = report.estimated_materials_json?.length
-    ? report.estimated_materials_json
-    : [];
-  const [items, setItems] = useState(initialItems);
+  const [items, setItems] = useState(() =>
+    (report.estimated_materials_json ?? []).map((i) => ({
+      ...i,
+      category: i.category ?? 'other',
+      quantity: '',
+      unitPrice: '',
+      lineTotal: 0,
+      price_origin: 'actual',
+      reference_snapshot: undefined,
+      calculation: undefined,
+    }))
+  );
   const [photos, setPhotos] = useState([]);
   const [photoBusy, setPhotoBusy] = useState(false);
-  const [fallbackEstimate, setFallbackEstimate] = useState(null);
-
-  useEffect(() => {
-    if (initialItems.length === 0) {
-      estimateMaterialsAndCost({
-        damageType: report.damage_type,
-        hazardScore: report.hazard_score,
-        areaPct: report.bbox_area_pct,
-      }).then((result) => {
-        setItems(result.items);
-        if (report.estimated_cost == null) {
-          setFallbackEstimate(result);
-        }
-      });
-    }
-  }, []);
-
-  function updateItem(index, field, value) {
-    setItems((prev) =>
-      prev.map((item, i) => {
-        if (i !== index) return item;
-        const updated = { ...item, [field]: Number(value) || 0 };
-        updated.lineTotal = updated.quantity * updated.unitPrice;
-        return updated;
-      })
-    );
-  }
-
-  const total = items.reduce((s, i) => s + i.lineTotal, 0);
-
+  const [verified, setVerified] = useState(false);
+  const [evidence, setEvidence] = useState('');
+  const [saving, setSaving] = useState(false);
   return (
-    <div style={overlay} onClick={onCancel}>
-      <div style={modal} onClick={(e) => e.stopPropagation()}>
+    <div style={overlay} onClick={saving ? undefined : onCancel}>
+      <div
+        style={modal}
+        className="pricing-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Tandai Selesai"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h3 style={{ marginTop: 0 }}>Tandai Selesai</h3>
-        <p style={{ fontSize: 13, color: '#868e96' }}>
-          Sesuaikan jumlah & harga jadi material yang <strong>benar-benar dipakai</strong> di
-          lapangan. Data ini dipakai untuk melatih estimasi otomatis agar makin akurat ke depannya.
+        <p>
+          Catat jumlah dan harga yang benar-benar dibayar dari bukti pengerjaan. Estimasi awal tetap
+          tersimpan. Harga dan jumlah aktual tidak otomatis disalin dari estimasi. Setelah
+          diselesaikan, status dan realisasi dikunci. Koreksi atau pembukaan ulang tidak tersedia
+          melalui alur ini.
         </p>
-
-        {items.length > 0 && (
-          <div style={{ marginBottom: 14 }}>
-            <div style={materialHeaderRow}>
-              <span style={{ flex: 2 }}>Material</span>
-              <span style={{ flex: 1, textAlign: 'center' }}>Jumlah</span>
-              <span style={{ flex: 1 }}>Satuan</span>
-              <span style={{ flex: 1.4, textAlign: 'right' }}>Harga satuan</span>
-              <span style={{ flex: 1.4, textAlign: 'right' }}>Subtotal</span>
-            </div>
-            {items.map((item, i) => (
-              <div key={item.name} style={materialRow}>
-                <span style={{ flex: 1.5, fontSize: 13 }}>{item.name}</span>
-                <input
-                  type="number"
-                  value={item.quantity}
-                  onChange={(e) => updateItem(i, 'quantity', e.target.value)}
-                  style={{ ...smallInput, flex: 0.8, textAlign: 'center' }}
-                />
-                <span style={{ flex: 0.8, fontSize: 12, color: '#868e96' }}>{item.unit}</span>
-                <div style={{ flex: 1.8, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ fontSize: 12, color: '#868e96', flexShrink: 0 }}>Rp</span>
-                  <input
-                    type="number"
-                    value={item.unitPrice}
-                    onChange={(e) => updateItem(i, 'unitPrice', e.target.value)}
-                    style={{ ...smallInput, textAlign: 'right' }}
-                  />
-                </div>
-                <span style={{ flex: 1.6, fontSize: 13, fontWeight: 600, textAlign: 'right' }}>
-                  Rp{item.lineTotal.toLocaleString('id-ID')}
-                </span>
-              </div>
-            ))}
-            <div style={totalRow}>
-              <span>Total Biaya Aktual</span>
-              <span>Rp{total.toLocaleString('id-ID')}</span>
-            </div>
-            <p style={{ fontSize: 11, color: '#adb5bd', marginTop: 6 }}>
-              Kalau ada biaya tenaga kerja/alat, tambahkan sebagai baris "material" tersendiri di
-              atas.
-            </p>
-          </div>
-        )}
-
+        <MaterialEditor items={items} setItems={setItems} />
+        <label style={fieldLabel}>
+          Referensi bukti realisasi (nomor nota / berita acara)
+          <input
+            style={inputStyle}
+            value={evidence}
+            onChange={(e) => setEvidence(e.target.value)}
+          />
+        </label>
+        <label className="pricing-check">
+          <input
+            type="checkbox"
+            checked={verified}
+            onChange={(e) => setVerified(e.target.checked)}
+          />
+          Biaya di atas telah diperiksa terhadap bukti realisasi independen, dengan cakupan biaya
+          dan pajak yang sama dengan estimasi.
+        </label>
         <ProofPhotoPicker photos={photos} setPhotos={setPhotos} onBusyChange={setPhotoBusy} />
-
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-          <button style={secondaryBtn} onClick={onCancel}>
+          <button style={secondaryBtn} disabled={saving} onClick={onCancel}>
             Batal
           </button>
           <button
-            style={{ ...actionBtn, background: '#2f9e44' }}
-            disabled={photos.length === 0 || photoBusy || items.length === 0}
-            onClick={() =>
-              onConfirm({
-                file: photos[0].file,
-                files: photos.map((p) => p.file),
-                actualMaterials: formatMaterialItems(items),
-                actualMaterialsJson: items,
-                actualCost: total,
-                fallbackEstimatedCost: fallbackEstimate?.totalCost ?? null,
-                fallbackEstimatedMaterials: fallbackEstimate
-                  ? formatMaterialItems(fallbackEstimate.items)
-                  : null,
-                fallbackEstimatedMaterialsJson: fallbackEstimate?.items ?? null,
-              })
+            style={{ ...actionBtn, background: '#A61C24' }}
+            disabled={
+              saving ||
+              !photos.length ||
+              photoBusy ||
+              !validItems(items) ||
+              !verified ||
+              !evidence.trim()
             }
+            onClick={async () => {
+              setSaving(true);
+              try {
+                await onConfirm({
+                  file: photos[0].file,
+                  files: photos.map((p) => p.file),
+                  actualMaterials: formatMaterialItems(items),
+                  actualMaterialsJson: items,
+                  actualCost: totalItems(items),
+                  actualCostVerified: verified,
+                  actualCostEvidence: evidence.trim(),
+                });
+              } finally {
+                setSaving(false);
+              }
+            }}
           >
-            Simpan & Selesaikan
+            {saving ? 'Menyimpan…' : 'Simpan & Selesaikan'}
           </button>
         </div>
       </div>
@@ -1110,97 +1104,47 @@ function CompleteModal({ report, onCancel, onConfirm }) {
 }
 
 function ProgressModal({ report, onCancel, onConfirm }) {
-  const [estimate, setEstimate] = useState(null);
-  const [items, setItems] = useState([]);
+  const [suggestion] = useState(() => suggestEstimate(report.damage_type));
+  const [items, setItems] = useState(suggestion.items);
+  const [details, setDetails] = useState({
+    method: suggestion.method,
+    basis: REPAIR_METHODS[suggestion.method].basis,
+    mode: 'field_verified',
+  });
   const [estimatedDate, setEstimatedDate] = useState('');
-
-  useEffect(() => {
-    estimateMaterialsAndCost({
-      damageType: report.damage_type,
-      hazardScore: report.hazard_score,
-      areaPct: report.bbox_area_pct,
-    }).then((result) => {
-      setEstimate(result);
-      setItems(result.items);
-    });
-  }, [report.id]);
-
-  function updateItem(index, field, value) {
-    setItems((prev) =>
-      prev.map((item, i) => {
-        if (i !== index) return item;
-        const updated = { ...item, [field]: Number(value) || 0 };
-        updated.lineTotal = updated.quantity * updated.unitPrice;
-        return updated;
-      })
-    );
-  }
-
-  const total = items.reduce((s, i) => s + i.lineTotal, 0);
-
+  const [saving, setSaving] = useState(false);
+  const { references, catalogError } = usePriceCatalog();
+  const year = new Date().getFullYear();
   return (
-    <div style={overlay} onClick={onCancel}>
-      <div style={modal} onClick={(e) => e.stopPropagation()}>
+    <div style={overlay} onClick={saving ? undefined : onCancel}>
+      <div
+        style={modal}
+        className="pricing-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Mulai Pengerjaan"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h3 style={{ marginTop: 0 }}>Mulai Pengerjaan</h3>
-
-        {!estimate && <p style={{ fontSize: 13, color: '#868e96' }}>Menghitung estimasi…</p>}
-        {estimate && (
-          <div
-            style={{
-              ...aiNote,
-              background: estimate.isLearned ? '#E6F8EC' : '#FFF8E1',
-              color: estimate.isLearned ? '#1c8a4b' : '#8A6D00',
-              borderColor: estimate.isLearned ? '#b7e4c7' : '#F0D9A8',
-            }}
-          >
-            {estimate.isLearned ? '📈' : '⚙️'} {estimate.confidenceNote}
-          </div>
+        <p style={aiNote}>{suggestion.confidenceNote}</p>
+        {catalogError && (
+          <p role="alert">
+            {catalogError} Input harga manual tetap tersedia; harga tersebut bukan acuan resmi.
+          </p>
         )}
-
-        {items.length > 0 && (
-          <div style={{ marginBottom: 14 }}>
-            <div style={materialHeaderRow}>
-              <span style={{ flex: 1.5 }}>Material</span>
-              <span style={{ flex: 0.8, textAlign: 'center' }}>Jumlah</span>
-              <span style={{ flex: 0.8 }}>Satuan</span>
-              <span style={{ flex: 1.8, textAlign: 'right' }}>Harga satuan</span>
-              <span style={{ flex: 1.6, textAlign: 'right' }}>Subtotal</span>
-            </div>
-            {items.map((item, i) => (
-              <div key={item.name} style={materialRow}>
-                <span style={{ flex: 2, fontSize: 13 }}>{item.name}</span>
-                <input
-                  type="number"
-                  value={item.quantity}
-                  onChange={(e) => updateItem(i, 'quantity', e.target.value)}
-                  style={{ ...smallInput, flex: 1, textAlign: 'center' }}
-                />
-                <span style={{ flex: 1, fontSize: 12, color: '#868e96' }}>{item.unit}</span>
-                <div style={{ flex: 1.4, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ fontSize: 12, color: '#868e96' }}>Rp</span>
-                  <input
-                    type="number"
-                    value={item.unitPrice}
-                    onChange={(e) => updateItem(i, 'unitPrice', e.target.value)}
-                    style={{ ...smallInput, textAlign: 'right' }}
-                  />
-                </div>
-                <span style={{ flex: 1.4, fontSize: 13, fontWeight: 600, textAlign: 'right' }}>
-                  Rp{item.lineTotal.toLocaleString('id-ID')}
-                </span>
-              </div>
-            ))}
-            <div style={totalRow}>
-              <span>Total Estimasi</span>
-              <span>Rp{total.toLocaleString('id-ID')}</span>
-            </div>
-            <p style={{ fontSize: 11, color: '#adb5bd', marginTop: 6 }}>
-              *Harga material perkiraan pasar umum, belum termasuk tenaga kerja &amp; mobilisasi
-              alat.
-            </p>
-          </div>
-        )}
-
+        <MeasuredEstimate
+          details={details}
+          setDetails={setDetails}
+          items={items}
+          setItems={setItems}
+        />
+        <MaterialEditor
+          items={items}
+          setItems={setItems}
+          references={references}
+          year={year}
+          coefficients
+        />
         <label style={fieldLabel}>
           Estimasi tanggal selesai
           <input
@@ -1211,24 +1155,39 @@ function ProgressModal({ report, onCancel, onConfirm }) {
             style={inputStyle}
           />
         </label>
-
+        <p className="pricing-note">
+          Jika jumlah dikoreksi manual, jelaskan dasar ukurannya pada catatan metode. Estimasi
+          dikunci saat pengerjaan dimulai.
+        </p>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-          <button style={secondaryBtn} onClick={onCancel}>
+          <button style={secondaryBtn} disabled={saving} onClick={onCancel}>
             Batal
           </button>
           <button
-            style={{ ...actionBtn, background: '#1c5dcf' }}
-            disabled={!estimatedDate || items.length === 0}
-            onClick={() =>
-              onConfirm({
-                estimatedDate,
-                materials: formatMaterialItems(items),
-                materialsJson: items,
-                cost: total,
-              })
+            style={{ ...actionBtn, background: '#A61C24' }}
+            disabled={
+              saving ||
+              !estimatedDate ||
+              !validItems(items) ||
+              !details.field_verified ||
+              (!items.every((i) => i.calculation) && !details.notes?.trim())
             }
+            onClick={async () => {
+              setSaving(true);
+              try {
+                await onConfirm({
+                  estimatedDate,
+                  materials: formatMaterialItems(items),
+                  materialsJson: items,
+                  cost: totalItems(items),
+                  details: { ...details, effective_year: year },
+                });
+              } finally {
+                setSaving(false);
+              }
+            }}
           >
-            Konfirmasi & Mulai Kerjakan
+            {saving ? 'Menyimpan…' : 'Konfirmasi & Mulai Kerjakan'}
           </button>
         </div>
       </div>
@@ -1445,42 +1404,6 @@ const inputStyle = {
 };
 
 const textareaStyle = { ...inputStyle, resize: 'vertical' };
-
-const materialHeaderRow = {
-  display: 'flex',
-  gap: 8,
-  fontSize: 11.5,
-  fontWeight: 700,
-  color: '#868e96',
-  padding: '0 4px 6px',
-  borderBottom: '1px solid #eee',
-};
-
-const materialRow = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  padding: '8px 4px',
-  borderBottom: '1px solid #f5f5f5',
-};
-
-const smallInput = {
-  padding: '6px 8px',
-  borderRadius: 6,
-  border: '1px solid #dee2e6',
-  fontSize: 13,
-  width: '100%',
-  minWidth: 64,
-  boxSizing: 'border-box',
-};
-const totalRow = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  fontSize: 14,
-  fontWeight: 800,
-  padding: '10px 4px 0',
-  marginTop: 4,
-};
 
 /* ---------- Foto bukti ---------- */
 const pickBtn = {

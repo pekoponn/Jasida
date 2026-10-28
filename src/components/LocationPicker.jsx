@@ -106,14 +106,15 @@ export default function LocationPicker({
       }
     });
 
-    setTimeout(() => map.invalidateSize(), 100);
+    const resizeTimer = setTimeout(() => map.invalidateSize(), 100);
 
     return () => {
+      clearTimeout(resizeTimer);
+      requestRef.current += 1;
       map.remove();
       mapInstanceRef.current = null;
       markerRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testingMode]);
 
   return (
@@ -123,8 +124,8 @@ export default function LocationPicker({
           Pilih Lokasi Kerusakan
         </h3>
         <p style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
-          {intro} Zoom lalu ketuk peta tepat di titik kerusakan jalan
-          berada. Gunakan tombol layer di pojok peta untuk beralih ke tampilan satelit.
+          {intro} Zoom lalu ketuk peta tepat di titik kerusakan jalan berada. Gunakan tombol layer
+          di pojok peta untuk beralih ke tampilan satelit.
           {!testingMode && ' Titik harus berada di dalam wilayah Kabupaten Sidoarjo.'}
         </p>
         <div ref={mapContainerRef} style={mapBox} />
@@ -203,8 +204,8 @@ function RoadMessage({ road, onSnap }) {
   if (road.state === 'none') {
     return (
       <p style={warnBox}>
-        ⚠ Tidak ada jalan dalam radius 60 m dari titik ini. Laporan akan diperiksa admin lebih
-        dulu. Coba geser titik ke jalan yang benar.
+        ⚠ Tidak ada jalan dalam radius 60 m dari titik ini. Laporan akan diperiksa admin lebih dulu.
+        Coba geser titik ke jalan yang benar.
       </p>
     );
   }

@@ -165,12 +165,19 @@
       (await convertToWebp(converted)) === converted,
       'Compatibility helper recompressed a prepared photo'
     );
-    const materials = [{ name: 'Test material', quantity: 2 }];
-    await completeReportWithActuals('test-report', {
-      file: png,
+    const materials = [
+      { name: 'Test material', quantity: 2, unit: 'kg', unitPrice: 5, category: 'material' },
+    ];
+    const actuals = {
       actualMaterials: 'Test',
       actualMaterialsJson: materials,
       actualCost: 10,
+      actualCostVerified: true,
+      actualCostEvidence: 'Nota test',
+    };
+    await completeReportWithActuals('test-report', {
+      file: png,
+      ...actuals,
     });
     assert(
       updates.at(-1).status === 'resolved' && updates.at(-1).actual_materials_json === materials,
@@ -180,6 +187,7 @@
     await rejects(
       () =>
         completeReportWithActuals('test-report', {
+          ...actuals,
           file: new File(['bad'], 'bad.png', { type: 'image/png' }),
         }),
       'Invalid resolution photo accepted'
@@ -189,7 +197,7 @@
       upload: async () => ({ error: new Error('Simulated storage failure') }),
     });
     await rejects(
-      () => completeReportWithActuals('test-report', { file: converted }),
+      () => completeReportWithActuals('test-report', { ...actuals, file: converted }),
       'Failed upload marked report complete'
     );
     assert(updates.length === updateCount, 'Upload failure changed report status');

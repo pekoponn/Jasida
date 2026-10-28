@@ -537,8 +537,7 @@ export default function DashboardPage() {
 
         {/* 3-Column Grid Layout */}
         <div style={gridStyle}>
-          {loading &&
-            Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`skel-${i}`} />)}
+          {loading && Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`skel-${i}`} />)}
 
           {!loading &&
             pagedReports.map((r, i) => (
@@ -887,7 +886,11 @@ function PhotoGallery({ before, after, severity, score }) {
 
       {/* Kiri bawah: label jenis foto khusus */}
       {typeLabel && (
-        <span key={current?.url} className="rw-photo-badge" style={{ ...labelChip, left: 10, bottom: 10 }}>
+        <span
+          key={current?.url}
+          className="rw-photo-badge"
+          style={{ ...labelChip, left: 10, bottom: 10 }}
+        >
           {typeLabel}
         </span>
       )}
@@ -1106,7 +1109,9 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported, index = 0 
         </div>
 
         {/* Status */}
-        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div
+          style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}
+        >
           <span style={{ ...statusBadge, backgroundColor: statusInfo.bg, color: statusInfo.color }}>
             <span
               className={`rw-status-dot${report.status === 'in_progress' ? ' pulse' : ''}`}
@@ -1129,9 +1134,7 @@ function ReportCard({ report, isOwner, alreadySupported, onSupported, index = 0 
 
         <div style={noteBox}>
           {noteText ? (
-            <p style={{ fontSize: 12, color: '#495057', margin: 0, lineHeight: 1.4 }}>
-              {noteText}
-            </p>
+            <p style={{ fontSize: 12, color: '#495057', margin: 0, lineHeight: 1.4 }}>{noteText}</p>
           ) : (
             <p style={{ fontSize: 12, color: '#adb5bd', margin: 0, fontStyle: 'italic' }}>
               Tidak ada catatan tambahan.

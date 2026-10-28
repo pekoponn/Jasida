@@ -125,14 +125,18 @@ function ReviewCard({ item, busy, onReview }) {
             <span style={avatarFallback}>{(item.profile?.username?.[0] ?? '?').toUpperCase()}</span>
           )}
           <div>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>{item.profile?.username ?? 'Anonim'}</div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>
+              {item.profile?.username ?? 'Anonim'}
+            </div>
             <div style={{ fontSize: 12, color: '#868e96' }}>
               Melaporkan pada {new Date(item.created_at).toLocaleString('id-ID')}
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <span style={infoPill}>{SOURCE_LABEL[item.location_source] ?? 'Sumber tidak diketahui'}</span>
+          <span style={infoPill}>
+            {SOURCE_LABEL[item.location_source] ?? 'Sumber tidak diketahui'}
+          </span>
           <span style={held ? heldPill : visiblePill}>
             {held ? 'Ditahan' : 'Sudah tampil publik'}
           </span>
@@ -185,7 +189,9 @@ function ReviewCard({ item, busy, onReview }) {
           {item.contextPhoto ? (
             <ZoomableImage src={item.contextPhoto.url} alt="Foto konteks" style={photoStyle} />
           ) : (
-            <div style={{ ...photoStyle, ...placeholderBox }}>Pelapor tidak menyertakan foto konteks.</div>
+            <div style={{ ...photoStyle, ...placeholderBox }}>
+              Pelapor tidak menyertakan foto konteks.
+            </div>
           )}
           <div style={{ marginTop: 8, fontSize: 12.5, color: '#495057' }}>
             {item.damage_type && <div>{damageTypeDisplayLabel(item.damage_type)}</div>}
@@ -281,7 +287,9 @@ function LocationMap({ lat, lng }) {
     };
   }, [lat, lng]);
 
-  return <div ref={ref} style={{ width: '100%', height: 260, borderRadius: 10, overflow: 'hidden' }} />;
+  return (
+    <div ref={ref} style={{ width: '100%', height: 260, borderRadius: 10, overflow: 'hidden' }} />
+  );
 }
 
 const emptyState = {

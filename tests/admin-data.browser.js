@@ -7,7 +7,9 @@
   const assert = (value, message) => {
     if (!value) throw new Error(message);
   };
-  const materials = [{ name: 'Test material', quantity: 2 }];
+  const materials = [
+    { name: 'Test material', quantity: 2, unit: 'kg', unitPrice: 5, category: 'material' },
+  ];
   let rejectDetails = false;
   let written;
   try {
@@ -44,6 +46,7 @@
       if (table === 'reports')
         return {
           select: () => ({
+            eq: async () => ({ data: [], error: null }),
             in: async () => ({
               data: [
                 {
@@ -77,6 +80,7 @@
       materials: 'Test',
       materialsJson: materials,
       cost: 10,
+      details: { field_verified: true, notes: 'Field measurement' },
     });
     assert(
       written.status === 'in_progress' && written.estimated_materials_json === materials,
