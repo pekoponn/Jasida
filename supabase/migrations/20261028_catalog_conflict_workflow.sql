@@ -75,8 +75,8 @@ returns boolean language sql immutable set search_path = '' as $$
       = pg_catalog.lower(pg_catalog.regexp_replace(pg_catalog.btrim(p_b->>'specification'),'\s+',' ','g'))
     and pg_catalog.lower(pg_catalog.btrim(p_a->>'unit')) = pg_catalog.lower(pg_catalog.btrim(p_b->>'unit'))
     and p_a->>'source_url' = p_b->>'source_url'
-    and pg_catalog.lower(pg_catalog.btrim(p_a->>'source_name'))
-      = pg_catalog.lower(pg_catalog.btrim(p_b->>'source_name'))
+    and pg_catalog.lower(pg_catalog.regexp_replace(pg_catalog.btrim(p_a->>'source_name'),'\s+',' ','g'))
+      = pg_catalog.lower(pg_catalog.regexp_replace(pg_catalog.btrim(p_b->>'source_name'),'\s+',' ','g'))
 $$;
 revoke all on function public.jasida_price_fields(jsonb) from public,anon,authenticated,service_role;
 revoke all on function public.jasida_price_differences(jsonb,jsonb) from public,anon,authenticated,service_role;
@@ -202,6 +202,24 @@ begin
       if p_confirmed is distinct from true then
         raise exception 'Pemeriksaan sumber oleh admin harus dikonfirmasi';
       end if;
+      select exists (
+        select 1 from public.material_price_references r
+        where r.id<>p_target
+          and public.jasida_price_possible_duplicate(pg_catalog.to_jsonb(r),raw)
+      ) into has_similar;
+      if has_similar and pg_catalog.length(reason)<15 then
+        raise exception 'Kemungkinan duplikat material: % (%). Tinjau kedua kode dan isi alasan minimal 15 karakter.',
+          raw->>'material_name',raw->>'reference_code';
+      end if;
+      -- The audit insert and status update run in one transaction. Any audit
+      -- failure rolls back the entire verification.
+      insert into public.material_price_review_decisions(incoming_reference_code,
+        incoming_effective_year,compared_reference_code,compared_effective_year,reviewer_id,reason)
+      select raw->>'reference_code',(raw->>'effective_year')::integer,
+        r.reference_code,r.effective_year,actor,reason
+      from public.material_price_references r
+      where r.id<>p_target
+        and public.jasida_price_possible_duplicate(pg_catalog.to_jsonb(r),raw);
       update public.material_price_references set verification_status='verified',
         verified_at=pg_catalog.clock_timestamp() where id=p_target;
       return pg_catalog.jsonb_build_object('created',0,'unchanged',0,'verified',1,'edited',0);

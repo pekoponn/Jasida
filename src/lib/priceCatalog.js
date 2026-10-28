@@ -169,8 +169,11 @@ export async function editDraftPriceReference(row, targetId, options = {}) {
   return writeReferences(drafts, 'edit_draft', { ...options, targetId });
 }
 
-export async function verifyPriceReference(row, targetId, confirmed) {
+export async function verifyPriceReference(row, targetId, confirmed, options = {}) {
   if (!targetId || !confirmed) throw new Error('Konfirmasi pemeriksaan sumber sebelum verifikasi.');
   const drafts = preparePriceImport([row]);
-  return writeReferences(drafts, 'verify', { targetId, confirmed: true });
+  const possible = findPossibleDuplicates(drafts, options.references ?? [], targetId);
+  if (possible.length && (options.reviewReason ?? '').trim().length < 15)
+    throw new Error('Tinjau kemungkinan duplikat dan isi alasan minimal 15 karakter.');
+  return writeReferences(drafts, 'verify', { ...options, targetId, confirmed: true });
 }

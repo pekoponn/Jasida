@@ -222,7 +222,7 @@ test('editing a Draft stays Draft; verification is a separate confirmed action',
   await expect(page.getByText('Meninjau Draft', { exact: false })).toBeVisible();
   await page.getByLabel('Harga acuan (Rp)', { exact: true }).fill('2100');
   await page.getByRole('button', { name: 'Simpan perubahan Draft' }).click();
-  await expect(page.getByRole('status')).toContainText('Perubahan Draft disimpan');
+  await expect(page.getByText('Perubahan Draft disimpan.')).toBeVisible();
   expect(backend.priceReferences[0].reference_price).toBe(2100);
   expect(backend.priceReferences[0].verification_status).toBe('draft');
 });
@@ -301,10 +301,85 @@ test('JSON verification is ignored; duplicate import preserves existing verified
     .getByRole('checkbox', { name: 'Saya telah mencocokkan nominal', exact: false })
     .check();
   await page.getByRole('button', { name: 'Verifikasi referensi' }).click();
+  await expect(page.getByRole('alert')).toContainText('alasan minimal 15 karakter');
+  expect(
+    backend.writes.filter((w) => w.type === 'catalog-rpc' && w.data.p_mode === 'verify')
+  ).toHaveLength(0);
+  await page.getByLabel('Alasan kedua referensi berbeda').fill('Terlalu pendek');
+  await page.getByRole('button', { name: 'Verifikasi referensi' }).click();
+  await expect(page.getByRole('alert')).toContainText('alasan minimal 15 karakter');
+  await page
+    .getByLabel('Alasan kedua referensi berbeda')
+    .fill('Kode resmi berbeda untuk item uji yang sama.');
+  backend.catalogReviewFailure = true;
+  await page.getByRole('button', { name: 'Verifikasi referensi' }).click();
+  await expect(page.getByRole('alert')).toContainText('Audit unavailable');
+  expect(
+    backend.priceReferences.find((r) => r.reference_code === 'NEW-DRAFT').verification_status
+  ).toBe('draft');
+  expect(backend.catalogReviews).toHaveLength(0);
+  backend.catalogReviewFailure = false;
+  await page.getByRole('button', { name: 'Verifikasi referensi' }).click();
   await expect(page.getByText('Referensi berhasil diverifikasi oleh admin.')).toBeVisible();
   expect(
     backend.priceReferences.find((r) => r.reference_code === 'NEW-DRAFT').verification_status
   ).toBe('verified');
+  expect(backend.writes.at(-1).data.p_review_reason).toBe(
+    'Kode resmi berbeda untuk item uji yang sama.'
+  );
+  expect(backend.catalogReviews).toEqual([
+    {
+      incoming: 'NEW-DRAFT',
+      compared: 'TEST-ONLY',
+      reason: 'Kode resmi berbeda untuk item uji yang sama.',
+      statusBeforeAudit: 'draft',
+    },
+  ]);
+});
+
+test('verification without a similar reference needs no reason or audit', async ({
+  page,
+  backend,
+}) => {
+  backend.role = 'admin';
+  backend.priceReferences = [
+    { ...reference, id: 'draft-unique', verification_status: 'draft', verified_at: null },
+  ];
+  await login(page);
+  await page.goto('/admin/statistik');
+  await page.getByText('Katalog harga acuan resmi — input / import admin', { exact: true }).click();
+  await page.getByRole('button', { name: 'Tinjau & verifikasi' }).click();
+  await page
+    .getByRole('checkbox', { name: 'Saya telah mencocokkan nominal', exact: false })
+    .check();
+  await page.getByRole('button', { name: 'Verifikasi referensi' }).click();
+  await expect(page.getByText('Referensi berhasil diverifikasi oleh admin.')).toBeVisible();
+  expect(backend.priceReferences[0].verification_status).toBe('verified');
+  expect(backend.catalogReviews).toHaveLength(0);
+  expect(backend.writes.at(-1).data.p_review_reason).toBe('');
+});
+
+test('source name with repeated spaces still warns about a possible duplicate', async ({
+  page,
+  backend,
+}) => {
+  backend.role = 'admin';
+  backend.priceReferences = [reference];
+  await login(page);
+  await page.goto('/admin/statistik');
+  await page.getByText('Katalog harga acuan resmi — input / import admin', { exact: true }).click();
+  await page.getByLabel('Nama material', { exact: true }).fill(reference.material_name);
+  await page.getByLabel('Spesifikasi', { exact: true }).fill(reference.specification);
+  await page.locator('.pricing-source-details summary').click();
+  await page.getByLabel('Kode referensi').fill('DIFFERENT-CODE');
+  await page.getByLabel('Nama dokumen sumber dan halaman').fill('Fixture   harga   uji');
+  await page.getByLabel('URL sumber resmi').fill(reference.source_url);
+  await expect(
+    page.getByText('Kemungkinan duplikat material. Tinjau kedua referensi sebelum melanjutkan.')
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Simpan sebagai Draft' }).click();
+  await expect(page.getByRole('alert')).toContainText('alasan minimal 15 karakter');
+  expect(backend.writes.filter((w) => w.type === 'catalog-rpc')).toHaveLength(0);
 });
 test('start work saves independently entered estimate; completion never overwrites estimate', async ({
   page,

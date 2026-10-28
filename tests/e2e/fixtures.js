@@ -31,6 +31,8 @@ export const test = base.extend({
       priceReferences: [],
       failCatalog: false,
       catalogSaveFailure: false,
+      catalogReviewFailure: false,
+      catalogReviews: [],
       username: 'Juri',
       writes: [],
       reports: [],
@@ -203,6 +205,34 @@ export const test = base.extend({
             return json({ message: 'Draft tidak ditemukan' }, 409);
           if (args.p_mode === 'verify') {
             if (!args.p_confirmed) return json({ message: 'Konfirmasi wajib' }, 409);
+            const normalize = (value) =>
+              String(value ?? '')
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, ' ');
+            const incoming = args.p_rows[0];
+            const similar = state.priceReferences.filter(
+              (r) =>
+                r.id !== args.p_target &&
+                r.reference_code !== incoming.reference_code &&
+                r.effective_year === incoming.effective_year &&
+                normalize(r.material_name) === normalize(incoming.material_name) &&
+                normalize(r.specification) === normalize(incoming.specification) &&
+                normalize(r.unit) === normalize(incoming.unit) &&
+                normalize(r.source_name) === normalize(incoming.source_name) &&
+                r.source_url === incoming.source_url
+            );
+            if (similar.length && (args.p_review_reason ?? '').trim().length < 15)
+              return json({ message: 'Kemungkinan duplikat: alasan minimal 15 karakter' }, 409);
+            if (similar.length && state.catalogReviewFailure)
+              return json({ message: 'Audit unavailable' }, 500);
+            for (const r of similar)
+              state.catalogReviews.push({
+                incoming: incoming.reference_code,
+                compared: r.reference_code,
+                reason: args.p_review_reason,
+                statusBeforeAudit: previous.verification_status,
+              });
             previous.verification_status = 'verified';
             previous.verified_at = '2026-10-28T00:00:00Z';
             result.verified = 1;

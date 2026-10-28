@@ -64,6 +64,14 @@ const rpc = async (rows, mode = 'create', target = null, confirmed = false, reas
 const get = async () =>
   (await db.query('select * from public.material_price_references order by reference_code')).rows;
 const deny = async (fn, re) => assert.rejects(fn, re);
+const reviewCountAsOwner = async () => {
+  await db.exec('reset role');
+  const count = (
+    await db.query('select count(*)::int as total from public.material_price_review_decisions')
+  ).rows[0].total;
+  await db.exec(`set role authenticated; set test.uid='${admin}';`);
+  return count;
+};
 await db.exec("set role anon; set test.uid='';");
 await deny(() => rpc([row]), /permission denied/);
 await db.exec(`reset role; set role authenticated; set test.uid='${user}';`);
@@ -98,6 +106,7 @@ for (const patch of [
 }
 console.log('PASS identical no-op; price, specification, unit, URL, tax conflicts rejected');
 await deny(() => rpc([row], 'verify', first.id), /dikonfirmasi/);
+assert.equal(await reviewCountAsOwner(), 0);
 assert.deepEqual(await rpc([row], 'verify', first.id, true), {
   created: 0,
   unchanged: 0,
@@ -107,6 +116,7 @@ assert.deepEqual(await rpc([row], 'verify', first.id, true), {
 saved = await get();
 assert.equal(saved[0].verification_status, 'verified');
 assert.ok(saved[0].verified_at);
+assert.equal(await reviewCountAsOwner(), 0);
 assert.deepEqual(await rpc([row], 'verify', first.id, true), {
   created: 0,
   unchanged: 1,
@@ -170,6 +180,65 @@ assert.deepEqual(
 assert.equal((await get()).find((r) => r.id === draft.id).verification_status, 'draft');
 assert.equal(Number((await get()).find((r) => r.id === draft.id).reference_price), 350000);
 console.log('PASS draft edit cannot collide with Verified identity and remains Draft');
+const editedDraft = { ...another, reference_price: 350000 };
+await deny(() => rpc([editedDraft], 'verify', draft.id, true), /Kemungkinan duplikat/);
+await deny(() => rpc([editedDraft], 'verify', draft.id, true, 'pendek'), /Kemungkinan duplikat/);
+assert.equal((await get()).find((r) => r.id === draft.id).verification_status, 'draft');
+// Verification must use the current edited metadata, then audit every compared pair.
+const reviewCount = await reviewCountAsOwner();
+assert.deepEqual(await rpc([editedDraft], 'verify', draft.id, true, reason), {
+  created: 0,
+  unchanged: 0,
+  verified: 1,
+  edited: 0,
+});
+await db.exec('reset role');
+const verifiedReviews = (
+  await db.query('select * from public.material_price_review_decisions order by id')
+).rows;
+assert.equal(verifiedReviews.length, reviewCount + 1);
+assert.deepEqual(
+  [verifiedReviews.at(-1).incoming_reference_code, verifiedReviews.at(-1).compared_reference_code],
+  ['ABC-002', 'ABC-003']
+);
+assert.equal(verifiedReviews.at(-1).reason, reason);
+await db.exec(`
+create function public.reject_price_review() returns trigger language plpgsql as $$
+begin
+  if (select verification_status from public.material_price_references
+      where reference_code=new.incoming_reference_code) <> 'draft' then
+    raise exception 'Audit attempted after verification';
+  end if;
+  raise exception 'Audit unavailable';
+end $$;
+create trigger reject_price_review before insert on public.material_price_review_decisions
+  for each row execute function public.reject_price_review();
+set role authenticated; set test.uid='${admin}';
+`);
+const twinId = (await get()).find((r) => r.reference_code === 'ABC-003').id;
+await deny(() => rpc([twin], 'verify', twinId, true, reason), /Audit unavailable/);
+assert.equal(
+  (await get()).find((r) => r.reference_code === 'ABC-003').verification_status,
+  'draft'
+);
+await db.exec(
+  'reset role; drop trigger reject_price_review on public.material_price_review_decisions; drop function public.reject_price_review();'
+);
+assert.equal(
+  (await db.query('select count(*)::int as total from public.material_price_review_decisions'))
+    .rows[0].total,
+  reviewCount + 1
+);
+await db.exec(`set role authenticated; set test.uid='${admin}';`);
+const spacedSource = { ...row, reference_code: 'ABC-006', source_name: 'Dokumen   Uji' };
+await deny(() => rpc([spacedSource]), /Kemungkinan duplikat/);
+assert.equal(
+  (await get()).some((r) => r.reference_code === 'ABC-006'),
+  false
+);
+console.log(
+  'PASS verify audits compared pair before status update; audit failure rolls back; repeated source spaces match'
+);
 const parallel = { ...another, material_name: 'Agregat Kasar', reference_code: 'ABC-005' };
 const parallelResults = await Promise.all([rpc([parallel]), rpc([parallel])]);
 assert.deepEqual(parallelResults.map((r) => r.created).sort(), [0, 1]);

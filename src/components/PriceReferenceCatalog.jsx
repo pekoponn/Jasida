@@ -123,7 +123,7 @@ export default function PriceReferenceCatalog({ references, onReload }) {
       if (mode === 'create' || mode === 'import') checkReferenceConflicts(rows, references);
       if (mode === 'edit_draft') checkReferenceConflicts(rows, references, target?.id);
       const possible = findPossibleDuplicates(rows, references, target?.id);
-      if (mode !== 'verify' && possible.length && reviewReason.trim().length < 15) {
+      if (possible.length && reviewReason.trim().length < 15) {
         setError('Tinjau kemungkinan duplikat dan isi alasan minimal 15 karakter.');
         return;
       }
@@ -134,7 +134,8 @@ export default function PriceReferenceCatalog({ references, onReload }) {
       if (mode === 'create') result = await savePriceReferences(rows[0], options);
       if (mode === 'edit_draft')
         result = await editDraftPriceReference(rows[0], target.id, options);
-      if (mode === 'verify') result = await verifyPriceReference(rows[0], target.id, attested);
+      if (mode === 'verify')
+        result = await verifyPriceReference(rows[0], target.id, attested, options);
       await onReload();
       if (result.unchanged && !result.created && !result.edited && !result.verified)
         setMessage('Referensi sudah tersedia. Tidak ada perubahan yang dilakukan.');
