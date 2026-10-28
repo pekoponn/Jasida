@@ -7,6 +7,18 @@ dashboard.
 
 Website yang sedang aktif: [www.jasida.web.id](https://www.jasida.web.id/)
 
+## Pembaruan Terbaru — 28 Oktober 2026
+
+[PR #3](https://github.com/pekoponn/Jasida/pull/3) sudah digabungkan ke `main` melalui
+[commit `ea16960`](https://github.com/pekoponn/Jasida/commit/ea16960a676e8eef5313df63a59bef2edd690763).
+[Deployment Vercel](https://github.com/pekoponn/Jasida/actions/runs/40662688541) berhasil
+dan pembaruannya tersedia di [website Jasida](https://www.jasida.web.id/).
+
+- Form katalog harga material lebih sederhana untuk diisi admin.
+- Referensi baru dan hasil impor JSON selalu dimulai sebagai Draft.
+- Konflik referensi diperiksa, dan keputusan admin saat memverifikasi kemungkinan duplikat dicatat dalam audit.
+- Penulisan katalog dibatasi melalui RPC yang memeriksa hak akses admin di database.
+
 ## Fitur utama
 
 - Login dan pendaftaran akun pengguna.
