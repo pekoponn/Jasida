@@ -30,6 +30,7 @@ export const test = base.extend({
       notifications: [],
       priceReferences: [],
       failCatalog: false,
+      catalogSaveFailure: false,
       username: 'Juri',
       writes: [],
       reports: [],
@@ -186,23 +187,64 @@ export const test = base.extend({
         }
         if (table === 'material_price_references') {
           if (state.failCatalog) return json({ message: 'Katalog belum tersedia' }, 503);
-          if (request.method() === 'POST') {
-            const rows = request.postDataJSON();
-            const requestHeaders = request.headers();
-            const ignoreDuplicates = requestHeaders.prefer?.includes(
-              'resolution=ignore-duplicates'
-            );
-            for (const row of rows) {
-              const index = state.priceReferences.findIndex(
-                (r) =>
-                  r.reference_code === row.reference_code && r.effective_year === row.effective_year
-              );
-              if (index < 0) state.priceReferences.push(row);
-              else if (!ignoreDuplicates) state.priceReferences[index] = row;
-            }
-            state.writes.push({ type: 'catalog', data: rows });
-          }
+          if (request.method() !== 'GET')
+            return json({ message: 'Direct catalog write denied' }, 403);
           return json(state.priceReferences);
+        }
+        if (table === 'rpc/jasida_save_price_references') {
+          const args = request.postDataJSON();
+          state.writes.push({ type: 'catalog-rpc', data: args });
+          if (state.catalogSaveFailure)
+            return json({ code: '23505', message: 'Duplicate catalog entry' }, 409);
+          if (state.role !== 'admin') return json({ message: 'Hanya admin' }, 403);
+          const result = { created: 0, unchanged: 0, edited: 0, verified: 0 };
+          const previous = state.priceReferences.find((r) => r.id === args.p_target);
+          if (['edit_draft', 'verify'].includes(args.p_mode) && !previous)
+            return json({ message: 'Draft tidak ditemukan' }, 409);
+          if (args.p_mode === 'verify') {
+            if (!args.p_confirmed) return json({ message: 'Konfirmasi wajib' }, 409);
+            previous.verification_status = 'verified';
+            previous.verified_at = '2026-10-28T00:00:00Z';
+            result.verified = 1;
+            return json(result);
+          }
+          for (const row of args.p_rows) {
+            const match = state.priceReferences.find(
+              (r) =>
+                r.id !== args.p_target &&
+                r.reference_code === row.reference_code &&
+                r.effective_year === row.effective_year
+            );
+            if (match) {
+              const fields = Object.keys(row).filter((key) => match[key] !== row[key]);
+              if (fields.length)
+                return json({ message: `Konflik referensi: ${fields.join(', ')}` }, 409);
+              result.unchanged++;
+            }
+          }
+          if (args.p_mode === 'edit_draft') {
+            Object.assign(previous, args.p_rows[0]);
+            result.edited = 1;
+          } else {
+            for (const row of args.p_rows) {
+              if (
+                state.priceReferences.some(
+                  (r) =>
+                    r.reference_code === row.reference_code &&
+                    r.effective_year === row.effective_year
+                )
+              )
+                continue;
+              state.priceReferences.push({
+                ...row,
+                id: `catalog-${state.priceReferences.length + 1}`,
+                verification_status: 'draft',
+                verified_at: null,
+              });
+              result.created++;
+            }
+          }
+          return json(result);
         }
         if (['report_supports', 'comments'].includes(table)) return json([]);
         if (table?.startsWith('rpc/')) {

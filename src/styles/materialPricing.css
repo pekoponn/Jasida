@@ -152,3 +152,38 @@
     padding: 16px !important;
   }
 }
+.pricing-source-details {
+  margin: 16px 0;
+  padding: 12px 14px;
+  border: 1px solid #e5d2d4;
+  border-radius: 9px;
+}
+.pricing-source-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #78141c;
+}
+.pricing-source-details .pricing-form-grid {
+  margin-top: 14px;
+}
+.pricing-review-context,
+.pricing-conflict {
+  padding: 12px;
+  margin: 12px 0;
+  border: 1px solid #e5d2d4;
+  border-radius: 9px;
+  background: #fff8f1;
+}
+.pricing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+}
+.pricing-import-preview pre {
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
