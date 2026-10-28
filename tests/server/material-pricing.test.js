@@ -92,6 +92,8 @@ test('unit conversion never invents material density or sack mass', () => {
   assert.equal(convertPrice(10000, 'liter', 'm3'), 10000000);
   assert.equal(convertPrice(100, 'kg', 'm3'), null);
   assert.equal(convertPrice(100, 'sak', 'kg'), null);
+  assert.equal(convertPrice(100, 'buah', 'buah'), 100);
+  assert.equal(convertPrice(100, 'buah', 'batang'), null);
   assert.equal(convertPrice(NaN, 'kg', 'kg'), null);
 });
 test('official catalog validates origin, metadata, positive price and verification', () => {
@@ -99,12 +101,17 @@ test('official catalog validates origin, metadata, positive price and verificati
   for (const patch of [
     { reference_price: 0 },
     { reference_price: Infinity },
+    { reference_price: 1e15 },
     { source_url: 'https://sidoarjokab.go.id.evil.test' },
     { source_url: 'javascript:alert(1)' },
     { specification: '' },
     { reference_code: '' },
     { effective_year: 2026.5 },
     { verified_at: null },
+    { unit: 'kg/m3' },
+    { unit: 'invalid' },
+    { source_url: 'http://sidoarjokab.go.id' },
+    { material_name: 'x'.repeat(201) },
   ])
     assert.ok(validateReference({ ...reference, ...patch }).length);
 });

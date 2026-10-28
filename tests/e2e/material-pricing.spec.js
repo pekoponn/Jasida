@@ -96,11 +96,62 @@ test('empty catalog and no evaluation pairs show honest empty states', async ({
   await expect(page.getByText('Belum dapat dibandingkan.', { exact: false })).toBeVisible();
   await page.getByText('Katalog harga acuan resmi — input / import admin', { exact: true }).click();
   await page
-    .getByRole('button', { name: 'Pratinjau 2 referensi terverifikasi Perbup 27/2025' })
+    .getByRole('button', { name: 'Pratinjau 2 referensi Perbup 27/2025 sebagai draft' })
     .click();
-  await page.getByRole('button', { name: 'Simpan 2 referensi yang ditinjau' }).click();
-  await expect(page.getByRole('status')).toContainText('2 harga acuan disimpan');
-  expect(backend.writes.find((w) => w.type === 'catalog').data).toHaveLength(2);
+  await page.getByRole('button', { name: 'Import 2 referensi sebagai draft' }).click();
+  await expect(page.getByRole('status')).toContainText('Referensi baru disimpan sebagai draft');
+  const saved = backend.writes.find((w) => w.type === 'catalog').data;
+  expect(saved).toHaveLength(2);
+  expect(saved.every((r) => r.verification_status === 'draft' && r.verified_at === null)).toBe(
+    true
+  );
+});
+
+test('JSON verification is ignored; duplicate import preserves existing verified prices', async ({
+  page,
+  backend,
+}) => {
+  backend.role = 'admin';
+  backend.priceReferences = [reference];
+  await login(page);
+  await page.goto('/admin/statistik');
+  await page.getByText('Katalog harga acuan resmi — input / import admin', { exact: true }).click();
+  const picker = page.getByLabel('Import JSON (maks. 200 item, 1 MB)');
+  const rows = [reference, { ...reference, reference_code: 'NEW-DRAFT' }];
+  await picker.setInputFiles({
+    name: 'prices.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify(rows)),
+  });
+  await expect(page.getByText('"verification_status": "draft"').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Import 2 referensi sebagai draft' }).click();
+  await expect(page.getByRole('status')).toContainText('Import selesai');
+  expect(backend.priceReferences.find((r) => r.reference_code === 'TEST-ONLY')).toEqual(reference);
+  expect(backend.priceReferences.find((r) => r.reference_code === 'NEW-DRAFT')).toMatchObject({
+    verification_status: 'draft',
+    verified_at: null,
+  });
+  await picker.setInputFiles({
+    name: 'duplicate.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify([reference, reference])),
+  });
+  await expect(page.getByRole('alert')).toContainText('Kode dan tahun duplikat');
+  await expect(page.getByRole('button', { name: 'Import 2 referensi sebagai draft' })).toHaveCount(
+    0
+  );
+  await picker.setInputFiles({
+    name: 'large.json',
+    mimeType: 'application/json',
+    buffer: Buffer.alloc(1000001, 32),
+  });
+  await expect(page.getByRole('alert')).toContainText('File maksimal 1 MB');
+  await page.getByRole('button', { name: 'Tinjau & verifikasi' }).click();
+  await page.getByRole('button', { name: 'Simpan harga acuan' }).click();
+  await expect(page.getByRole('alert')).toContainText('centang pernyataan verifikasi');
+  expect(backend.priceReferences.find((r) => r.reference_code === 'NEW-DRAFT')).toMatchObject({
+    verification_status: 'draft',
+  });
 });
 test('start work saves independently entered estimate; completion never overwrites estimate', async ({
   page,

@@ -1,5 +1,9 @@
 import { useState } from 'react';
-import { savePriceReferences } from '../lib/priceCatalog.js';
+import {
+  importPriceReferences,
+  preparePriceImport,
+  savePriceReferences,
+} from '../lib/priceCatalog.js';
 import verifiedPrices from '../data/official-material-prices.json';
 import { rupiah } from './MaterialEditor.jsx';
 const empty = {
@@ -21,16 +25,23 @@ export default function PriceReferenceCatalog({ references, onReload }) {
     [error, setError] = useState(''),
     [message, setMessage] = useState(''),
     [busy, setBusy] = useState(false),
+    [attested, setAttested] = useState(false),
     [importRows, setImportRows] = useState(null);
-  async function save(rows) {
+  async function save(rows, importing = false) {
     setBusy(true);
     setError('');
     setMessage('');
     try {
-      await savePriceReferences(rows);
+      if (importing) await importPriceReferences(rows);
+      else await savePriceReferences(rows);
       await onReload();
-      setMessage(`${rows.length} harga acuan disimpan.`);
+      setMessage(
+        importing
+          ? 'Import selesai. Referensi baru disimpan sebagai draft; referensi yang sudah ada tidak diubah.'
+          : `${rows.length} harga acuan disimpan.`
+      );
       setImportRows(null);
+      if (!importing) setAttested(false);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -50,6 +61,10 @@ export default function PriceReferenceCatalog({ references, onReload }) {
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          if (form.verification_status === 'verified' && !attested) {
+            setError('Periksa dokumen sumber dan centang pernyataan verifikasi.');
+            return;
+          }
           save([
             {
               ...form,
@@ -122,6 +137,17 @@ export default function PriceReferenceCatalog({ references, onReload }) {
             </select>
           </label>
         </div>
+        {form.verification_status === 'verified' && (
+          <label className="pricing-check">
+            <input
+              type="checkbox"
+              checked={attested}
+              onChange={(e) => setAttested(e.target.checked)}
+            />
+            Saya telah mencocokkan nominal, kode, spesifikasi, satuan, tahun dan PPN dengan dokumen
+            sumber.
+          </label>
+        )}
         <p>
           <button disabled={busy}>Simpan harga acuan</button>
         </p>
@@ -138,10 +164,7 @@ export default function PriceReferenceCatalog({ references, onReload }) {
             if (!file) return;
             try {
               if (file.size > 1000000) throw new Error('File maksimal 1 MB.');
-              const rows = JSON.parse(await file.text());
-              if (!Array.isArray(rows) || !rows.length || rows.length > 200)
-                throw new Error('Isi array 1–200 item.');
-              setImportRows(rows);
+              setImportRows(preparePriceImport(JSON.parse(await file.text())));
             } catch (err) {
               setError(err.message);
             }
@@ -149,8 +172,12 @@ export default function PriceReferenceCatalog({ references, onReload }) {
         />
       </label>
       <p>
-        <button type="button" disabled={busy} onClick={() => setImportRows(verifiedPrices)}>
-          Pratinjau 2 referensi terverifikasi Perbup 27/2025
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => setImportRows(preparePriceImport(verifiedPrices))}
+        >
+          Pratinjau 2 referensi Perbup 27/2025 sebagai draft
         </button>
       </p>
       {importRows && (
@@ -158,12 +185,12 @@ export default function PriceReferenceCatalog({ references, onReload }) {
           <pre style={{ maxHeight: 200, overflow: 'auto', fontSize: 12 }}>
             {JSON.stringify(importRows, null, 2)}
           </pre>
-          <button disabled={busy} onClick={() => save(importRows)}>
-            Simpan {importRows.length} referensi yang ditinjau
+          <button disabled={busy} onClick={() => save(importRows, true)}>
+            Import {importRows.length} referensi sebagai draft
           </button>
           <p className="pricing-note">
-            Kode item dan tahun yang sama memperbarui katalog; snapshot sumber pada estimasi
-            historis tetap tersimpan.
+            Status verified dari JSON diabaikan. Referensi baru menjadi draft dan perlu pemeriksaan
+            admin; kode dan tahun yang sudah ada tidak diubah.
           </p>
         </>
       )}
@@ -201,6 +228,18 @@ export default function PriceReferenceCatalog({ references, onReload }) {
                   {r.verification_status}
                   <br />
                   {r.verified_at}
+                  {r.verification_status === 'draft' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForm({ ...r, verification_status: 'verified' });
+                        setAttested(false);
+                        setError('');
+                      }}
+                    >
+                      Tinjau &amp; verifikasi
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

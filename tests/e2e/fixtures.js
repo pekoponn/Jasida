@@ -188,7 +188,18 @@ export const test = base.extend({
           if (state.failCatalog) return json({ message: 'Katalog belum tersedia' }, 503);
           if (request.method() === 'POST') {
             const rows = request.postDataJSON();
-            state.priceReferences = rows;
+            const requestHeaders = request.headers();
+            const ignoreDuplicates = requestHeaders.prefer?.includes(
+              'resolution=ignore-duplicates'
+            );
+            for (const row of rows) {
+              const index = state.priceReferences.findIndex(
+                (r) =>
+                  r.reference_code === row.reference_code && r.effective_year === row.effective_year
+              );
+              if (index < 0) state.priceReferences.push(row);
+              else if (!ignoreDuplicates) state.priceReferences[index] = row;
+            }
             state.writes.push({ type: 'catalog', data: rows });
           }
           return json(state.priceReferences);
