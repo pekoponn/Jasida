@@ -3,6 +3,7 @@ import { fetchLocationReviews, reviewLocation } from '../lib/reports.js';
 import { damageTypeDisplayLabel } from '../ai/hazardScore.js';
 import ZoomableImage from '../components/ZoomableImage.jsx';
 import ReportEvidenceGallery from '../components/ReportEvidenceGallery.jsx';
+import { streetViewUrl, googleMapsUrl } from '../lib/mapLinks.js';
 
 const SOURCE_LABEL = {
   camera_gps: 'Kamera (GPS langsung)',
@@ -19,6 +20,8 @@ const FLAG_LABEL = {
 
 const DEFAULT_REJECT_REASON =
   'Lokasi pada peta tidak sesuai dengan foto. Silakan kirim ulang dengan lokasi yang benar.';
+
+const MEDIA_HEIGHT = 240;
 
 export default function AdminVerifikasiLokasiPage() {
   const [items, setItems] = useState([]);
@@ -59,6 +62,8 @@ export default function AdminVerifikasiLokasiPage() {
 
   return (
     <section>
+      <style>{pageCss}</style>
+
       <h1 className="display" style={{ fontSize: 24, marginBottom: 4 }}>
         Verifikasi Lokasi
       </h1>
@@ -143,15 +148,16 @@ function ReviewCard({ item, busy, onReview }) {
         </div>
       </div>
 
-      <div style={grid}>
-        <div>
+      {/* Empat kotak setinggi sama: peta, foto laporan, foto konteks, foto pendukung */}
+      <div style={mediaGrid}>
+        <div style={block}>
           <div style={label}>Lokasi pin</div>
           {hasLatLng ? (
             <>
-              <LocationMap lat={item.lat} lng={item.lng} />
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+              <LocationMap lat={item.lat} lng={item.lng} height={MEDIA_HEIGHT} />
+              <div style={linkRow}>
                 <a
-                  href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${item.lat},${item.lng}`}
+                  href={streetViewUrl(item.lat, item.lng)}
                   target="_blank"
                   rel="noreferrer"
                   style={linkBtn}
@@ -159,7 +165,7 @@ function ReviewCard({ item, busy, onReview }) {
                   Buka Street View
                 </a>
                 <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`}
+                  href={googleMapsUrl(item.lat, item.lng)}
                   target="_blank"
                   rel="noreferrer"
                   style={linkBtn}
@@ -167,36 +173,45 @@ function ReviewCard({ item, busy, onReview }) {
                   Buka di Google Maps
                 </a>
               </div>
-              {item.address && (
-                <div style={{ fontSize: 12, color: '#868e96', marginTop: 6 }}>{item.address}</div>
-              )}
+              {item.address && <div style={caption}>{item.address}</div>}
             </>
           ) : (
-            <div style={placeholderBox}>Koordinat tidak tersedia.</div>
+            <div style={{ ...placeholderBox, height: MEDIA_HEIGHT }}>Koordinat tidak tersedia.</div>
           )}
         </div>
 
-        <div>
+        <div style={block}>
           <div style={label}>Foto laporan</div>
           <ZoomableImage
             src={item.imageUrl || 'https://placehold.co/400x260?text=Tidak+ada+foto'}
             alt="Foto laporan"
             style={photoStyle}
           />
-          <ReportEvidenceGallery reportId={item.id} />
+          <div style={caption}>
+            {item.damage_type && (
+              <div style={{ fontWeight: 600 }}>{damageTypeDisplayLabel(item.damage_type)}</div>
+            )}
+            {item.note && <div style={{ marginTop: 2, fontStyle: 'italic' }}>"{item.note}"</div>}
+          </div>
+        </div>
 
-          <div style={{ ...label, marginTop: 14 }}>Foto konteks</div>
+        <div style={block}>
+          <div style={label}>Foto konteks</div>
           {item.contextPhoto ? (
-            <ZoomableImage src={item.contextPhoto.url} alt="Foto konteks" style={photoStyle} />
+            <>
+              <ZoomableImage src={item.contextPhoto.url} alt="Foto konteks" style={photoStyle} />
+              <div style={caption}>Foto lebar sekitar lokasi dari pelapor.</div>
+            </>
           ) : (
-            <div style={{ ...photoStyle, ...placeholderBox }}>
+            <div style={{ ...placeholderBox, height: MEDIA_HEIGHT }}>
               Pelapor tidak menyertakan foto konteks.
             </div>
           )}
-          <div style={{ marginTop: 8, fontSize: 12.5, color: '#495057' }}>
-            {item.damage_type && <div>{damageTypeDisplayLabel(item.damage_type)}</div>}
-            {item.note && <div style={{ marginTop: 4, fontStyle: 'italic' }}>"{item.note}"</div>}
-          </div>
+        </div>
+
+        {/* Foto pendukung (kotak ini otomatis hilang kalau tidak ada fotonya) */}
+        <div className="vl-gallery" style={block}>
+          <ReportEvidenceGallery reportId={item.id} />
         </div>
       </div>
 
@@ -254,7 +269,7 @@ function ReviewCard({ item, busy, onReview }) {
   );
 }
 
-function LocationMap({ lat, lng }) {
+function LocationMap({ lat, lng, height }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -287,10 +302,13 @@ function LocationMap({ lat, lng }) {
     };
   }, [lat, lng]);
 
-  return (
-    <div ref={ref} style={{ width: '100%', height: 260, borderRadius: 10, overflow: 'hidden' }} />
-  );
+  return <div ref={ref} style={{ width: '100%', height, borderRadius: 10, overflow: 'hidden' }} />;
 }
+
+const pageCss = `
+  /* Kotak foto pendukung disembunyikan otomatis kalau komponennya tidak menampilkan apa pun */
+  .vl-gallery:empty { display: none; }
+`;
 
 const emptyState = {
   marginTop: 20,
@@ -344,20 +362,25 @@ const infoPill = {
 const heldPill = { ...infoPill, color: '#8A6D00', background: '#FFF3CD' };
 const visiblePill = { ...infoPill, color: '#1c5dcf', background: '#E7F1FF' };
 
-const grid = {
+const mediaGrid = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
   gap: 20,
+  alignItems: 'start',
 };
 
+const block = { minWidth: 0 };
+
 const label = { fontSize: 13, fontWeight: 700, marginBottom: 8, color: '#495057' };
+
 const photoStyle = {
   width: '100%',
-  height: 200,
+  height: MEDIA_HEIGHT,
   objectFit: 'cover',
   borderRadius: 10,
   display: 'block',
 };
+
 const placeholderBox = {
   background: '#f8f9fa',
   border: '1px dashed #dee2e6',
@@ -365,15 +388,21 @@ const placeholderBox = {
   alignItems: 'center',
   justifyContent: 'center',
   color: '#adb5bd',
-  fontSize: 12,
+  fontSize: 12.5,
   textAlign: 'center',
   padding: 12,
-  minHeight: 80,
+  boxSizing: 'border-box',
   borderRadius: 10,
 };
 
+const caption = { marginTop: 8, fontSize: 12.5, color: '#868e96', lineHeight: 1.5 };
+
+const linkRow = { display: 'flex', gap: 8, marginTop: 10 };
+
 const linkBtn = {
-  padding: '7px 12px',
+  flex: 1,
+  textAlign: 'center',
+  padding: '8px 10px',
   borderRadius: 8,
   border: '1px solid #dee2e6',
   background: '#fff',
@@ -381,11 +410,12 @@ const linkBtn = {
   fontSize: 12.5,
   fontWeight: 700,
   textDecoration: 'none',
+  whiteSpace: 'nowrap',
 };
 
 const checkList = {
   listStyle: 'none',
-  margin: '16px 0 0',
+  margin: '18px 0 0',
   padding: '12px 14px',
   background: '#f8f9fa',
   borderRadius: 10,
