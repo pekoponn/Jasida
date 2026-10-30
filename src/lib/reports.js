@@ -759,3 +759,34 @@ export async function countPendingReviews() {
   ]);
   return { duplicate: dup.count ?? 0, location: loc.count ?? 0 };
 }
+
+export async function deleteReport(reportId) {
+  const { data: report, error: reportError } = await supabase
+    .from('reports')
+    .select('image_path')
+    .eq('id', reportId)
+    .single();
+  if (reportError) throw reportError;
+
+  const { data: photos, error: photosError } = await supabase
+    .from('report_photos')
+    .select('image_path')
+    .eq('report_id', reportId);
+  if (photosError) throw photosError;
+
+  const paths = [report.image_path, ...(photos ?? []).map((p) => p.image_path)].filter(Boolean);
+  const { data: deleted, error } = await supabase
+    .from('reports')
+    .delete()
+    .eq('id', reportId)
+    .select('id');
+  if (error) throw error;
+  if (!deleted?.length) {
+    throw new Error('Laporan tidak terhapus. Periksa RLS policy delete di Supabase.');
+  }
+
+  if (paths.length) {
+    const { error: storageError } = await supabase.storage.from('report-images').remove(paths);
+    if (storageError) console.warn('[deleteReport] foto gagal dihapus:', storageError.message);
+  }
+}

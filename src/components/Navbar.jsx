@@ -14,7 +14,7 @@ function DashedLine() {
         position: 'absolute',
         left: 0,
         right: 0,
-        bottom: 0,
+        top: '100%',
         height: 4,
         pointerEvents: 'none',
         backgroundImage:
@@ -96,7 +96,7 @@ export default function Navbar() {
             </nav>
             <DashedLine />
           </header>
-          <div style={{ height: headerHeight }} />
+          <div style={{ height: headerHeight + 5 }} />
         </>
       )}
 

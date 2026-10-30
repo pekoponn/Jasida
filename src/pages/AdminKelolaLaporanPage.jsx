@@ -6,6 +6,7 @@ import {
   acceptReport,
   startProgress,
   completeReportWithActuals,
+  deleteReport,
 } from '../lib/reports.js';
 import { damageTypeDisplayLabel, severityDisplayLabel } from '../ai/hazardScore.js';
 import {
@@ -91,6 +92,7 @@ export default function AdminKelolaLaporanPage() {
   const [rejectTarget, setRejectTarget] = useState(null);
   const [progressTarget, setProgressTarget] = useState(null);
   const [completeTarget, setCompleteTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const [severityFilter, setSeverityFilter] = useState('');
   const [kecamatanFilter, setKecamatanFilter] = useState('');
@@ -221,6 +223,19 @@ export default function AdminKelolaLaporanPage() {
       setCompleteTarget(null);
     } catch (err) {
       alert('Gagal menandai selesai: ' + err.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+    async function handleDelete(reportId) {
+    setBusyId(reportId);
+    try {
+      await deleteReport(reportId);
+      setReports((prev) => prev.filter((r) => r.id !== reportId));
+      setDeleteTarget(null);
+    } catch (err) {
+      alert('Gagal menghapus laporan: ' + err.message);
     } finally {
       setBusyId(null);
     }
@@ -400,6 +415,7 @@ export default function AdminKelolaLaporanPage() {
                     onCompleteClick={() => setCompleteTarget(r)}
                     onZoomPhoto={() => setZoomImage(r.imageUrl)}
                     onDetail={() => setDetailReport(r)}
+                    onDeleteClick={() => setDeleteTarget(r)}
                   />
                 ))}
               </tbody>
@@ -487,6 +503,17 @@ export default function AdminKelolaLaporanPage() {
               document.body
             )}
 
+          {deleteTarget &&
+            createPortal(
+              <DeleteModal
+                report={deleteTarget}
+                busy={busyId === deleteTarget.id}
+                onCancel={() => setDeleteTarget(null)}
+                onConfirm={() => handleDelete(deleteTarget.id)}
+              />,
+              document.body
+            )}
+
           {zoomImage && (
             <div style={zoomOverlay} onClick={() => setZoomImage(null)}>
               <img
@@ -521,6 +548,7 @@ function RowItem({
   onCompleteClick,
   onZoomPhoto,
   onDetail,
+  onDeleteClick,
 }) {
   const statusColor = STATUS_COLOR[report.status] ?? STATUS_COLOR.open;
   const normalizedSeverity = normalizeSeverity(report.severity);
@@ -596,46 +624,55 @@ function RowItem({
           </div>
         )}
       </td>
-      <td className="col-sticky" style={td}>
-        {report.status === 'open' && (
-          <div style={{ display: 'flex', gap: 6 }}>
+            <td className="col-sticky" style={td}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {report.status === 'open' && (
+            <>
+              <button
+                style={{ ...actionBtn, background: '#2f9e44' }}
+                disabled={busy}
+                onClick={onAccept}
+              >
+                Terima
+              </button>
+              <button
+                style={{ ...actionBtn, background: '#A61C24' }}
+                disabled={busy}
+                onClick={onRejectClick}
+              >
+                Tolak
+              </button>
+            </>
+          )}
+          {report.status === 'accepted' && (
+            <button
+              style={{ ...actionBtn, background: '#1c5dcf' }}
+              disabled={busy}
+              onClick={onProgressClick}
+            >
+              Mulai Kerjakan
+            </button>
+          )}
+          {report.status === 'in_progress' && (
             <button
               style={{ ...actionBtn, background: '#2f9e44' }}
               disabled={busy}
-              onClick={onAccept}
+              onClick={onCompleteClick}
             >
-              Terima
+              Tandai Selesai
             </button>
-            <button
-              style={{ ...actionBtn, background: '#A61C24' }}
-              disabled={busy}
-              onClick={onRejectClick}
-            >
-              Tolak
-            </button>
-          </div>
-        )}
-        {report.status === 'accepted' && (
+          )}
           <button
-            style={{ ...actionBtn, background: '#1c5dcf' }}
+            type="button"
+            style={deleteBtn}
             disabled={busy}
-            onClick={onProgressClick}
+            onClick={onDeleteClick}
+            aria-label="Hapus laporan"
+            title="Hapus laporan"
           >
-            Mulai Kerjakan
+            <TrashSvg />
           </button>
-        )}
-        {report.status === 'in_progress' && (
-          <button
-            style={{ ...actionBtn, background: '#2f9e44' }}
-            disabled={busy}
-            onClick={onCompleteClick}
-          >
-            Tandai Selesai
-          </button>
-        )}
-        {(report.status === 'resolved' || report.status === 'rejected') && (
-          <span style={{ fontSize: 12, color: '#adb5bd' }}>—</span>
-        )}
+        </div>
       </td>
     </tr>
   );
@@ -671,6 +708,54 @@ function RejectModal({ report, onCancel, onConfirm }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function DeleteModal({ report, busy, onCancel, onConfirm }) {
+  const kode = `#${String(report.id).slice(0, 6).toUpperCase()}-JASIDA`;
+  return (
+    <div style={overlay} onClick={busy ? undefined : onCancel}>
+      <div style={modal} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ marginTop: 0 }}>Hapus Laporan</h3>
+        <p style={{ fontSize: 14, color: '#495057', lineHeight: 1.5 }}>
+          Laporan <strong>{kode}</strong> beserta semua fotonya akan dihapus permanen dan tidak
+          bisa dikembalikan.
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+          <button style={secondaryBtn} disabled={busy} onClick={onCancel}>
+            Batal
+          </button>
+          <button
+            style={{ ...actionBtn, background: '#A61C24' }}
+            disabled={busy}
+            onClick={onConfirm}
+          >
+            {busy ? 'Menghapus…' : 'Ya, Hapus'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TrashSvg() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>
   );
 }
 
@@ -1344,6 +1429,20 @@ const secondaryBtn = {
   fontSize: 13,
   fontWeight: 600,
   cursor: 'pointer',
+};
+
+const deleteBtn = {
+  width: 32,
+  height: 32,
+  borderRadius: 8,
+  border: '1px solid #f1c0c4',
+  background: '#fff',
+  color: '#A61C24',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexShrink: 0,
 };
 
 const overlay = {
